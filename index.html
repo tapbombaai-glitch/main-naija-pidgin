@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Main Naija Pidgin - Voice Collector</title>
+<style>
+body{font-family:Arial;background:#0a0a0a;color:white;text-align:center;padding:20px}
+h1{color:#00ff88;font-size:28px}
+.card{background:#1a1a1a;padding:25px;border-radius:15px;margin:20px auto;max-width:400px;border:1px solid #333}
+button{background:#00ff88;color:black;padding:15px 30px;border:none;border-radius:30px;font-size:18px;font-weight:bold;width:100%;margin-top:15px}
+.text{font-size:20px;margin:15px 0;background:#222;padding:15px;border-radius:10px}
+.small{color:#aaa;font-size:14px;margin-top:20px}
+</style>
+</head>
+<body>
+<h1>🇳🇬 MAIN NAIJA PIDGIN</h1>
+<p>Voice Collector Lector</p>
+
+<div class="card">
+<div class="small">READ THIS OUT LOUD:</div>
+<div class="text" id="sentence">How you dey? I dey come your side now now.</div>
+<button onclick="nextSentence()">NEXT SENTENCE ➡️</button>
+<button onclick="startRec()" id="recBtn">🎤 TAP TO RECORD</button>
+<p id="status" class="small">Ready to collect your voice</p>
+</div>
+
+<p class="small">Built by tapbombaai-glitch<br>100% Main Naija Pidgin - No Spanish!</p>
+
+<script>
+const sentences=[
+"How you dey? I dey come your side now now.",
+"Wetin dey sup? Abeg no vex for me.",
+"Chairman, I don finish the work.",
+"Make we go chop, I dey hungry die.",
+"No wahala, I go run am for you sharp sharp.",
+"Na who be that? I no know am o.",
+"My guy, you too much! You try well.",
+"Abeg shift small make I siddon.",
+"Them don comot for house since morning.",
+"I wan go Aba go buy cloth.",
+"Omo, this heat too much for outside.",
+"Shebi you don chop? Make I bring food come.",
+"I dey for road, traffic hold me.",
+"No be lie, that thing sweet die!",
+"Make we yarn later, I dey busy now."
+];
+let i=0;
+function nextSentence(){
+i=(i+1)%sentences.length;
+document.getElementById('sentence').innerText=sentences[i];
+document.getElementById('status').innerText="New sentence loaded";
+}
+function startRec(){
+let btn=document.getElementById('recBtn');
+let st=document.getElementById('status');
+st.innerText="🎙️ Recording... (demo mode)";
+btn.innerText="⏹️ STOP RECORDING";
+btn.style.background="#ff4444";
+setTimeout(()=>{
+btn.innerText="🎤 TAP TO RECORD";
+btn.style.background="#00ff88";
+st.innerText="✅ Voice saved! (Demo) Tap NEXT";
+},2000);
+}
+</script>
+</body>
+</html>
