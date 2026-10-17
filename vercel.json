@@ -1,11 +1,8 @@
 {
   "rewrites": [
-    { "source": "/admin", "destination": "/index.html" },
-    { "source": "/admin/:path*", "destination": "/index.html" },
-    { "source": "/user", "destination": "/index.html" },
-    { "source": "/user/:path*", "destination": "/index.html" },
-    { "source": "/login", "destination": "/index.html" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "cleanUrls": true
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
