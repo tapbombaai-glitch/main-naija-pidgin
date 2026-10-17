@@ -1,222 +1,26 @@
-<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Naija Pidgin System</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-<style>
-*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px}
-.card{background:#111;border:1px solid #333;border-radius:14px;padding:14px;margin:10px 0}
-.btn{width:100%;padding:14px;border:none;border-radius:30px;font-weight:800;margin:6px 0;cursor:pointer}
-.green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}
-.textbox{background:#1e1e1e;border-left:4px solid #00ff88;padding:12px;border-radius:8px;font-size:17px;min-height:70px}
-.header{border:2px solid #00ff88;border-radius:14px;padding:12px;text-align:center;position:sticky;top:10px;background:#0a0a0a;z-index:10}
-.progress{height:12px;background:#222;border-radius:10px;overflow:hidden}.fill{height:100%;background:#00ff88;transition:0.4s}
-input{width:100%;padding:14px;border-radius:10px;border:1px solid #333;background:#222;color:#fff;margin:6px 0}
-.user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:10px;border-radius:10px;margin:6px 0}
-</style></head><body>
-
-<div id="app">Loading...</div>
-
-<script>
-const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
-const SUPABASE_KEY="YOUR_ANON_KEY";
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Naija Pidgin System</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script><style>*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padding-bottom:80px}.card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}.btn{width:100%;padding:18px;border:none;border-radius:35px;font-weight:900;font-size:16px;margin:8px 0;cursor:pointer}.green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}.textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:16px;border-radius:10px;font-size:18px;min-height:80px;line-height:1.5}.header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;position:sticky;top:10px;background:#0a0a0a;z-index:10}.progress{height:14px;background:#222;border-radius:10px;overflow:hidden}.fill{height:100%;background:#00ff88;transition:0.4s}input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}.user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:14px;border-radius:12px;margin:8px 0}.big{font-size:24px;font-weight:900}.nav{display:flex;gap:8px;overflow-x:auto}.nav button{white-space:nowrap;padding:12px 18px}</style></head><body><div id="app">Loading...</div><script>
+const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
+const SUPABASE_KEY="PASTE_YOUR_ANON_KEY_HERE";
 const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
-const TEXTS=[
-"Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.",
-"Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.",
-"Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.",
-"How you dey? I dey come your side now now. No comot for house, I dey road already.",
-"Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.",
-"Omo, this thing sweet die! I never see this kain sweet thing for my life before.",
-"No worry, I go sort am now now. Just give me five minutes make I arrange everything.",
-"Shey you don chop? Make we go eat for that new buka wey dem open for junction.",
-"Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.",
-"For this Lagos, if you no shine your eye, dem go carry you go where you no know.",
-"My brother, hustle must continue. Even if rain fall, we must still dey go.",
-"Abeg comot for road, make I pass. I get important meeting for Island by 2pm.",
-"Na God hand we dey. Everything wey we dey do, na God dey run am for us.",
-"You no fit understand this life if you never waka for street. Street na school.",
-"Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.",
-"Every day na new story for this town. You go hear something wey go shock you.",
-"I wan tell you something wey dey my mind since. I no fit hide am again.",
-"As I dey waka for road today, I see one fine girl wey make my head scatter.",
-"Work no dey finish, but man must chop. So make we go find food first.",
-"Last last, everything go better. Na just time we dey wait for this country."
-];
-
+const TEXTS=["Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.","Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.","Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.","How you dey? I dey come your side now now. No comot for house, I dey road already.","Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.","Omo, this thing sweet die! I never see this kain sweet thing for my life before.","No worry, I go sort am now now. Just give me five minutes make I arrange everything.","Shey you don chop? Make we go eat for that new buka wey dem open for junction.","Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.","For this Lagos, if you no shine your eye, dem go carry you go where you no know.","My brother, hustle must continue. Even if rain fall, we must still dey go.","Abeg comot for road, make I pass. I get important meeting for Island by 2pm.","Na God hand we dey. Everything wey we dey do, na God dey run am for us.","You no fit understand this life if you never waka for street. Street na school.","Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.","Every day na new story for this town. You go hear something wey go shock you.","I wan tell you something wey dey my mind since. I no fit hide am again.","As I dey waka for road today, I see one fine girl wey make my head scatter.","Work no dey finish, but man must chop. So make we go find food first.","Last last, everything go better. Na just time we dey wait for this country."];
 function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
-
-async function router(){
-  const path=location.pathname;
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  
-  if(!session && path!=='/login'){location.pathname='/login';return;}
-  if(session && path==='/login'){location.pathname='/';return;}
-
-  if(path.startsWith('/chairman')) return renderChairman(session);
-  if(path.startsWith('/user') || path==='/') return renderUser(session);
-}
-
-async function renderLogin(){
-  document.getElementById('app').innerHTML=`
-  <div class="card" style="max-width:400px;margin:40px auto">
-  <h2>🔐 LOGIN / SIGNUP</h2>
-  <input id="email" placeholder="Email">
-  <input id="pass" type="password" placeholder="Password">
-  <input id="name" placeholder="Your Name (for signup)">
-  <button class="btn green" onclick="doLogin()">LOGIN</button>
-  <button class="btn gray" onclick="doSignup()">SIGNUP AS WORKER</button>
-  <p style="font-size:12px;opacity:0.6">Chairman signup first, then set is_chairman=true in Supabase</p>
-  <p id="msg"></p>
-  </div>`;
-}
-async function doLogin(){
-  const e=email.value,p=pass.value;
-  const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
-  if(error) msg.innerText=error.message; else location.pathname='/';
-}
-async function doSignup(){
-  const e=email.value,p=pass.value,n=name.value||e.split('@')[0];
-  const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});
-  if(error){msg.innerText=error.message;return;}
-  await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n}]);
-  msg.innerText='Account created! Now login.';
-}
+async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN / CHAIRMAN LOGIN</h2><input id="email" placeholder="Chairman Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="font-size:12px">Only Chairman fit login here</p><p>Go <a href="/user/login" style="color:#00ff88">User Login</a></p><p id="msg"></p></div>`;}
+async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP AS WORKER</button><p style="font-size:12px">New worker? Enter name and signup</p><p>Chairman? <a href="/admin/login" style="color:gold">Admin Login</a></p><p id="msg"></p></div>`;}
+async function doLogin(type){const e=email.value,p=pass.value;const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});if(error){msg.innerText=error.message;return;}const {data:{session}}=await supabaseClient.auth.getSession();const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(type==='admin'){if(!prof?.is_chairman){msg.innerText='⛔ You no be Chairman!';return;}location.pathname='/admin/dashboard';}else{if(prof?.is_chairman){location.pathname='/admin/dashboard';}else{location.pathname='/user/dashboard';}}}
+async function doSignup(){const e=email.value,p=pass.value,n=name.value||e.split('@')[0];if(!e||!p){msg.innerText='Fill email and password';return;}const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});if(error){msg.innerText=error.message;return;}await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started'}]);msg.innerText='✅ Account created! Now login for /user/login';}
 window.doLogin=doLogin;window.doSignup=doSignup;
-
-// ===== USER SIDE =====
 let userState={idx:0,blob:null,url:null,recorder:null,chunks:[],total:0,list:[]};
-async function renderUser(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(profile?.is_chairman){location.pathname='/chairman';return;}
-  
-  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');
-  userState.list=recs||[]; userState.total=recs?.reduce((s,r)=>s+r.word_count,0)||0;
-  const current=TEXTS[userState.idx%TEXTS.length];
-
-  document.getElementById('app').innerHTML=`
-  <div class="header">
-    <div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div>
-    <h3 style="margin:4px">🎙️ PIDGIN RECORDING TASK</h3>
-    <h2>${userState.total} / 1,000 WORDS</h2>
-    <div class="progress"><div class="fill" style="width:${Math.min(100,userState.total/10)}%"></div></div>
-    <small>Recordings: ${recs.length} | Remaining: ${Math.max(0,1000-userState.total)} | ${userState.total>=1000?'🎉 COMPLETED':''}</small>
-    <button class="btn gray" style="padding:8px" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/login')">Logout</button>
-  </div>
-  <div class="card">
-    <small>Text #${recs.length+1} - ${countW(current)} words</small>
-    <div class="textbox">${current}</div>
-    <button class="btn green" id="startB" onclick="startR()">🎙️ Record</button>
-    <button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ Stop</button>
-    <div id="prev" style="display:none">
-      <audio id="aud" controls style="width:100%"></audio>
-      <button class="btn gray" onclick="playP()">▶️ Play</button>
-      <button class="btn gray" onclick="again()">🔄 Record Again</button>
-      <button class="btn green" id="saveB" onclick="saveR()">💾 Save</button>
-      <p id="smsg"></p>
-    </div>
-    <button class="btn green" id="nextB" style="display:none" onclick="nextT()">NEXT TEXT ➡️</button>
-  </div>
-  <div class="card">
-    <h3>Your Recordings</h3>
-    <div>${recs.map(r=>`<div class="user-row"><div><b>${String(r.recording_number).padStart(3,'0')}</b> ${r.pidgin_text.slice(0,30)}...<br><small>${r.word_count} words</small></div><button class="btn green" style="width:auto;padding:6px 12px" onclick="new Audio('${r.audio_url}').play()">▶️</button></div>`).join('')||'No recordings'}</div>
-    ${userState.total>=1000?`<button class="btn green" onclick="downloadMine()">📦 DOWNLOAD ALL MY RECORDINGS</button>`:''}
-  </div>`;
-}
-
-async function startR(){
-  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-  userState.chunks=[]; userState.recorder=new MediaRecorder(stream);
-  userState.recorder.ondataavailable=e=>userState.chunks.push(e.data);
-  userState.recorder.onstop=()=>{
-    userState.blob=new Blob(userState.chunks,{type:'audio/webm'});
-    userState.url=URL.createObjectURL(userState.blob);
-    aud.src=userState.url; document.getElementById('prev').style.display='block';
-    startB.style.display='none'; stopB.style.display='none';
-  };
-  userState.recorder.start(); startB.style.display='none'; stopB.style.display='block';
-  userState._stream=stream;
-}
-function stopR(){userState.recorder.stop();userState._stream.getTracks().forEach(t=>t.stop());}
-function playP(){aud.play();} 
-function again(){document.getElementById('prev').style.display='none';startB.style.display='block';}
-async function saveR(){
-  saveB.disabled=true; saveB.innerText='Uploading...';
-  const text=document.querySelector('.textbox').innerText; const wc=countW(text);
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  const num=userState.list.length+1; const fname=`${String(num).padStart(3,'0')}_pidgin_recording.webm`;
-  const path=`${session.user.id}/${fname}`;
-  try{
-    const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob);
-    if(upErr) throw upErr;
-    const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);
-    const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);
-    if(dbErr) throw dbErr;
-    await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);
-    smsg.innerText='✅ SAVED!'; nextB.style.display='block'; document.getElementById('prev').style.display='none';
-    setTimeout(()=>location.reload(),1000);
-  }catch(e){smsg.innerText='❌ Recording was not saved. '+e.message; saveB.disabled=false;}
-}
-function nextT(){userState.idx++;renderUser({user:{id:(await supabaseClient.auth.getSession()).data.session.user.id}}); location.reload();}
-async function downloadMine(){
-  const zip=new JSZip(); const folder=zip.folder('my_recordings'); let trans='';
-  for(const r of userState.list){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`; const b=await fetch(r.audio_url).then(r=>r.blob()); folder.file(r.file_name,b);}
-  folder.file('transcript.txt',trans); const blob=await zip.generateAsync({type:'blob'}); const u=URL.createObjectURL(blob); const a=document.createElement('a');a.href=u;a.download='MY_RECORDINGS.zip';a.click();
-}
-window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.nextT=nextT;window.downloadMine=downloadMine;
-
-// ===== CHAIRMAN SIDE =====
-async function renderChairman(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ ACCESS DENIED</h2><p>You are not Chairman</p><button class="btn gray" onclick="location.pathname=\'/user\'">Go to User Area</button></div>';return;}
-
-  const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});
-  const totalW=users.reduce((s,u)=>s+u.total_words,0);
-  const completed=users.filter(u=>u.total_words>=1000).length;
-  const recording=users.filter(u=>u.total_words>0&&u.total_words<1000).length;
-
-  document.getElementById('app').innerHTML=`
-  <div class="card" style="border-color:gold">
-    <h2>👑 CHAIRMAN DASHBOARD</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div class="card">Total Users<br><b>${users.length}</b></div>
-      <div class="card">Completed<br><b>${completed}</b></div>
-      <div class="card">Recording<br><b>${recording}</b></div>
-      <div class="card">Total Words<br><b>${totalW}</b></div>
-    </div>
-    <button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/login')">Logout Chairman</button>
-  </div>
-  <div class="card"><h3>All Users</h3>
-    ${users.map(u=>`<div class="user-row" onclick="openUser('${u.id}')"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words}/1000 ${u.total_words>=1000?'✅':''}</small></div><div>➡️</div></div>`).join('')}
-  </div>
-  <div id="userDetail"></div>`;
-}
-async function openUser(uid){
-  const {data:user}=await supabaseClient.from('profiles').select('*').eq('id',uid).single();
-  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid).order('recording_number');
-  document.getElementById('userDetail').innerHTML=`
-  <div class="card" style="border:2px solid #00ff88">
-    <h3>${user.display_name} - ${user.total_words}/1000</h3>
-    <p>User ID: ${user.id}<br>Email: ${user.email}<br>Recordings: ${recs.length}<br>Remaining: ${Math.max(0,1000-user.total_words)}<br>Date: ${new Date(user.created_at).toLocaleString()}</p>
-    ${recs.map(r=>`<div class="user-row"><div><b>${r.file_name}</b><br><small>${r.pidgin_text.slice(0,50)}...</small><br><small>Words: ${r.word_count} | ${new Date(r.created_at).toLocaleString()}</small></div><button class="btn green" style="width:auto" onclick="new Audio('${r.audio_url}').play()">▶️ Play</button></div>`).join('')||'No recordings'}
-    <button class="btn green" onclick="downloadUser('${uid}')">📦 Download This User All</button>
-  </div>`;
-}
-async function downloadUser(uid){
-  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid);
-  const zip=new JSZip(); const folder=zip.folder('user_'+uid); let trans='';
-  for(const r of recs){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`; const b=await fetch(r.audio_url).then(r=>r.blob()); folder.file(r.file_name,b);}
-  folder.file('transcript.txt',trans); const blob=await zip.generateAsync({type:'blob'}); const u=URL.createObjectURL(blob); const a=document.createElement('a');a.href=u;a.download='USER_'+uid+'.zip';a.click();
-}
-window.openUser=openUser;window.downloadUser=downloadUser;
-
-(async()=>{
-  const path=location.pathname;
-  if(path==='/login') return renderLogin();
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){location.pathname='/login';return;}
-  if(path.startsWith('/chairman')) return renderChairman(session);
-  return renderUser(session);
-})();
+async function renderUserDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');userState.list=recs||[];userState.total=recs?.reduce((s,r)=>s+r.word_count,0)||0;const current=TEXTS[recs.length%TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100);document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto" onclick="location.pathname='/user/recordings'">My Recordings (${recs.length})</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div></div><div class="card"><small>Text #${recs.length+1} - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED!</h2><h3>1,000 / 1,000 WORDS ✅</h3><button class="btn gold" onclick="downloadMine()">⬇️ DOWNLOAD ALL RECORDINGS</button></div>`:''}`;}
+async function renderUserRecordings(session){const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');document.getElementById('app').innerHTML=`<div class="card"><h2>📁 MY RECORDINGS</h2><button class="btn gray" onclick="location.pathname='/user/dashboard'">⬅️ Back to Dashboard</button><div>${recs.map(r=>`<div class="user-row"><div><b>${String(r.recording_number).padStart(3,'0')}</b> ${r.file_name}<br><small>${r.pidgin_text.slice(0,40)}...</small><br><small>${r.word_count} words | ${new Date(r.created_at).toLocaleDateString()}</small></div><button class="btn green" style="width:auto;padding:10px" onclick="new Audio('${r.audio_url}').play()">▶️</button></div>`).join('')||'No recordings yet'}</div>${recs.length>0?`<button class="btn green" onclick="downloadMine()">📦 DOWNLOAD ALL</button>`:''}</div>`;}
+async function startR(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});userState.chunks=[];userState.recorder=new MediaRecorder(stream);userState.recorder.ondataavailable=e=>userState.chunks.push(e.data);userState.recorder.onstop=()=>{userState.blob=new Blob(userState.chunks,{type:'audio/webm'});userState.url=URL.createObjectURL(userState.blob);aud.src=userState.url;document.getElementById('prev').style.display='block';startB.style.display='none';stopB.style.display='none';};userState.recorder.start();startB.style.display='none';stopB.style.display='block';userState._stream=stream;}catch(e){alert('Allow microphone: '+e.message);}}
+function stopR(){userState.recorder.stop();userState._stream.getTracks().forEach(t=>t.stop());}function playP(){aud.play();}function again(){document.getElementById('prev').style.display='none';startB.style.display='block';}
+async function saveR(){saveB.disabled=true;saveB.innerText='Uploading...';const text=document.querySelector('.textbox').innerText;const wc=countW(text);const {data:{session}}=await supabaseClient.auth.getSession();const num=userState.list.length+1;const fname=`${String(num).padStart(3,'0')}_pidgin_recording.webm`;const path=`${session.user.id}/${fname}`;try{const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob);if(upErr)throw upErr;const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);if(dbErr)throw dbErr;await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);smsg.innerText='✅ SAVED!';nextB.style.display='block';document.getElementById('prev').style.display='none';setTimeout(()=>location.reload(),1200);}catch(e){smsg.innerText='❌ '+e.message;saveB.disabled=false;}}
+async function downloadMine(){const {data:{session}}=await supabaseClient.auth.getSession();const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id);const zip=new JSZip();const folder=zip.folder('my_recordings');let trans='';for(const r of recs){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`;const b=await fetch(r.audio_url).then(rr=>rr.blob());folder.file(r.file_name,b);}folder.file('transcript.txt',trans);const blob=await zip.generateAsync({type:'blob'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='MY_RECORDINGS.zip';a.click();}
+window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.downloadMine=downloadMine;
+async function renderAdminDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ NOT CHAIRMAN</h2><button class="btn gray" onclick="location.pathname=\'/user/dashboard\'">Go User Dashboard</button></div>';return;}const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});const totalW=users.reduce((s,u)=>s+(u.total_words||0),0);const completed=users.filter(u=>u.total_words>=1000).length;const recording=users.filter(u=>u.total_words>0&&u.total_words<1000).length;const notStarted=users.filter(u=>!u.total_words||u.total_words==0).length;const totalRecs=users.reduce((s,u)=>s+(u.recordings_count||0),0);document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Total Users<br><b class="big">${users.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Total Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Total Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card"><h3>Recent Users</h3>${users.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 ${u.total_words>=1000?'✅':''}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All Users</button></div><div id="userDetail"></div>`;}
+async function renderAdminUsers(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ ACCESS DENIED</h2></div>';return;}const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});document.getElementById('app').innerHTML=`<div class="card"><h2>👥 ALL USERS - ${users.length}</h2><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">Refresh</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div>${users.map((u,i)=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${i+1}. ${u.display_name}</b><br><small>${u.email}</small><br><small>${u.total_words||0} / 1000 ${u.total_words>=1000?'✅':u.total_words>0?'🎙️':'⚪'} | ${u.recordings_count||0} recs | ${u.status}</small></div><div>➡️</div></div>`).join('')}</div>`;}
+async function renderAdminUserDetail(session,uid){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ ACCESS DENIED</h2></div>';return;}const {data:user}=await supabaseClient.from('profiles').select('*').eq('id',uid).single();const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid).order('recording_number');document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name}</h3><p><b>Email:</b> ${user.email}<br><b>User ID:</b> ${user.id}<br><b>Total Words:</b> ${user.total_words||0}/1000<br><b>Recordings:</b> ${recs.length}<br><b>Remaining:</b> ${Math.max(0,1000-(user.total_words||0))}<br><b>Status:</b> ${user.status}<br><b>Date:</b> ${new Date(user.created_at).toLocaleString()}</p><button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back to Users</button><button class="btn gold" onclick="downloadUser('${uid}')">📦 Download This User All</button></div><div class="card"><h3>🎙️ Recordings - ${recs.length}</h3>${recs.map(r=>`<div class="card" style="background:#181818"><b>${r.file_name}</b><br><div class="textbox" style="font-size:14px">${r.pidgin_text}</div><small>Words: ${r.word_count} | ${new Date(r.created_at).toLocaleString()}</small><br><button class="btn green" onclick="new Audio('${r.audio_url}').play()">▶️ Play Audio</button></div>`).join('')||'No recordings'}</div>`;}
+async function downloadUser(uid){const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid);const zip=new JSZip();const folder=zip.folder('user_'+uid);let trans='';for(const r of recs){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`;const b=await fetch(r.audio_url).then(rr=>rr.blob());folder.file(r.file_name,b);}folder.file('transcript.txt',trans);const blob=await zip.generateAsync({type:'blob'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='USER_'+uid+'.zip';a.click();}
+window.downloadUser=downloadUser;
+(async()=>{const path=location.pathname;if(path==='/admin/login')return renderLoginAdmin();if(path==='/user/login')return renderLoginUser();if(path==='/login'){location.pathname='/user/login';return;}const {data:{session}}=await supabaseClient.auth.getSession();if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}else{location.pathname='/user/login';return;}}if(path==='/admin/dashboard')return renderAdminDashboard(session);if(path==='/admin/users')return renderAdminUsers(session);if(path.startsWith('/admin/users/')){const uid=path.split('/').pop();return renderAdminUserDetail(session,uid);}if(path==='/user/dashboard')return renderUserDashboard(session);if(path==='/user/recordings')return renderUserRecordings(session);if(path==='/'||path==='/user'){location.pathname='/user/dashboard';return;}if(path==='/admin'||path==='/admin/'){location.pathname='/admin/dashboard';return;}location.pathname='/user/dashboard';})();
 </script></body></html>
