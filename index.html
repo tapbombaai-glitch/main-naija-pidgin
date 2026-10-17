@@ -2,67 +2,198 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Main Naija Pidgin - Voice Collector</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pidgin Recorder - 1000 Words</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
-body{font-family:Arial;background:#0a0a0a;color:white;text-align:center;padding:20px}
-h1{color:#00ff88;font-size:28px}
-.card{background:#1a1a1a;padding:25px;border-radius:15px;margin:20px auto;max-width:400px;border:1px solid #333}
-button{background:#00ff88;color:black;padding:15px 30px;border:none;border-radius:30px;font-size:18px;font-weight:bold;width:100%;margin-top:15px}
-.text{font-size:20px;margin:15px 0;background:#222;padding:15px;border-radius:10px}
-.small{color:#aaa;font-size:14px;margin-top:20px}
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px}
+.header{background:#0a0a0a;border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;position:sticky;top:10px;z-index:10}
+.progress-bar{height:14px;background:#222;border-radius:10px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;background:#00ff88;transition:0.5s}
+.card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}
+.text-box{background:#1e1e1e;border-left:4px solid #00ff88;padding:14px;border-radius:8px;font-size:18px;line-height:1.5;min-height:80px}
+button{width:100%;padding:16px;border:none;border-radius:30px;font-weight:800;font-size:16px;margin:6px 0;cursor:pointer}
+.btn-green{background:#00ff88;color:#000}.btn-red{background:#ff3b3b;color:#fff}.btn-gray{background:#333;color:#fff}
+.btn:disabled{opacity:0.4}
+.mic-ok{color:#00ff88}.mic-bad{color:#ff3b3b}
+.rec-item{background:#181818;border:1px solid #2a2a2a;border-radius:12px;padding:10px;margin:8px 0;display:flex;justify-content:space-between;align-items:center}
+audio{width:100%;margin-top:8px}
 </style>
 </head>
 <body>
-<h1>🇳🇬 MAIN NAIJA PIDGIN</h1>
-<p>Voice Collector Lector</p>
 
-<div class="card">
-<div class="small">READ THIS OUT LOUD:</div>
-<div class="text" id="sentence">How you dey? I dey come your side now now.</div>
-<button onclick="nextSentence()">NEXT SENTENCE ➡️</button>
-<button onclick="startRec()" id="recBtn">🎤 TAP TO RECORD</button>
-<p id="status" class="small">Ready to collect your voice</p>
+<div class="header">
+  <div>🎙️ PIDGIN RECORDING</div>
+  <h2 style="margin:4px 0" id="wordCount">0 / 1,000 WORDS</h2>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  <div style="display:flex;justify-content:space-between;font-size:13px;opacity:0.8">
+    <span id="recCount">Recordings: 0</span>
+    <span id="remain">Remaining: 1000</span>
+    <span id="micStatus" class="mic-bad">❌ Mic check...</span>
+  </div>
+  <div id="percent">0%</div>
 </div>
 
-<p class="small">Built by tapbombaai-glitch<br>100% Main Naija Pidgin - No Spanish!</p>
+<div class="card">
+  <small>CURRENT TEXT • <span id="wordCountCurrent">0 words</span> • #<span id="recNumber">001</span></small>
+  <div class="text-box" id="pidginText">Loading texts...</div>
+  
+  <button class="btn-green" id="startBtn" onclick="startRec()">▶️ START RECORDING</button>
+  <button class="btn-red" id="stopBtn" onclick="stopRec()" style="display:none">⏹️ STOP RECORDING</button>
+  
+  <div id="previewArea" style="display:none">
+    <audio id="previewPlayer" controls></audio>
+    <button class="btn-gray" onclick="playPreview()">▶️ PLAY RECORDING</button>
+    <button class="btn-gray" onclick="recordAgain()">🔄 RECORD AGAIN</button>
+    <button class="btn-green" id="saveBtn" onclick="saveRecording()">✅ SAVE RECORDING</button>
+    <p id="saveStatus"></p>
+  </div>
+  
+  <button class="btn-green" id="nextBtn" onclick="nextText()" style="display:none">NEXT TEXT ➡️</button>
+</div>
+
+<div class="card" id="completeCard" style="display:none;text-align:center;border-color:gold">
+  <h2>🎉 TARGET COMPLETED!</h2>
+  <h3>1,000 / 1,000 WORDS</h3>
+  <button class="btn-green" onclick="downloadAll()">📦 DOWNLOAD ALL RECORDINGS</button>
+  <button class="btn-gray" onclick="continueBeyond()">Continue beyond 1000</button>
+</div>
+
+<div class="card">
+  <h3>📋 Recording List (<span id="listCount">0</span>)</h3>
+  <div id="recordingList">No recordings yet</div>
+</div>
 
 <script>
-const sentences=[
-"How you dey? I dey come your side now now.",
-"Wetin dey sup? Abeg no vex for me.",
-"Chairman, I don finish the work.",
-"Make we go chop, I dey hungry die.",
-"No wahala, I go run am for you sharp sharp.",
-"Na who be that? I no know am o.",
-"My guy, you too much! You try well.",
-"Abeg shift small make I siddon.",
-"Them don comot for house since morning.",
-"I wan go Aba go buy cloth.",
-"Omo, this heat too much for outside.",
-"Shebi you don chop? Make I bring food come.",
-"I dey for road, traffic hold me.",
-"No be lie, that thing sweet die!",
-"Make we yarn later, I dey busy now."
+// === CONFIG - REPLACE WITH YOURS ===
+const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const PIDGIN_TEXTS = [
+"Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.",
+"Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.",
+"Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.",
+"How you dey? I dey come your side now now. No comot for house, I dey road already.",
+"Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.",
+"Omo, this thing sweet die! I never see this kain sweet thing for my life before.",
+"No worry, I go sort am now now. Just give me five minutes make I arrange everything.",
+"Shey you don chop? Make we go eat for that new buka wey dem open for junction.",
+"Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.",
+"For this Lagos, if you no shine your eye, dem go carry you go where you no know.",
+"My brother, hustle must continue. Even if rain fall, we must still dey go.",
+"Abeg comot for road, make I pass. I get important meeting for Island by 2pm.",
+"Na God hand we dey. Everything wey we dey do, na God dey run am for us.",
+"You no fit understand this life if you never waka for street. Street na school.",
+"Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.",
+"Every day na new story for this town. You go hear something wey go shock you.",
+"I wan tell you something wey dey my mind since. I no fit hide am again.",
+"As I dey waka for road today, I see one fine girl wey make my head scatter.",
+"Work no dey finish, but man must chop. So make we go find food first.",
+"Last last, everything go better. Na just time we dey wait for this country."
 ];
-let i=0;
-function nextSentence(){
-i=(i+1)%sentences.length;
-document.getElementById('sentence').innerText=sentences[i];
-document.getElementById('status').innerText="New sentence loaded";
+
+let currentIdx=0, totalWords=0, recordings=[], mediaRecorder, audioChunks=[], currentBlob=null, currentUrl=null, workerId=localStorage.getItem('pidgin_worker')||'worker_'+Math.random().toString(36).slice(2,8);
+localStorage.setItem('pidgin_worker',workerId);
+let streamRef=null;
+
+function countWords(t){return t.trim().split(/\s+/).filter(w=>w.length>0).length;}
+function updateProgress(){
+  document.getElementById('wordCount').innerText=`${totalWords} / 1,000 WORDS`;
+  const pct=Math.min(100,(totalWords/1000*100).toFixed(1));
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('percent').innerText=`${pct}%`;
+  document.getElementById('recCount').innerText=`Recordings: ${recordings.length}`;
+  document.getElementById('remain').innerText=`Remaining: ${Math.max(0,1000-totalWords)}`;
+  document.getElementById('listCount').innerText=recordings.length;
+  if(totalWords>=1000) document.getElementById('completeCard').style.display='block';
 }
-function startRec(){
-let btn=document.getElementById('recBtn');
-let st=document.getElementById('status');
-st.innerText="🎙️ Recording... (demo mode)";
-btn.innerText="⏹️ STOP RECORDING";
-btn.style.background="#ff4444";
-setTimeout(()=>{
-btn.innerText="🎤 TAP TO RECORD";
-btn.style.background="#00ff88";
-st.innerText="✅ Voice saved! (Demo) Tap NEXT";
-},2000);
+function loadText(){
+  const text=PIDGIN_TEXTS[currentIdx % PIDGIN_TEXTS.length];
+  document.getElementById('pidginText').innerText=text;
+  document.getElementById('wordCountCurrent').innerText=countWords(text)+' words';
+  document.getElementById('recNumber').innerText=String(recordings.length+1).padStart(3,'0');
 }
+async function checkMic(){
+  try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());document.getElementById('micStatus').innerHTML='🎙️ <span class="mic-ok">Microphone ready</span>';}
+  catch(e){document.getElementById('micStatus').innerHTML='❌ Microphone permission required';}
+}
+async function startRec(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});
+    streamRef=stream; audioChunks=[];
+    mediaRecorder=new MediaRecorder(stream,{mimeType:MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/mp4'});
+    mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.onstop=()=>{
+      currentBlob=new Blob(audioChunks,{type:mediaRecorder.mimeType});
+      currentUrl=URL.createObjectURL(currentBlob);
+      const p=document.getElementById('previewPlayer');p.src=currentUrl;document.getElementById('previewArea').style.display='block';
+      document.getElementById('startBtn').style.display='none';document.getElementById('stopBtn').style.display='none';
+    };
+    mediaRecorder.start();
+    document.getElementById('startBtn').style.display='none';document.getElementById('stopBtn').style.display='block';
+  }catch(err){alert('Abeg allow microphone for Settings');}
+}
+function stopRec(){if(mediaRecorder&&mediaRecorder.state!=='inactive'){mediaRecorder.stop();if(streamRef)streamRef.getTracks().forEach(t=>t.stop());}}
+function playPreview(){document.getElementById('previewPlayer').play();}
+function recordAgain(){
+  currentBlob=null; if(currentUrl) URL.revokeObjectURL(currentUrl);
+  document.getElementById('previewArea').style.display='none';document.getElementById('startBtn').style.display='block';
+}
+async function saveRecording(){
+  if(!currentBlob) return;
+  const btn=document.getElementById('saveBtn');btn.disabled=true;btn.innerText='⏳ Uploading...';
+  const text=document.getElementById('pidginText').innerText; const wc=countWords(text);
+  const recNum=recordings.length+1; const fileName=`${String(recNum).padStart(3,'0')}_pidgin_recording.webm`;
+  const filePath=`${workerId}/${fileName}`;
+  try{
+    const {data:uploadData,error:uploadErr}=await supabaseClient.storage.from('pidgin-recordings').upload(filePath,currentBlob,{contentType:currentBlob.type,upsert:false});
+    if(uploadErr) throw uploadErr;
+    const {data:urlData}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(filePath);
+    const audioUrl=urlData.publicUrl;
+    const {error:dbErr}=await supabaseClient.from('recordings').insert([{worker_id:workerId,recording_number:recNum,pidgin_text:text,word_count:wc,audio_url:audioUrl,file_name:fileName,status:'SAVED'}]);
+    if(dbErr){
+      await supabaseClient.storage.from('pidgin-recordings').remove([filePath]); throw dbErr;
+    }
+    recordings.push({number:recNum,text,wc,fileName,audioUrl,blob:currentBlob,localUrl:currentUrl});
+    totalWords+=wc; localStorage.setItem('pidgin_progress_'+workerId,JSON.stringify({totalWords,recordings:recordings.map(r=>({number:r.number,text:r.text,wc:r.wc,fileName:r.fileName,audioUrl:r.audioUrl}))}));
+    document.getElementById('saveStatus').innerHTML='✅ SAVED!';
+    renderList(); updateProgress();
+    document.getElementById('previewArea').style.display='none';document.getElementById('nextBtn').style.display='block';
+    btn.disabled=false;btn.innerText='✅ SAVE RECORDING';
+  }catch(e){
+    console.error(e);document.getElementById('saveStatus').innerHTML='❌ Recording was not saved. Please try again.';btn.disabled=false;btn.innerText='✅ SAVE RECORDING';
+  }
+}
+function nextText(){
+  currentIdx++; if(totalWords>=1000&&!confirm('You don reach 1000. Continue?')) return;
+  loadText(); document.getElementById('nextBtn').style.display='none';document.getElementById('startBtn').style.display='block';document.getElementById('saveStatus').innerText=''; recordAgain();
+}
+function renderList(){
+  const list=document.getElementById('recordingList');
+  if(!recordings.length){list.innerHTML='No recordings yet';return;}
+  list.innerHTML=recordings.map(r=>`<div class="rec-item"><div><b>Recording ${String(r.number).padStart(3,'0')}</b><br><small>${r.text.slice(0,40)}...</small><br><small>Words: ${r.wc} | SAVED</small></div><button class="btn-green" style="width:auto;padding:8px 14px" onclick="playRec(${r.number})">▶️ Play</button></div>`).join('');
+}
+function playRec(num){const rec=recordings.find(r=>r.number===num);if(rec){const a=new Audio(rec.audioUrl||rec.localUrl);a.play();}}
+async function downloadAll(){
+  if(!recordings.length){alert('No recordings');return;}
+  const zip=new JSZip(); const folder=zip.folder('pidgin_recordings');
+  let transcript='FILENAME | WORDS | TEXT\n';
+  for(const r of recordings){
+    transcript+=`${r.fileName} | ${r.wc} | ${r.text}\n`;
+    try{const resp=await fetch(r.audioUrl);const blob=await resp.blob();folder.file(r.fileName,blob);}catch(e){console.log('skip fetch',e);}
+  }
+  folder.file('transcript.txt',transcript);
+  const content=await zip.generateAsync({type:'blob'});
+  const url=URL.createObjectURL(content);const a=document.createElement('a');a.href=url;a.download=`ALL_RECORDINGS_${workerId}.zip`;a.click();
+}
+function continueBeyond(){document.getElementById('completeCard').style.display='none';}
+(function init(){
+  const saved=localStorage.getItem('pidgin_progress_'+workerId);
+  if(saved){try{const d=JSON.parse(saved);totalWords=d.totalWords||0;recordings=d.recordings||[];}catch(e){}}
+  loadText();updateProgress();renderList();checkMic();
+})();
 </script>
 </body>
 </html>
