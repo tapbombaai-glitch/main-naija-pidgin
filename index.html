@@ -1,157 +1,26 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Ademi Pidgin Voice</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0c29;color:#fff;padding:16px;max-width:480px;margin:0 auto;min-height:100vh}
-h1{text-align:center;font-size:22px;margin:10px 0 4px}
-.subtitle{text-align:center;font-size:13px;opacity:0.7;margin-bottom:18px}
-.card{background:rgba(255,255,255,0.08);border-radius:16px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,0.12)}
-input,select,textarea{width:100%;padding:14px;border-radius:12px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid #555;font-size:16px;margin-bottom:12px}
-textarea{min-height:80px;resize:none}
-.btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:17px;font-weight:800;cursor:pointer;margin-top:8px}
-.btn-red{background:#ff4757;color:white}.btn-orange{background:#ffa502;color:#000}.btn-green{background:#2ed573;color:#000}
-.status-box{background:rgba(0,0,0,0.35);border-radius:12px;padding:14px;text-align:center;font-size:15px;font-weight:600;margin:12px 0;line-height:1.4}
-.progress-container{background:rgba(0,0,0,0.4);border-radius:20px;height:18px;margin:12px 0;overflow:hidden}
-.progress-bar{height:100%;background:linear-gradient(90deg,#ff4757,#ffa502,#2ed573);width:0%;transition:width 0.3s ease;border-radius:20px}
-.hours-card{background:linear-gradient(135deg,#667eea,#764ba2);border-radius:16px;padding:16px;text-align:center;border:2px solid #f1c40f;margin-bottom:16px}
-</style>
-</head>
-<body>
-<h1>🎙️ Ademi Pidgin Voice</h1>
-<p class="subtitle">Talk minimum 2 minutes • Real Pidgin only • ₦500 per 90 mins</p>
-<div id="announceBox" style="display:none;background:linear-gradient(135deg,#f1c40f,#ff9a00);border:2px solid #fff;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;font-weight:900;color:#000"></div>
-<div class="hours-card"><h3>💰 My Balance - Counting</h3><div id="myHoursText">Loading...</div></div>
-
-<!-- NEW: 2 PEOPLE LIVE CALL FEATURE -->
-<div class="card" style="border:2px solid #2ed573;background:linear-gradient(135deg,rgba(46,213,115,0.15),rgba(0,0,0,0.3))">
-<div style="font-weight:900;margin-bottom:8px;color:#2ed573">📞 LIVE CALL - 2 People Talk & Hear Each Other</div>
-<div style="font-size:11px;opacity:0.8;margin-bottom:10px">Share your ID for WhatsApp, other person go call you LIVE</div>
-<div style="font-size:11px;opacity:0.7">YOUR ID:</div>
-<div id="myPeerId" style="font-size:14px;font-weight:900;color:#f1c40f;word-break:break-all;background:rgba(0,0,0,0.4);padding:8px;border-radius:8px;margin:6px 0">Loading...</div>
-<button class="btn btn-green" style="padding:10px;font-size:13px" onclick="copyPeerId()">📋 Copy My ID & Send to Other Person</button>
-<input id="remotePeerId" placeholder="Paste OTHER person ID here to call them" style="margin-top:14px">
-<button class="btn btn-green" id="callBtn" onclick="startCall()">🔴 CALL NOW - Hear Each Other</button>
-<button class="btn btn-red" id="endCallBtn" onclick="endCallNow()" style="display:none">⏹️ END CALL</button>
-<div id="callStatus" style="text-align:center;font-size:12px;font-weight:700;margin-top:10px;opacity:0.9">✅ Ready for call</div>
-<audio id="remoteAudio" autoplay playsinline></audio>
-</div>
-
-<div class="card">
-<div style="font-weight:700;margin-bottom:10px;color:#f1c40f">🏦 Your Bank Details</div>
-<input id="accountName" placeholder="Account Name">
-<input id="accountNumber" placeholder="Account Number" inputmode="numeric">
-<input id="bankName" placeholder="Bank Name">
-</div>
-<div class="card">
-<input id="userName" placeholder="Your name">
-<select id="vLoc"><option>Port Harcourt</option><option>Lagos</option><option>Abuja</option><option>Warri</option><option>Other</option></select>
-<textarea id="vTranscript" placeholder="Your Pidgin will appear here while you talk..." readonly></textarea>
-<div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-<div style="text-align:center;font-size:14px;font-weight:800" id="progressText">0 / 120 seconds = ₦0.00</div>
-<div class="status-box" id="recStatus">✅ Ready</div>
-<button class="btn btn-red" id="recBtn" onclick="toggleRec()">🔴 START RECORDING</button>
-</div>
-<script>
-const SUPA_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
-const SUPA_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
-const sb=supabase.createClient(SUPA_URL,SUPA_KEY);
-const MIN_SECONDS=120,TARGET_SECONDS=5400,TARGET_PAY=500,RATE_PER_SECOND=TARGET_PAY/TARGET_SECONDS;
-let mediaRec=null,chunks=[],audioBlob=null,recognition=null,finalTranscript='',speakingTime=0,lastCheck=0,audioContext=null,analyser=null,isRecording=false;
-
-// --- NEW CALL LOGIC ---
-let peerObj=null, activeCall=null;
-function initPeer(){
- const peerId = 'ademi_' + (localStorage.getItem('pidgin_user_name')||'user').replace(/\s/g,'') + '_' + Math.floor(Math.random()*10000);
- peerObj = new Peer(peerId);
- peerObj.on('open', id => { document.getElementById('myPeerId').innerText = id; document.getElementById('callStatus').innerText='✅ Ready - Share your ID'; });
- peerObj.on('call', async call => {
-   document.getElementById('callStatus').innerText='📞 Incoming call... connecting...';
-   try{
-     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-     call.answer(stream);
-     call.on('stream', remoteStream => {
-       document.getElementById('remoteAudio').srcObject = remoteStream;
-       document.getElementById('callStatus').innerHTML='🔊 CONNECTED! Una dey hear each other LIVE!';
-       document.getElementById('callBtn').style.display='none';
-       document.getElementById('endCallBtn').style.display='block';
-     });
-     activeCall = call;
-   }catch(e){ alert(e.message) }
- });
-}
-async function startCall(){
- const remoteId = document.getElementById('remotePeerId').value.trim();
- if(!remoteId){alert('Paste other person ID first');return;}
- document.getElementById('callStatus').innerText='⏳ Calling...';
- try{
-   const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-   const call = peerObj.call(remoteId, stream);
-   call.on('stream', remoteStream => {
-     document.getElementById('remoteAudio').srcObject = remoteStream;
-     document.getElementById('callStatus').innerHTML='🔊 CONNECTED! Una dey hear each other LIVE!';
-     document.getElementById('callBtn').style.display='none';
-     document.getElementById('endCallBtn').style.display='block';
-   });
-   activeCall = call;
- }catch(e){ alert('Call failed: '+e.message); document.getElementById('callStatus').innerText='❌ Failed - Try again'; }
-}
-function endCallNow(){
- if(activeCall) activeCall.close();
- document.getElementById('remoteAudio').srcObject=null;
- document.getElementById('callStatus').innerText='✅ Call ended - Ready again';
- document.getElementById('callBtn').style.display='block';
- document.getElementById('endCallBtn').style.display='none';
-}
-function copyPeerId(){
- const id = document.getElementById('myPeerId').innerText;
- navigator.clipboard.writeText(id).then(()=>alert('ID copied! Send am for WhatsApp to other person make e call you')).catch(()=>{prompt('Copy this ID:',id)});
-}
-initPeer();
-// --- END NEW CALL LOGIC ---
-
-document.getElementById('userName').value=localStorage.getItem('pidgin_user_name')||'';
-document.getElementById('accountName').value=localStorage.getItem('pidgin_account_name')||'';
-document.getElementById('accountNumber').value=localStorage.getItem('pidgin_account_number')||'';
-document.getElementById('bankName').value=localStorage.getItem('pidgin_bank_name')||'';
-function setupSpeech(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR)return null;const rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-NG';rec.onresult=(e)=>{let t='';for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){finalTranscript+=e.results[i][0].transcript+' ';}else{t+=e.results[i][0].transcript;}}document.getElementById('vTranscript').value=finalTranscript+t;};return rec;}
-function updateProgress(){const p=Math.min((speakingTime/MIN_SECONDS)*100,100);document.getElementById('progressBar').style.width=p+'%';document.getElementById('progressText').innerText=`${Math.floor(speakingTime)} / ${MIN_SECONDS} secs = ₦${(speakingTime*RATE_PER_SECOND).toFixed(2)}`;}
-async function showAnnouncement(){try{const {data}=await sb.from('announcements').select('*').order('created_at',{ascending:false}).limit(1);if(data&&data[0]&&data[0].message){const b=document.getElementById('announceBox');b.style.display='block';b.innerHTML='📢 CHAIRMAN: '+data[0].message;}}catch(e){}}
-async function toggleRec(){
-if(isRecording){isRecording=false;document.getElementById('recBtn').innerText='⏳ Saving...';document.getElementById('recBtn').disabled=true;if(mediaRec&&mediaRec.state!=='inactive'){mediaRec.onstop=async()=>{if(chunks.length>0){audioBlob=new Blob(chunks,{type:'audio/webm'});await processRecording();}else{resetUI();}};mediaRec.stop();}if(recognition)try{recognition.stop();}catch(e){}if(audioContext)try{audioContext.close();}catch(e){}return;}
-const name=document.getElementById('userName').value.trim(),aN=document.getElementById('accountName').value.trim(),aNum=document.getElementById('accountNumber').value.trim(),bank=document.getElementById('bankName').value.trim();
-if(!name||!aN||!aNum||!bank){alert('Fill all details');return;}
-localStorage.setItem('pidgin_user_name',name);localStorage.setItem('pidgin_account_name',aN);localStorage.setItem('pidgin_account_number',aNum);localStorage.setItem('pidgin_bank_name',bank);
-finalTranscript='';document.getElementById('vTranscript').value='';speakingTime=0;chunks=[];audioBlob=null;updateProgress();
-try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});audioContext=new(window.AudioContext||window.webkitAudioContext)();const source=audioContext.createMediaStreamSource(stream);analyser=audioContext.createAnalyser();analyser.fftSize=512;source.connect(analyser);const d=new Uint8Array(analyser.frequencyBinCount);lastCheck=Date.now();function checkVoice(){if(!isRecording)return;analyser.getByteFrequencyData(d);let sum=0;for(let i=0;i<d.length;i++)sum+=d[i];const avg=sum/d.length,talking=avg>8,now=Date.now(),delta=(now-lastCheck)/1000;if(talking)speakingTime+=delta;else speakingTime+=delta*0.3;lastCheck=now;updateProgress();document.getElementById('recStatus').innerHTML= speakingTime>=MIN_SECONDS? `✅ Reach 2 mins! = ₦${(speakingTime*RATE_PER_SECOND).toFixed(2)}<br>STOP now` : `🔴 Talking... ${Math.floor(speakingTime)}s = ₦${(speakingTime*RATE_PER_SECOND).toFixed(2)}`;requestAnimationFrame(checkVoice);}mediaRec=new MediaRecorder(stream);mediaRec.ondataavailable=e=>{if(e.data&&e.data.size>0)chunks.push(e.data);};mediaRec.start(200);recognition=setupSpeech();if(recognition)recognition.start();isRecording=true;checkVoice();document.getElementById('recBtn').innerText='⏹️ STOP';document.getElementById('recBtn').className='btn btn-orange';}catch(err){alert(err.message);resetUI();}}
-async function processRecording(){
-const name=document.getElementById('userName').value.trim(),tr=document.getElementById('vTranscript').value.trim(),loc=document.getElementById('vLoc').value,aN=document.getElementById('accountName').value.trim(),aNum=document.getElementById('accountNumber').value.trim(),bank=document.getElementById('bankName').value.trim(),saved=Math.round(speakingTime);
-if(!audioBlob&&chunks.length>0)audioBlob=new Blob(chunks,{type:'audio/webm'});if(!audioBlob||saved<MIN_SECONDS){document.getElementById('recStatus').innerText='Only '+saved+'s';resetUI();return;}
-document.getElementById('recStatus').innerHTML=`✅ Your ${saved}s = ₦${(saved*RATE_PER_SECOND).toFixed(2)} don save!<br>⏳ Waiting Chairman approval`;
-try{const fn=Date.now()+'_'+name.replace(/\s+/g,'_')+'.webm';const{error:upErr}=await sb.storage.from('voices').upload(fn,audioBlob,{contentType:'audio/webm'});if(upErr)throw upErr;const{data:urlData}=sb.storage.from('voices').getPublicUrl(fn);await sb.from('voices').insert([{name:name,user_name:name,title:name+' - '+(speakingTime/60).toFixed(1)+'m',transcript:tr||'(Audio)',location:loc,duration_seconds:saved,approved_duration_seconds:0,audio_url:urlData.publicUrl,status:'UNCHECKED',account_name:aN,account_number:aNum,bank_name:bank}]);}catch(err){alert('Save failed '+err.message);}resetUI();loadMyHours();}
-function resetUI(){isRecording=false;document.getElementById('recBtn').innerText='🔴 START RECORDING';document.getElementById('recBtn').className='btn btn-red';document.getElementById('recBtn').disabled=false;speakingTime=0;updateProgress();}
-async function loadMyHours(){
-const myName=localStorage.getItem('pidgin_user_name')||'';if(!myName){document.getElementById('myHoursText').innerHTML='Enter name';return;}
-let {data}=await sb.from('voices').select('*').ilike('name',myName).limit(300);
-if(!data||data.length===0){const r2=await sb.from('voices').select('*').ilike('user_name',myName).limit(300);data=r2.data;}
-let approvedSecs=0,waitingSecs=0,totalSecs=0;
-if(data){data.forEach(v=>{const o=parseFloat(v.duration_seconds||0);totalSecs+=o;if(v.status==='QUALIFIED')approvedSecs+=parseFloat(v.approved_duration_seconds||0);else if(v.status==='UNCHECKED')waitingSecs+=o;});}
-const realMoney=approvedSecs*RATE_PER_SECOND;
-const waitingMoney=waitingSecs*RATE_PER_SECOND;
-document.getElementById('myHoursText').innerHTML=`
-<div style="font-size:13px;margin-bottom:4px">Total Recorded: <b>${Math.floor(totalSecs)}s</b></div>
-<div style="font-size:13px;margin-bottom:8px;color:#f1c40f">⏳ Pending (Waiting Approval): <b>${Math.floor(waitingSecs)}s = ₦${waitingMoney.toFixed(2)}</b></div>
-<div style="font-size:11px;opacity:0.8">MAIN MONEY (Approved)</div>
-<div style="font-size:32px;font-weight:900;color:#2ed573;margin:4px 0">₦${realMoney.toFixed(2)}</div>
-<div style="font-size:11px">✅ Approved: ${Math.floor(approvedSecs)}s / ${TARGET_SECONDS}s</div>
-`;
-}
-loadMyHours();showAnnouncement();
-</script>
-</body>
-</html>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Naija Pidgin System</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script><style>*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padding-bottom:80px}.card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}.btn{width:100%;padding:18px;border:none;border-radius:35px;font-weight:900;font-size:16px;margin:8px 0;cursor:pointer}.green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}.textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:16px;border-radius:10px;font-size:18px;min-height:80px;line-height:1.5}.header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;position:sticky;top:10px;background:#0a0a0a;z-index:10}.progress{height:14px;background:#222;border-radius:10px;overflow:hidden}.fill{height:100%;background:#00ff88;transition:0.4s}input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}.user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:14px;border-radius:12px;margin:8px 0}.big{font-size:24px;font-weight:900}.nav{display:flex;gap:8px;overflow-x:auto}.nav button{white-space:nowrap;padding:12px 18px}</style></head><body><div id="app">Loading...</div><script>
+const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
+const SUPABASE_KEY="PASTE_YOUR_ANON_KEY_HERE";
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const TEXTS=["Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.","Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.","Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.","How you dey? I dey come your side now now. No comot for house, I dey road already.","Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.","Omo, this thing sweet die! I never see this kain sweet thing for my life before.","No worry, I go sort am now now. Just give me five minutes make I arrange everything.","Shey you don chop? Make we go eat for that new buka wey dem open for junction.","Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.","For this Lagos, if you no shine your eye, dem go carry you go where you no know.","My brother, hustle must continue. Even if rain fall, we must still dey go.","Abeg comot for road, make I pass. I get important meeting for Island by 2pm.","Na God hand we dey. Everything wey we dey do, na God dey run am for us.","You no fit understand this life if you never waka for street. Street na school.","Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.","Every day na new story for this town. You go hear something wey go shock you.","I wan tell you something wey dey my mind since. I no fit hide am again.","As I dey waka for road today, I see one fine girl wey make my head scatter.","Work no dey finish, but man must chop. So make we go find food first.","Last last, everything go better. Na just time we dey wait for this country."];
+function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
+async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN / CHAIRMAN LOGIN</h2><input id="email" placeholder="Chairman Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="font-size:12px">Only Chairman fit login here</p><p>Go <a href="/user/login" style="color:#00ff88">User Login</a></p><p id="msg"></p></div>`;}
+async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP AS WORKER</button><p style="font-size:12px">New worker? Enter name and signup</p><p>Chairman? <a href="/admin/login" style="color:gold">Admin Login</a></p><p id="msg"></p></div>`;}
+async function doLogin(type){const e=email.value,p=pass.value;const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});if(error){msg.innerText=error.message;return;}const {data:{session}}=await supabaseClient.auth.getSession();const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(type==='admin'){if(!prof?.is_chairman){msg.innerText='⛔ You no be Chairman!';return;}location.pathname='/admin/dashboard';}else{if(prof?.is_chairman){location.pathname='/admin/dashboard';}else{location.pathname='/user/dashboard';}}}
+async function doSignup(){const e=email.value,p=pass.value,n=name.value||e.split('@')[0];if(!e||!p){msg.innerText='Fill email and password';return;}const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});if(error){msg.innerText=error.message;return;}await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started'}]);msg.innerText='✅ Account created! Now login for /user/login';}
+window.doLogin=doLogin;window.doSignup=doSignup;
+let userState={idx:0,blob:null,url:null,recorder:null,chunks:[],total:0,list:[]};
+async function renderUserDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');userState.list=recs||[];userState.total=recs?.reduce((s,r)=>s+r.word_count,0)||0;const current=TEXTS[recs.length%TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100);document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto" onclick="location.pathname='/user/recordings'">My Recordings (${recs.length})</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div></div><div class="card"><small>Text #${recs.length+1} - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED!</h2><h3>1,000 / 1,000 WORDS ✅</h3><button class="btn gold" onclick="downloadMine()">⬇️ DOWNLOAD ALL RECORDINGS</button></div>`:''}`;}
+async function renderUserRecordings(session){const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');document.getElementById('app').innerHTML=`<div class="card"><h2>📁 MY RECORDINGS</h2><button class="btn gray" onclick="location.pathname='/user/dashboard'">⬅️ Back to Dashboard</button><div>${recs.map(r=>`<div class="user-row"><div><b>${String(r.recording_number).padStart(3,'0')}</b> ${r.file_name}<br><small>${r.pidgin_text.slice(0,40)}...</small><br><small>${r.word_count} words | ${new Date(r.created_at).toLocaleDateString()}</small></div><button class="btn green" style="width:auto;padding:10px" onclick="new Audio('${r.audio_url}').play()">▶️</button></div>`).join('')||'No recordings yet'}</div>${recs.length>0?`<button class="btn green" onclick="downloadMine()">📦 DOWNLOAD ALL</button>`:''}</div>`;}
+async function startR(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});userState.chunks=[];userState.recorder=new MediaRecorder(stream);userState.recorder.ondataavailable=e=>userState.chunks.push(e.data);userState.recorder.onstop=()=>{userState.blob=new Blob(userState.chunks,{type:'audio/webm'});userState.url=URL.createObjectURL(userState.blob);aud.src=userState.url;document.getElementById('prev').style.display='block';startB.style.display='none';stopB.style.display='none';};userState.recorder.start();startB.style.display='none';stopB.style.display='block';userState._stream=stream;}catch(e){alert('Allow microphone: '+e.message);}}
+function stopR(){userState.recorder.stop();userState._stream.getTracks().forEach(t=>t.stop());}function playP(){aud.play();}function again(){document.getElementById('prev').style.display='none';startB.style.display='block';}
+async function saveR(){saveB.disabled=true;saveB.innerText='Uploading...';const text=document.querySelector('.textbox').innerText;const wc=countW(text);const {data:{session}}=await supabaseClient.auth.getSession();const num=userState.list.length+1;const fname=`${String(num).padStart(3,'0')}_pidgin_recording.webm`;const path=`${session.user.id}/${fname}`;try{const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob);if(upErr)throw upErr;const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);if(dbErr)throw dbErr;await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);smsg.innerText='✅ SAVED!';nextB.style.display='block';document.getElementById('prev').style.display='none';setTimeout(()=>location.reload(),1200);}catch(e){smsg.innerText='❌ '+e.message;saveB.disabled=false;}}
+async function downloadMine(){const {data:{session}}=await supabaseClient.auth.getSession();const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id);const zip=new JSZip();const folder=zip.folder('my_recordings');let trans='';for(const r of recs){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`;const b=await fetch(r.audio_url).then(rr=>rr.blob());folder.file(r.file_name,b);}folder.file('transcript.txt',trans);const blob=await zip.generateAsync({type:'blob'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='MY_RECORDINGS.zip';a.click();}
+window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.downloadMine=downloadMine;
+async function renderAdminDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ NOT CHAIRMAN</h2><button class="btn gray" onclick="location.pathname=\'/user/dashboard\'">Go User Dashboard</button></div>';return;}const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});const totalW=users.reduce((s,u)=>s+(u.total_words||0),0);const completed=users.filter(u=>u.total_words>=1000).length;const recording=users.filter(u=>u.total_words>0&&u.total_words<1000).length;const notStarted=users.filter(u=>!u.total_words||u.total_words==0).length;const totalRecs=users.reduce((s,u)=>s+(u.recordings_count||0),0);document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Total Users<br><b class="big">${users.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Total Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Total Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card"><h3>Recent Users</h3>${users.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 ${u.total_words>=1000?'✅':''}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All Users</button></div><div id="userDetail"></div>`;}
+async function renderAdminUsers(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ ACCESS DENIED</h2></div>';return;}const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});document.getElementById('app').innerHTML=`<div class="card"><h2>👥 ALL USERS - ${users.length}</h2><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">Refresh</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div>${users.map((u,i)=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${i+1}. ${u.display_name}</b><br><small>${u.email}</small><br><small>${u.total_words||0} / 1000 ${u.total_words>=1000?'✅':u.total_words>0?'🎙️':'⚪'} | ${u.recordings_count||0} recs | ${u.status}</small></div><div>➡️</div></div>`).join('')}</div>`;}
+async function renderAdminUserDetail(session,uid){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ ACCESS DENIED</h2></div>';return;}const {data:user}=await supabaseClient.from('profiles').select('*').eq('id',uid).single();const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid).order('recording_number');document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name}</h3><p><b>Email:</b> ${user.email}<br><b>User ID:</b> ${user.id}<br><b>Total Words:</b> ${user.total_words||0}/1000<br><b>Recordings:</b> ${recs.length}<br><b>Remaining:</b> ${Math.max(0,1000-(user.total_words||0))}<br><b>Status:</b> ${user.status}<br><b>Date:</b> ${new Date(user.created_at).toLocaleString()}</p><button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back to Users</button><button class="btn gold" onclick="downloadUser('${uid}')">📦 Download This User All</button></div><div class="card"><h3>🎙️ Recordings - ${recs.length}</h3>${recs.map(r=>`<div class="card" style="background:#181818"><b>${r.file_name}</b><br><div class="textbox" style="font-size:14px">${r.pidgin_text}</div><small>Words: ${r.word_count} | ${new Date(r.created_at).toLocaleString()}</small><br><button class="btn green" onclick="new Audio('${r.audio_url}').play()">▶️ Play Audio</button></div>`).join('')||'No recordings'}</div>`;}
+async function downloadUser(uid){const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid);const zip=new JSZip();const folder=zip.folder('user_'+uid);let trans='';for(const r of recs){trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`;const b=await fetch(r.audio_url).then(rr=>rr.blob());folder.file(r.file_name,b);}folder.file('transcript.txt',trans);const blob=await zip.generateAsync({type:'blob'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='USER_'+uid+'.zip';a.click();}
+window.downloadUser=downloadUser;
+(async()=>{const path=location.pathname;if(path==='/admin/login')return renderLoginAdmin();if(path==='/user/login')return renderLoginUser();if(path==='/login'){location.pathname='/user/login';return;}const {data:{session}}=await supabaseClient.auth.getSession();if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}else{location.pathname='/user/login';return;}}if(path==='/admin/dashboard')return renderAdminDashboard(session);if(path==='/admin/users')return renderAdminUsers(session);if(path.startsWith('/admin/users/')){const uid=path.split('/').pop();return renderAdminUserDetail(session,uid);}if(path==='/user/dashboard')return renderUserDashboard(session);if(path==='/user/recordings')return renderUserRecordings(session);if(path==='/'||path==='/user'){location.pathname='/user/dashboard';return;}if(path==='/admin'||path==='/admin/'){location.pathname='/admin/dashboard';return;}location.pathname='/user/dashboard';})();
+</script></body></html>
