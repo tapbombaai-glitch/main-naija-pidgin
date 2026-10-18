@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Naija Pidgin System - FINAL COMPLETE</title>
+<title>Naija Pidgin System - CHAIRMAN PRANK EDITION</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -143,7 +143,52 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
   async function cleanVoice(inputBlob){ try{const ab=await inputBlob.arrayBuffer();const AudioCtx=window.AudioContext||window.webkitAudioContext;const ctx=new AudioCtx();let dec;try{dec=await ctx.decodeAudioData(ab.slice(0));}catch(e){await ctx.close();return inputBlob;}const ch=dec.numberOfChannels,len=dec.length,sr=dec.sampleRate;const mono=new Float32Array(len);if(ch===1)mono.set(dec.getChannelData(0));else{for(let i=0;i<len;i++){let s=0;for(let c=0;c<ch;c++)s+=dec.getChannelData(c)[i];mono[i]=s/ch;}} const wav=encodeWav(mono,sr);await ctx.close();return wav;}catch(e){return inputBlob;}}
   function encodeWav(samples,sr){const buf=new ArrayBuffer(44+samples.length*2);const v=new DataView(buf);function ws(o,s){for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));} ws(0,'RIFF');v.setUint32(4,36+samples.length*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,samples.length*2,true);let off=44;for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));v.setInt16(off,s<0?s*0x8000:s*0x7fff,true);off+=2;}return new Blob([buf],{type:'audio/wav'});}
 
-  // WORKER ACCOUNT
+  // === CHAIRMAN PRANK - PIDGIN BUSINESS EDITION ===
+  function showChairmanBlockScreen(){
+    document.getElementById('app').innerHTML = `
+      <div id="prankBox" style="background:black; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; font-family:system-ui;">
+        <div style="font-size:90px; animation:shake 0.4s infinite;" id="emojiIcon">🚫</div>
+        <h1 style="font-size:32px; font-weight:900; color:red; margin:15px 0; line-height:1.2;" id="mainText">DON'T CLICK ON THE<br>CHAIRMAN</h1>
+        <h2 style="font-size:26px; color:white; background:red; padding:12px 22px; border-radius:12px; margin:10px 0; font-weight:900;" id="subText">OR YOU WILL BE BLOCKED!</h2>
+        <div style="background:#1a1a00; border:2px solid gold; border-radius:12px; padding:15px; margin:20px 0; max-width:400px;" id="warnBox">
+          <p style="color:yellow; font-size:16px; margin:5px; font-weight:bold;">⚠️ CHAIRMAN HOUSE! NO ENTRY!</p>
+          <p style="color:white; font-size:13px; margin:8px 0;">Your IP don save for Chairman database!</p>
+          <p style="color:#ff8888; font-size:12px; margin:5px;">Chairman dey para... e dey come!</p>
+        </div>
+        <div style="font-size:20px; color:yellow; font-weight:bold;" id="countdown">😱 4...</div>
+      </div>
+      <style>@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}</style>
+    `;
+    let count = 4;
+    const timer = setInterval(() => {
+      count--;
+      const cd = document.getElementById('countdown');
+      if(cd) cd.innerText = `😱 ${count}...`;
+      if(count <= 0){
+        clearInterval(timer);
+        document.getElementById('prankBox').innerHTML = `
+          <div style="font-size:90px;">😂</div>
+          <h1 style="font-size:33px; font-weight:900; color:#00ff88; margin:15px 0; line-height:1.2;">CHAIRMAN DEY<br>PULL YOUR LEG! 🤣</h1>
+          <h2 style="font-size:20px; color:black; background:gold; padding:12px 22px; border-radius:12px; margin:10px 0; font-weight:900;">NA PRANK O! NO VEX! 😅</h2>
+          <div style="background:#0a2e1a; border:2px solid #00ff88; border-radius:14px; padding:18px; margin:20px 0; max-width:420px; text-align:left;">
+            <p style="color:#00ff88; font-size:15px; margin:8px 0; font-weight:bold;">🗣️ Oya make I yarn you for Pidgin:</p>
+            <p style="color:white; font-size:14px; margin:8px 0;">😂 My guy, your heart don cut abi? No fear jare!</p>
+            <p style="color:white; font-size:14px; margin:8px 0;">Na Chairman dey use you catch cruise! We no go block you!</p>
+            <p style="color:white; font-size:14px; margin:8px 0;">That Admin Panel na for Chairman only - na business secret dey there! 🤫</p>
+            <p style="color:#aaa; font-size:13px; margin:8px 0;">But you sabi say you try? 😂 You get mind o! Chairman like your courage!</p>
+            <hr style="border:1px solid #333; margin:12px 0;">
+            <p style="color:gold; font-size:14px; margin:8px 0; font-weight:bold;">👉 Business be this: Go back go record your Pidgin make you hammer! 💰</p>
+            <p style="color:#888; font-size:11px; margin-top:10px;">Part of Broken & Pidgin English Business - One Love! ❤️ Warri no dey carry last!</p>
+          </div>
+          <button onclick="location.pathname='/user/dashboard'" style="margin-top:10px; padding:18px 38px; background:#00ff88; color:black; font-weight:900; border-radius:35px; font-size:17px; border:none; cursor:pointer;">
+            😂 HAHA! CHAIRMAN YOU WICKED! MAKE I GO WORK!
+          </button>
+        `;
+      }
+    }, 1000);
+  }
+  window.showChairmanBlockScreen = showChairmanBlockScreen;
+
   async function saveWorkerAccount(){
     const full_name=document.getElementById('acc_fullname')?.value.trim();
     const bank_name=document.getElementById('acc_bank')?.value;
@@ -184,8 +229,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     let csv='full_name,bank_name,account_number,account_name,phone,user_id\n';data.forEach(a=>{csv+=`"${a.full_name}","${a.bank_name}","${a.account_number}","${a.account_name}","${a.phone_number}","${a.user_id}"\n`;});
     const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='WORKER_ACCOUNTS.csv';link.click();
   }
-
-  // ANNOUNCEMENT BOARD
   async function loadAnnouncements(){
     try{
       const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(5);
@@ -199,8 +242,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     const {error}=await supabaseClient.from('announcements').insert({message:text,created_by:session.user.id});
     if(error){alert(error.message);}else{alert('✅ Announcement posted!');document.getElementById('announce_text').value='';location.reload();}
   }
-
-  // === FORGOT PASSWORD SYSTEM ===
   async function forgotPassword(){
     const emailInput = document.getElementById('email');
     let email = emailInput ? emailInput.value.trim() : '';
@@ -221,8 +262,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Password updated! Redirecting to login...';setTimeout(()=>{supabaseClient.auth.signOut().then(()=>location.pathname='/user/login');},1500);}
   }
   window.forgotPassword=forgotPassword; window.doUpdatePassword=doUpdatePassword;
-
-  // AUTH
   async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:gold;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
   async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:#00ff88;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
   async function doLogin(type){
@@ -234,7 +273,7 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
     if(!prof){const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair};await supabaseClient.from('profiles').insert([newProf]);prof=newProf;}
     if(e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase()&&!prof.is_chairman){await supabaseClient.from('profiles').update({is_chairman:true}).eq('id',session.user.id);prof.is_chairman=true;}
-    if(type==='admin'){if(!prof?.is_chairman){msg.innerText='⛔ You no be Chairman!';return;}location.href='/admin/dashboard';}else{if(prof?.is_chairman)location.href='/admin/dashboard';else location.href='/user/dashboard';}
+    if(type==='admin'){if(!prof?.is_chairman){showChairmanBlockScreen();return;}location.href='/admin/dashboard';}else{if(prof?.is_chairman)location.href='/admin/dashboard';else location.href='/user/dashboard';}
   }
   async function doSignup(){
     const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const n=document.getElementById('name').value||e.split('@')[0];const msg=document.getElementById('msg');
@@ -247,7 +286,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
   }
   window.doLogin=doLogin;window.doSignup=doSignup;
   let userState={blob:null,url:null,recorder:null,chunks:[],total:0,list:[]};
-
   async function renderUserDashboard(session){
     const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
     if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}
@@ -256,10 +294,15 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     const current=TEXTS[(recs||[]).length % TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100);
     const announcements=await loadAnnouncements();
     let announceHTML=`<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 ANNOUNCEMENT BOARD</h3>${announcements.length==0?'<p style="font-size:12px;color:#aaa">No announcement yet - Chairman go post here</p>':announcements.map(a=>`<div class="announce">📢 ${a.message}<br><small style="color:#aaa">${new Date(a.created_at).toLocaleString()}</small></div>`).join('')}</div>`;
-    document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING - 100 Sentences</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div></div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 YOUR PAYMENT ACCOUNT - PUT CORRECT ONE!</h3><p style="font-size:12px;color:#aaa">Chairman go use this account pay you!</p><input id="acc_fullname" placeholder="Your Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith Bank</option><option>Others</option></select><input id="acc_number" placeholder="Account Number (10 digits)" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp Number"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT - PAY ME!</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} of 100 - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE ONLY</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED! 1,000 WORDS ✅</h2><p>Chairman go review and pay you!</p></div>`:''}`;
+    document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING - 100 Sentences</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small>
+    <div class="nav">
+      <button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button>
+      <button class="btn gray" style="width:auto; background:#222; color:#ff4444; border:1px solid red;" onclick="showChairmanBlockScreen()">🔒 Admin Panel</button>
+      <button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button>
+    </div>
+    </div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 YOUR PAYMENT ACCOUNT - PUT CORRECT ONE!</h3><p style="font-size:12px;color:#aaa">Chairman go use this account pay you!</p><input id="acc_fullname" placeholder="Your Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith Bank</option><option>Others</option></select><input id="acc_number" placeholder="Account Number (10 digits)" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp Number"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT - PAY ME!</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} of 100 - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE ONLY</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED! 1,000 WORDS ✅</h2><p>Chairman go review and pay you!</p></div>`:''}`;
     setTimeout(loadWorkerAccount,500);
   }
-
   async function startR(){
     try{
       const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:{ideal:1}}});
@@ -276,28 +319,29 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     try{const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob,{contentType:'audio/wav',upsert:false});if(upErr)throw upErr;const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);if(dbErr)throw dbErr;await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);document.getElementById('smsg').innerText='✅ SAVED!';document.getElementById('nextB').style.display='block';setTimeout(()=>location.reload(),1200);}catch(e){document.getElementById('smsg').innerText='❌ '+e.message;saveB.disabled=false;saveB.innerText='💾 SAVE ONLY';}
   }
   window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.saveWorkerAccount=saveWorkerAccount;window.viewWorkerAccounts=viewWorkerAccounts;window.exportAccountsCSV=exportAccountsCSV;window.postAnnouncement=postAnnouncement;
-
   async function renderAdminDashboard(session){
     const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-    if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ NOT CHAIRMAN</h2></div>';return;}
+    if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
     const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});const list=users||[];const totalW=list.reduce((s,u)=>s+(u.total_words||0),0);const completed=list.filter(u=>u.total_words>=1000).length;const recording=list.filter(u=>u.total_words>0&&u.total_words<1000).length;const notStarted=list.filter(u=>!u.total_words||u.total_words==0).length;const totalRecs=list.reduce((s,u)=>s+(u.recordings_count||0),0);
     const announcements=await loadAnnouncements();
     document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Users<br><b class="big">${list.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" style="background:gold;color:black" onclick="viewWorkerAccounts()">💳 VIEW ACCOUNTS</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 POST ANNOUNCEMENT BOARD</h3><textarea id="announce_text" placeholder="Type announcement for all workers... e.g. Today work na 50 naira per recording"></textarea><button class="btn gold" onclick="postAnnouncement()">📢 POST TO ALL WORKERS</button><div>${announcements.map(a=>`<div class="announce">${a.message}<br><small>${new Date(a.created_at).toLocaleString()} - <button style="background:red;color:white;border:none;border-radius:5px;padding:3px 8px" onclick="deleteAnnounce('${a.id}')">Delete</button></small></div>`).join('')||'No announcement'}</div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h2>📦 PACKAGE DATASET FOR SALE</h2><button class="btn gold" style="font-size:18px;padding:20px" onclick="exportChairmanDataset()">📦 EXPORT DATASET ZIP - READY TO SELL! 💰</button><p id="exportMsg"></p></div><div class="card"><h3>Recent Users</h3>${list.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All</button></div>`;
   }
   async function deleteAnnounce(id){if(!confirm('Delete?'))return;await supabaseClient.from('announcements').delete().eq('id',id);location.reload();}
   window.deleteAnnounce=deleteAnnounce;
-
   async function renderAdminUsers(session){
+    const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+    if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
     const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});
     document.getElementById('app').innerHTML=`<div class="card"><h2>👥 ALL USERS - ${(users||[]).length}</h2><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="viewWorkerAccounts()">💳 VIEW ACCOUNTS</button></div>${(users||[]).map((u,i)=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${i+1}. ${u.display_name}</b><br><small>${u.email}</small><br><small>${u.total_words||0}/1000 | ${u.recordings_count||0} recs</small></div><div>➡️</div></div>`).join('')}</div>`;
   }
   async function renderAdminUserDetail(session,uid){
+    const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+    if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
     const {data:user}=await supabaseClient.from('profiles').select('*').eq('id',uid).single();
     const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid).order('recording_number');
     const {data:acc}=await supabaseClient.from('worker_accounts').select('*').eq('user_id',uid).single();
     document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name}</h3><p>Email: ${user.email}<br>Words: ${user.total_words||0}/1000<br>Recs: ${(recs||[]).length}</p>${acc?`<div class="card" style="background:#1a1a00;border:1px solid gold"><h4>💳 BANK</h4><b>${acc.full_name}</b><br>${acc.bank_name} - ${acc.account_number}<br>${acc.account_name}<br>${acc.phone_number}</div>`:'<p>❌ No account</p>'}<button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back</button></div><div class="card"><h3>Recordings - ${(recs||[]).length}</h3>${(recs||[]).map(r=>`<div class="card" style="background:#181818"><b>${r.file_name}</b><br><div class="textbox" style="font-size:14px">${r.pidgin_text}</div><button class="btn green" onclick="new Audio('${r.audio_url}').play()">▶️ Play</button></div>`).join('')||'No recs'}</div>`;
   }
-
   async function exportChairmanDataset(){
     const msgEl=document.getElementById('exportMsg');try{
       if(msgEl)msgEl.innerText='⏳ Gathering...';
@@ -317,7 +361,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     }catch(e){alert('Export failed: '+e.message);if(msgEl)msgEl.innerText='❌ '+e.message;}
   }
   window.exportChairmanDataset=exportChairmanDataset;
-
   (async function boot(){
     try{
       const path=location.pathname;
