@@ -36,7 +36,109 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
   const SUPABASE_KEY = "sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
   const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const TEXTS = ["Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.","Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.","Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.","How you dey? I dey come your side now now. No comot for house, I dey road already.","Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.","Omo, this thing sweet die! I never see this kain sweet thing for my life before.","No worry, I go sort am now now. Just give me five minutes make I arrange everything.","Shey you don chop? Make we go eat for that new buka wey dem open for junction.","Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.","For this Lagos, if you no shine your eye, dem go carry you go where you no know.","My brother, hustle must continue. Even if rain fall, we must still dey go.","Abeg comot for road, make I pass. I get important meeting for Island by 2pm.","Na God hand we dey. Everything wey we dey do, na God dey run am for us.","You no fit understand this life if you never waka for street. Street na school.","Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.","Every day na new story for this town. You go hear something wey go shock you.","I wan tell you something wey dey my mind since. I no fit hide am again.","As I dey waka for road today, I see one fine girl wey make my head scatter.","Work no dey finish, but man must chop. So make we go find food first.","Last last, everything go better. Na just time we dey wait for this country."];
+  const TEXTS = [
+"Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.",
+"Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.",
+"Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.",
+"How you dey? I dey come your side now now. No comot for house, I dey road already.",
+"Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.",
+"Omo, this thing sweet die! I never see this kain sweet thing for my life before.",
+"No worry, I go sort am now now. Just give me five minutes make I arrange everything.",
+"Shey you don chop? Make we go eat for that new buka wey dem open for junction.",
+"Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.",
+"For this Lagos, if you no shine your eye, dem go carry you go where you no know.",
+"My brother, hustle must continue. Even if rain fall, we must still dey go.",
+"Abeg comot for road, make I pass. I get important meeting for Island by 2pm.",
+"Na God hand we dey. Everything wey we dey do, na God dey run am for us.",
+"You no fit understand this life if you never waka for street. Street na school.",
+"Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.",
+"Every day na new story for this town. You go hear something wey go shock you.",
+"I wan tell you something wey dey my mind since. I no fit hide am again.",
+"As I dey waka for road today, I see one fine girl wey make my head scatter.",
+"Work no dey finish, but man must chop. So make we go find food first.",
+"Last last, everything go better. Na just time we dey wait for this country.",
+"Warri no dey carry last. If you come Warri, you go understand wetin we dey talk.",
+"My mama say make I no follow bad friends, but this life no easy for anybody.",
+"The thing wey happen yesterday for market, na only God fit explain that one.",
+"Abeg borrow me small money, I go pay you back before Friday. I swear.",
+"You see that guy wey dey wear red shirt? Na him be my chairman for office.",
+"For Warri, we dey speak pidgin wey sweet for ear. Na our own be that.",
+"I dey try to hustle make I fit pay my house rent before month end.",
+"She tell me say she no go come again, but I know say she dey play.",
+"That bobo too get mouth. Everything wey you talk, e go put mouth inside.",
+"Na so life be. Today you dey up, tomorrow you fit dey down.",
+"I go Sapele yesterday, and the road too bad. Government need to fix am.",
+"My oga for work dey too vex. E no dey gree make person rest small.",
+"Wetin you dey do for here? I bin dey find you since morning for your house.",
+"Make you no worry yourself, everything go set. Na small time remain.",
+"That my guy, na correct guy. If e talk say e go do am, e go do am.",
+"Abeg make you help me carry this bag, e heavy die. My hand dey pain me.",
+"For this country, if you no get connection, you go suffer well.",
+"I hear say dem go increase fuel price again. How we wan take survive?",
+"You no see as rain fall yesterday? Water full everywhere for Warri.",
+"I wan go buy fish for market, but price don cost. Everything don cost now.",
+"My sister just born pikin yesterday. The pikin fine die, e resemble me.",
+"That film wey we watch yesterday, e sweet but e too long. I sleep inside.",
+"Abeg make you come help me do this thing, I no sabi am well well.",
+"You know say Warri boys sabi enjoy life. We no dey carry problem for head.",
+"I dey vex for that guy. How e go collect my money come dey form boss?",
+"Make we go that joint for evening, make we drink small stout and gist.",
+"Na me and my guys go play ball for stadium tomorrow by four o'clock.",
+"The light for my area don spoil since three days. NEPA no gree bring am.",
+"You fit imagine? That small boy don buy motor. Life don change for am.",
+"Abeg no dey lie to me. I know say you no dey house yesterday.",
+"My phone don spoil. I need to go repair am for Computer Village.",
+"That girl wey you see yesterday, na my cousin sister be that. She fine abi?",
+"I don tire for this work. Every day na same thing, no improvement.",
+"Make you try dey come early tomorrow. Oga say e wan see everybody by eight.",
+"Warri pidgin sweet pass any other language. If you hear am, you go like am.",
+"I wan travel go Benin tomorrow, but I never see transport money complete.",
+"You don see my cap? I keep am for table here but I no dey see am again.",
+"Na so dem dey do for this office. If you no sabi eye service, you no go grow.",
+"Abeg give me your charger make I charge my phone small. My battery don low.",
+"That my neighbour dey too make noise. Every night na party for him house.",
+"I tell am say make e no come late, but e still come late again today.",
+"How much dem dey sell rice for market now? I hear say price don go up.",
+"My brother dey learn work for mechanic workshop. E wan become engineer.",
+"You need to dey careful for this town. Thief full everywhere for night.",
+"I go church on Sunday, and pastor preach about how to hustle with God.",
+"That food wey you cook yesterday, e sweet die. You need to teach me.",
+"Abeg make you no tell anybody wetin I tell you. Na secret between us.",
+"For Warri, if you waka without slippers, dem go know say you be Warri boy.",
+"I dey wait for my friend for junction since one hour, e never show.",
+"You see as that man dey drive? E dey drive like say e wan kill person.",
+"Make we contribute money make we buy fuel for generator. Light no dey.",
+"My papa talk say make I go school well, so that I go become big man.",
+"That cloth wey you wear today, e fine for your body. Where you buy am?",
+"I no fit come today, my body dey do me somehow. I need to rest small.",
+"You sabi say Warri no dey carry last for anything? We be number one always.",
+"Abeg help me check if my name dey for that list wey dem paste for wall.",
+"Na God dey protect us for this town. If no be God, we for don die finish.",
+"I wan buy new phone, but money never complete. I dey save small small.",
+"You don hear the latest gist for town? Dem say governor go come Warri.",
+"Make you try dey smile small. Life too short to dey vex every time.",
+"That boy wey dey play for that team, na Warri boy. E sabi ball well well.",
+"I dey think about my future. I no want make I remain like this forever.",
+"Abeg make you come with me make we go see that land for Ughelli.",
+"You too like food. Every time wey I see you, you dey chop something.",
+"My oga wife cook better soup yesterday. Na banga soup with starch.",
+"For this life, you need to get better friend wey go dey support you always.",
+"I go market go buy wrapper for my mama. She say she need new one.",
+"That my guy don travel go abroad. E say life for there better pass here.",
+"You no go believe wetin I see today for road. Na real film be that.",
+"Abeg make you shift small make I sit down. Everywhere full for bus.",
+"Na today I know say Warri pidgin hard to write but e easy to speak.",
+"I dey plan to open small business for my area. I need your advice.",
+"You don pay your NEPA bill? Dem say dem go cut light tomorrow for everybody.",
+"Make we dey pray make better thing happen for this country for next year.",
+"My younger brother don dey grow tall now. E don pass me for height.",
+"I see one fine motor for road today, na Benz. I wan get that kain motor.",
+"Abeg make you no forget to call me when you reach house. I go dey wait.",
+"That teacher wey teach us for school, na Warri man. E dey lash us well well.",
+"You need to come Warri come enjoy. Our food and our people sweet die.",
+"I wan tell you one story wey go make you laugh. But make you no vex.",
+"Last week, I go see my friend for hospital. E don dey better now small."
+];
   function countW(t){ return t.trim().split(/\s+/).filter(Boolean).length; }
   async function cleanVoice(inputBlob){ try{const ab=await inputBlob.arrayBuffer();const AudioCtx=window.AudioContext||window.webkitAudioContext;const ctx=new AudioCtx();let dec;try{dec=await ctx.decodeAudioData(ab.slice(0));}catch(e){await ctx.close();return inputBlob;}const ch=dec.numberOfChannels,len=dec.length,sr=dec.sampleRate;const mono=new Float32Array(len);if(ch===1)mono.set(dec.getChannelData(0));else{for(let i=0;i<len;i++){let s=0;for(let c=0;c<ch;c++)s+=dec.getChannelData(c)[i];mono[i]=s/ch;}} const wav=encodeWav(mono,sr);await ctx.close();return wav;}catch(e){return inputBlob;}}
   function encodeWav(samples,sr){const buf=new ArrayBuffer(44+samples.length*2);const v=new DataView(buf);function ws(o,s){for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));} ws(0,'RIFF');v.setUint32(4,36+samples.length*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,samples.length*2,true);let off=44;for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));v.setInt16(off,s<0?s*0x8000:s*0x7fff,true);off+=2;}return new Blob([buf],{type:'audio/wav'});}
@@ -98,43 +200,27 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     if(error){alert(error.message);}else{alert('✅ Announcement posted!');document.getElementById('announce_text').value='';location.reload();}
   }
 
-  // === FORGOT PASSWORD SYSTEM ADDED BY CHAIRMAN REQUEST ===
+  // === FORGOT PASSWORD SYSTEM ===
   async function forgotPassword(){
     const emailInput = document.getElementById('email');
     let email = emailInput ? emailInput.value.trim() : '';
-    if(!email){
-      email = prompt("Enter your email to reset password:");
-    }
+    if(!email){ email = prompt("Enter your email to reset password:"); }
     if(!email) return;
     const msg=document.getElementById('msg');
     if(msg) msg.innerText = '⏳ Sending reset link to ' + email + '...';
-    const {error} = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://main-naija-pidgin.vercel.app/user/reset-password'
-    });
-    if(error){
-      if(msg) msg.innerText = '❌ ' + error.message;
-      else alert('Error: ' + error.message);
-    }else{
-      if(msg) msg.innerText = '✅ Reset link sent to ' + email + '! Check email inbox & spam!';
-      else alert('✅ Reset link sent to ' + email + '! Check email!');
-    }
+    const {error} = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: 'https://main-naija-pidgin.vercel.app/user/reset-password' });
+    if(error){ if(msg) msg.innerText = '❌ ' + error.message; else alert('Error: ' + error.message); }else{ if(msg) msg.innerText = '✅ Reset link sent to ' + email + '! Check email inbox & spam!'; else alert('✅ Reset link sent!'); }
   }
   async function renderResetPassword(){
     document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔐 SET NEW PASSWORD</h2><p>Enter your new password below</p><input id="new_pass" type="password" placeholder="New Password (min 6 chars)"><input id="new_pass2" type="password" placeholder="Confirm New Password"><button class="btn gold" onclick="doUpdatePassword()">✅ UPDATE PASSWORD</button><p id="msg"></p><button class="btn gray" onclick="location.pathname='/user/login'">⬅️ Back to Login</button></div>`;
   }
   async function doUpdatePassword(){
-    const p1=document.getElementById('new_pass').value;
-    const p2=document.getElementById('new_pass2').value;
-    const msg=document.getElementById('msg');
-    if(!p1||!p2){msg.innerText='Fill both fields';return;}
-    if(p1!==p2){msg.innerText='❌ Passwords no match!';return;}
-    if(p1.length<6){msg.innerText='❌ Password too short - min 6';return;}
-    msg.innerText='⏳ Updating...';
-    const {error} = await supabaseClient.auth.updateUser({password: p1});
+    const p1=document.getElementById('new_pass').value; const p2=document.getElementById('new_pass2').value; const msg=document.getElementById('msg');
+    if(!p1||!p2){msg.innerText='Fill both fields';return;} if(p1!==p2){msg.innerText='❌ Passwords no match!';return;} if(p1.length<6){msg.innerText='❌ Password too short - min 6';return;}
+    msg.innerText='⏳ Updating...'; const {error} = await supabaseClient.auth.updateUser({password: p1});
     if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Password updated! Redirecting to login...';setTimeout(()=>{supabaseClient.auth.signOut().then(()=>location.pathname='/user/login');},1500);}
   }
-  window.forgotPassword=forgotPassword;
-  window.doUpdatePassword=doUpdatePassword;
+  window.forgotPassword=forgotPassword; window.doUpdatePassword=doUpdatePassword;
 
   // AUTH
   async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:gold;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
@@ -170,7 +256,7 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     const current=TEXTS[(recs||[]).length % TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100);
     const announcements=await loadAnnouncements();
     let announceHTML=`<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 ANNOUNCEMENT BOARD</h3>${announcements.length==0?'<p style="font-size:12px;color:#aaa">No announcement yet - Chairman go post here</p>':announcements.map(a=>`<div class="announce">📢 ${a.message}<br><small style="color:#aaa">${new Date(a.created_at).toLocaleString()}</small></div>`).join('')}</div>`;
-    document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div></div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 YOUR PAYMENT ACCOUNT - PUT CORRECT ONE!</h3><p style="font-size:12px;color:#aaa">Chairman go use this account pay you!</p><input id="acc_fullname" placeholder="Your Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith Bank</option><option>Others</option></select><input id="acc_number" placeholder="Account Number (10 digits)" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp Number"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT - PAY ME!</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE ONLY</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED! 1,000 WORDS ✅</h2><p>Chairman go review and pay you!</p></div>`:''}`;
+    document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING - 100 Sentences</h3><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div></div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 YOUR PAYMENT ACCOUNT - PUT CORRECT ONE!</h3><p style="font-size:12px;color:#aaa">Chairman go use this account pay you!</p><input id="acc_fullname" placeholder="Your Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith Bank</option><option>Others</option></select><input id="acc_number" placeholder="Account Number (10 digits)" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp Number"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT - PAY ME!</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} of 100 - ${countW(current)} words</small><div class="textbox">${current}</div><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE ONLY</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED! 1,000 WORDS ✅</h2><p>Chairman go review and pay you!</p></div>`:''}`;
     setTimeout(loadWorkerAccount,500);
   }
 
@@ -242,16 +328,10 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
       const {data:{session}}=await supabaseClient.auth.getSession();
       if(!session){
         if(path.startsWith('/admin')){location.pathname='/admin/login';return;}
-        // Allow reset-password without session check because Supabase will create session from link
-        if(path.includes('reset-password')){
-          await renderResetPassword();return;
-        }
+        if(path.includes('reset-password')){await renderResetPassword();return;}
         location.pathname='/user/login';return;
       }
-      // If user came from email recovery link, force to reset page
-      if(path.includes('reset-password')){
-        await renderResetPassword();return;
-      }
+      if(path.includes('reset-password')){await renderResetPassword();return;}
       if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}
       if(path==='/admin/users'){await renderAdminUsers(session);return;}
       if(path.startsWith('/admin/users/')){const uid=path.split('/').pop();await renderAdminUserDetail(session,uid);return;}
