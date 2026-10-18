@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Naija Pidgin System - FINAL</title>
+<title>Naija Pidgin System - FINAL + EXPORT</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -44,26 +44,7 @@ input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;backgroun
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const TEXTS = ["Abeg make we start today. I wan tell you say this work na important one, and everybody suppose do am well.","Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.","Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.","How you dey? I dey come your side now now. No comot for house, I dey road already.","Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.","Omo, this thing sweet die! I never see this kain sweet thing for my life before.","No worry, I go sort am now now. Just give me five minutes make I arrange everything.","Shey you don chop? Make we go eat for that new buka wey dem open for junction.","Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.","For this Lagos, if you no shine your eye, dem go carry you go where you no know.","My brother, hustle must continue. Even if rain fall, we must still dey go.","Abeg comot for road, make I pass. I get important meeting for Island by 2pm.","Na God hand we dey. Everything wey we dey do, na God dey run am for us.","You no fit understand this life if you never waka for street. Street na school.","Make we talk true, this Naija Pidgin na sweet language wey everybody dey enjoy.","Every day na new story for this town. You go hear something wey go shock you.","I wan tell you something wey dey my mind since. I no fit hide am again.","As I dey waka for road today, I see one fine girl wey make my head scatter.","Work no dey finish, but man must chop. So make we go find food first.","Last last, everything go better. Na just time we dey wait for this country."];
     function countW(t){ return t.trim().split(/\s+/).filter(Boolean).length; }
-    async function cleanVoice(inputBlob){
-      try{
-        const arrayBuffer = await inputBlob.arrayBuffer();
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioCtx();
-        let decoded; try { decoded = await ctx.decodeAudioData(arrayBuffer.slice(0)); } catch(e){ await ctx.close(); return inputBlob; }
-        const ch = decoded.numberOfChannels, len = decoded.length, sr = decoded.sampleRate;
-        const mono = new Float32Array(len);
-        if (ch === 1) mono.set(decoded.getChannelData(0));
-        else { for (let i = 0; i < len; i++) { let s = 0; for (let c = 0; c < ch; c++) s += decoded.getChannelData(c)[i]; mono[i] = s / ch; } }
-        (function(samples, sampleRate, cutoff){ const rc = 1/(2*Math.PI*cutoff), dt = 1/sampleRate, a = rc/(rc+dt); let prevIn = 0, prevOut = 0; for (let i = 0; i < samples.length; i++) { const x = samples[i]; const y = a*(prevOut + x - prevIn); samples[i] = y; prevIn = x; prevOut = y; } })(mono, sr, 80);
-        (function(samples, thr){ const floor = thr * 0.25; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a < thr) { const t = a / thr; samples[i] *= Math.max(t*t, floor/(thr||1e-6)); } } })(mono, 0.010);
-        (function(samples, sampleRate){ const hpC = 1800, lpC = 3500, boost = 1.45; const rcHp = 1/(2*Math.PI*hpC), dt = 1/sampleRate, aHp = rcHp/(rcHp+dt); const rcLp = 1/(2*Math.PI*lpC), aLp = dt/(rcLp+dt); let prevIn = 0, prevHp = 0, prevLp = 0; for (let i = 0; i < samples.length; i++) { const x = samples[i]; const hp = aHp*(prevHp + x - prevIn); prevIn = x; prevHp = hp; const lp = prevLp + aLp*(x - prevLp); prevLp = lp; samples[i] = x + (hp - lp*0.35)*(boost-1) + lp*0.04; } })(mono, sr);
-        (function(samples){ const threshold = 0.28, ratio = 4, attack = 0.012, release = 0.09; let env = 0; const atk = Math.exp(-1/(attack*48000)), rel = Math.exp(-1/(release*48000)); for (let i = 0; i < samples.length; i++) { const input = Math.abs(samples[i]); if (input > env) env = atk*env + (1-atk)*input; else env = rel*env + (1-rel)*input; let gain = 1; if (env > threshold) { const over = env - threshold, knee = threshold*0.35; let gr; if (over < knee) { const x = over/knee; gr = ((1/ratio-1)*x*x*0.5)*over; } else gr = (1/ratio-1)*(over - knee*0.5); gain = Math.max(0.18, Math.min(1, (threshold+over+gr)/(env||1e-9))); } samples[i] *= gain; } let sum = 0, count = 0; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a > 0.012) { sum += a; count++; } } if (count > 0) { const avg = sum/count; const makeup = Math.min(4.5, Math.max(1.0, 0.22/(avg||0.01))); for (let i = 0; i < samples.length; i++) samples[i] *= makeup; } })(mono);
-        (function(samples, ceiling){ const knee = 0.07; for (let i = 0; i < samples.length; i++) { let s = samples[i]; const a = Math.abs(s); if (a > ceiling - knee) { const sign = s >= 0 ? 1 : -1; if (a >= ceiling) s = sign * ceiling; else { const t = (a - (ceiling - knee)) / knee; s = sign * Math.min(ceiling - knee + knee*(1 - Math.exp(-t*2.2)), ceiling); } } samples[i] = s; } })(mono, 0.96);
-        (function(samples, target){ let peak = 0; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a > peak) peak = a; } if (peak < 1e-6) return; const g = Math.min(target/peak, 7); for (let i = 0; i < samples.length; i++) samples[i] *= g; })(mono, 0.88);
-        const trimmed = (function(samples, sampleRate, thr, padSec){ const pad = Math.floor(padSec * sampleRate); let start = 0, end = samples.length - 1; while (start < samples.length && Math.abs(samples[start]) < thr) start++; while (end > start && Math.abs(samples[end]) < thr) end--; start = Math.max(0, start - pad); end = Math.min(samples.length - 1, end + pad); if (end <= start) return samples.slice(0, Math.min(samples.length, sampleRate)); return samples.slice(start, end + 1); })(mono, sr, 0.016, 0.12);
-        const wav = encodeWav(trimmed, sr); await ctx.close(); return wav;
-      } catch(e) { console.warn('Clean voice fallback', e); return inputBlob; }
-    }
+    async function cleanVoice(inputBlob){ /* YOUR CLEAN VOICE STAYS SAME */ try{const arrayBuffer=await inputBlob.arrayBuffer();const AudioCtx=window.AudioContext||window.webkitAudioContext;const ctx=new AudioCtx();let decoded;try{decoded=await ctx.decodeAudioData(arrayBuffer.slice(0));}catch(e){await ctx.close();return inputBlob;}const ch=decoded.numberOfChannels,len=decoded.length,sr=decoded.sampleRate;const mono=new Float32Array(len);if(ch===1)mono.set(decoded.getChannelData(0));else{for(let i=0;i<len;i++){let s=0;for(let c=0;c<ch;c++)s+=decoded.getChannelData(c)[i];mono[i]=s/ch;}} (function(samples, sampleRate, cutoff){ const rc = 1/(2*Math.PI*cutoff), dt = 1/sampleRate, a = rc/(rc+dt); let prevIn = 0, prevOut = 0; for (let i = 0; i < samples.length; i++) { const x = samples[i]; const y = a*(prevOut + x - prevIn); samples[i] = y; prevIn = x; prevOut = y; } })(mono, sr, 80); (function(samples, thr){ const floor = thr * 0.25; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a < thr) { const t = a / thr; samples[i] *= Math.max(t*t, floor/(thr||1e-6)); } } })(mono, 0.010); (function(samples, sampleRate){ const hpC = 1800, lpC = 3500, boost = 1.45; const rcHp = 1/(2*Math.PI*hpC), dt = 1/sampleRate, aHp = rcHp/(rcHp+dt); const rcLp = 1/(2*Math.PI*lpC), aLp = dt/(rcLp+dt); let prevIn = 0, prevHp = 0, prevLp = 0; for (let i = 0; i < samples.length; i++) { const x = samples[i]; const hp = aHp*(prevHp + x - prevIn); prevIn = x; prevHp = hp; const lp = prevLp + aLp*(x - prevLp); prevLp = lp; samples[i] = x + (hp - lp*0.35)*(boost-1) + lp*0.04; } })(mono, sr); (function(samples){ const threshold = 0.28, ratio = 4, attack = 0.012, release = 0.09; let env = 0; const atk = Math.exp(-1/(attack*48000)), rel = Math.exp(-1/(release*48000)); for (let i = 0; i < samples.length; i++) { const input = Math.abs(samples[i]); if (input > env) env = atk*env + (1-atk)*input; else env = rel*env + (1-rel)*input; let gain = 1; if (env > threshold) { const over = env - threshold, knee = threshold*0.35; let gr; if (over < knee) { const x = over/knee; gr = ((1/ratio-1)*x*x*0.5)*over; } else gr = (1/ratio-1)*(over - knee*0.5); gain = Math.max(0.18, Math.min(1, (threshold+over+gr)/(env||1e-9))); } samples[i] *= gain; } let sum = 0, count = 0; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a > 0.012) { sum += a; count++; } } if (count > 0) { const avg = sum/count; const makeup = Math.min(4.5, Math.max(1.0, 0.22/(avg||0.01))); for (let i = 0; i < samples.length; i++) samples[i] *= makeup; } })(mono); (function(samples, ceiling){ const knee = 0.07; for (let i = 0; i < samples.length; i++) { let s = samples[i]; const a = Math.abs(s); if (a > ceiling - knee) { const sign = s >= 0 ? 1 : -1; if (a >= ceiling) s = sign * ceiling; else { const t = (a - (ceiling - knee)) / knee; s = sign * Math.min(ceiling - knee + knee*(1 - Math.exp(-t*2.2)), ceiling); } } samples[i] = s; } })(mono, 0.96); (function(samples, target){ let peak = 0; for (let i = 0; i < samples.length; i++) { const a = Math.abs(samples[i]); if (a > peak) peak = a; } if (peak < 1e-6) return; const g = Math.min(target/peak, 7); for (let i = 0; i < samples.length; i++) samples[i] *= g; })(mono, 0.88); const trimmed = (function(samples, sampleRate, thr, padSec){ const pad = Math.floor(padSec * sampleRate); let start = 0, end = samples.length - 1; while (start < samples.length && Math.abs(samples[start]) < thr) start++; while (end > start && Math.abs(samples[end]) < thr) end--; start = Math.max(0, start - pad); end = Math.min(samples.length - 1, end + pad); if (end <= start) return samples.slice(0, Math.min(samples.length, sampleRate)); return samples.slice(start, end + 1); })(mono, sr, 0.016, 0.12); const wav = encodeWav(trimmed, sr); await ctx.close(); return wav;}catch(e){return inputBlob;}}
     function encodeWav(samples, sampleRate){ const numChannels = 1, bitsPerSample = 16; const blockAlign = (numChannels * bitsPerSample) / 8; const byteRate = sampleRate * blockAlign; const dataSize = samples.length * blockAlign; const buffer = new ArrayBuffer(44 + dataSize); const view = new DataView(buffer); function ws(o, s){ for (let i = 0; i < s.length; i++) view.setUint8(o+i, s.charCodeAt(i)); } ws(0,'RIFF'); view.setUint32(4, 36+dataSize, true); ws(8,'WAVE'); ws(12,'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, numChannels, true); view.setUint32(24, sampleRate, true); view.setUint32(28, byteRate, true); view.setUint16(32, blockAlign, true); view.setUint16(34, bitsPerSample, true); ws(36,'data'); view.setUint32(40, dataSize, true); let off = 44; for (let i = 0; i < samples.length; i++) { const s = Math.max(-1, Math.min(1, samples[i])); view.setInt16(off, s < 0 ? s*0x8000 : s*0x7fff, true); off += 2; } return new Blob([buffer], { type: 'audio/wav' }); }
 
     async function renderLoginAdmin(){
@@ -75,7 +56,7 @@ input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;backgroun
     async function doLogin(type){
       const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const msg=document.getElementById('msg');
       if(!e||!p){msg.innerText='Fill email and password'; return;} msg.innerText='Checking...';
-      const {data:signData,error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
+      const {data:signData, error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
       if(error){msg.innerText='Login fail: '+error.message; return;}
       const {data:{session}}=await supabaseClient.auth.getSession();
       if(!session){msg.innerText='No session, try again'; return;}
@@ -143,11 +124,12 @@ input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;backgroun
     }
     async function downloadMine(){ const {data:{session}}=await supabaseClient.auth.getSession(); const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id); const zip=new JSZip(); const folder=zip.folder('my_recordings'); let trans=''; for(const r of (recs||[])){ trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`; const b=await fetch(r.audio_url).then(rr=>rr.blob()); folder.file(r.file_name,b);} folder.file('transcript.txt',trans); const blob=await zip.generateAsync({type:'blob'}); const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download='MY_RECORDINGS.zip'; a.click(); }
     window.startR=startR; window.stopR=stopR; window.playP=playP; window.again=again; window.saveR=saveR; window.downloadMine=downloadMine; window.supabaseClient=supabaseClient;
+    
     async function renderAdminDashboard(session){
       const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
       if(!profile?.is_chairman){document.getElementById('app').innerHTML='<div class="card"><h2>⛔ NOT CHAIRMAN</h2><p>Your email: '+profile?.email+'</p><button class="btn gray" onclick="location.pathname=\'/user/dashboard\'">Go User Dashboard</button></div>'; return;}
       const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false}); const list=users||[]; const totalW=list.reduce((s,u)=>s+(u.total_words||0),0); const completed=list.filter(u=>u.total_words>=1000).length; const recording=list.filter(u=>u.total_words>0 && u.total_words<1000).length; const notStarted=list.filter(u=>!u.total_words||u.total_words==0).length; const totalRecs=list.reduce((s,u)=>s+(u.recordings_count||0),0);
-      document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD - MAIN BOARD</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Total Users<br><b class="big">${list.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Total Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Total Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card"><h3>Recent Users</h3>${list.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 ${u.total_words>=1000?'✅':''}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All Users</button></div>`;
+      document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD - MAIN BOARD</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Total Users<br><b class="big">${list.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Total Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Total Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h2>📦 PACKAGE DATASET FOR SALE</h2><p style="font-size:14px">Chairman, click to package ALL voices into selling format!</p><p style="font-size:12px;color:#aaa">Creates: TAPBOMBA-PIDGIN-VOICE-DATASET-v1/<br>├── audios/ (all .wav files)<br>├── metadata.csv<br>├── LICENSE.txt<br>└── README.txt</p><button class="btn gold" style="font-size:18px;padding:20px" onclick="exportChairmanDataset()">📦 EXPORT DATASET ZIP - READY TO SELL! 💰💃💃</button><p id="exportMsg" style="font-size:14px;margin-top:10px"></p></div><div class="card"><h3>Recent Users</h3>${list.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 ${u.total_words>=1000?'✅':''}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All Users</button></div>`;
     }
     async function renderAdminUsers(session){
       const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
@@ -163,13 +145,60 @@ input{width:100%;padding:18px;border-radius:12px;border:1px solid #444;backgroun
       document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name}</h3><p><b>Email:</b> ${user.email}<br><b>User ID:</b> ${user.id}<br><b>Total Words:</b> ${user.total_words||0}/1000<br><b>Recordings:</b> ${(recs||[]).length}<br><b>Remaining:</b> ${Math.max(0,1000-(user.total_words||0))}<br><b>Status:</b> ${user.status}<br><b>Date:</b> ${new Date(user.created_at).toLocaleString()}</p><button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back to Users</button><button class="btn gold" onclick="downloadUser('${uid}')">📦 Download This User All</button></div><div class="card"><h3>🎙️ Recordings - ${(recs||[]).length}</h3>${(recs||[]).map(r=>`<div class="card" style="background:#181818"><b>${r.file_name}</b><br><div class="textbox" style="font-size:14px">${r.pidgin_text}</div><small>Words: ${r.word_count} | ${new Date(r.created_at).toLocaleString()}</small><br><button class="btn green" onclick="new Audio('${r.audio_url}').play()">▶️ Play Audio</button></div>`).join('')||'No recordings'}</div>`;
     }
     async function downloadUser(uid){ const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid); const zip=new JSZip(); const folder=zip.folder('user_'+uid); let trans=''; for(const r of (recs||[])){ trans+=`${r.file_name} | ${r.word_count} | ${r.pidgin_text}\n`; const b=await fetch(r.audio_url).then(rr=>rr.blob()); folder.file(r.file_name,b);} folder.file('transcript.txt',trans); const blob=await zip.generateAsync({type:'blob'}); const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download='USER_'+uid+'.zip'; a.click(); } window.downloadUser=downloadUser;
+
+    // ==== NEW EXPORT FOR CHAIRMAN ====
+    async function exportChairmanDataset(){
+      const msgEl=document.getElementById('exportMsg');
+      try{
+        if(msgEl) msgEl.innerText='⏳ Chairman, I dey gather all recordings... please wait!';
+        const {data:allRecs, error} = await supabaseClient.from('recordings').select('*').order('created_at',{ascending:true});
+        if(error) throw error;
+        if(!allRecs || allRecs.length===0){ alert('No recordings yet! Make workers record first.'); if(msgEl) msgEl.innerText=''; return; }
+        const {data:profiles} = await supabaseClient.from('profiles').select('id,email,display_name');
+        const profileMap={}; (profiles||[]).forEach(p=>{ profileMap[p.id]=p; });
+        const zip=new JSZip();
+        const audiosFolder=zip.folder("audios");
+        let csv='audio_file,text,speaker_email,speaker_name,word_count,file_name,created_at\n';
+        let count=0;
+        for(const r of allRecs){
+          count++;
+          if(msgEl) msgEl.innerText=`⏳ Packaging ${count}/${allRecs.length}: ${r.file_name}...`;
+          try{
+            const resp=await fetch(r.audio_url);
+            if(!resp.ok) continue;
+            const blob=await resp.blob();
+            const safeName = (r.file_name||`rec_${r.recording_number}.wav`).replace(/[^a-zA-Z0-9._-]/g,'_');
+            audiosFolder.file(safeName, blob);
+            const prof=profileMap[r.user_id];
+            const speakerEmail = prof? prof.email : 'unknown';
+            const speakerName = prof? prof.display_name : 'unknown';
+            const textEsc = (r.pidgin_text||'').replace(/"/g,'""');
+            csv+=`audios/${safeName},"${textEsc}",${speakerEmail},${speakerName},${r.word_count||0},${safeName},${r.created_at||''}\n`;
+          }catch(e){ console.warn('skip',r.file_name,e); }
+          if(count%10===0) await new Promise(res=>setTimeout(res,200));
+        }
+        const licenseTxt=`TAPBOMBA PIDGIN VOICE DATASET - LICENSE\nVersion: v1\nTotal: ${allRecs.length}\nOwner: Tapbomba AI\nTerms: CAN use to train AI, CAN build products, CANNOT resell raw audio, MUST credit\nPricing: $500 startup, $2000 enterprise\nContact: tapbomba.ai@gmail.com\n`;
+        zip.file("LICENSE.txt", licenseTxt);
+        const readmeTxt=`TAPBOMBA PIDGIN VOICE DATASET v1\nContains ${allRecs.length} recordings\nStructure: audios/, metadata.csv, LICENSE.txt, README.txt\nLanguage: Nigerian Pidgin\nBy: Tapbomba AI\nContact: tapbomba.ai@gmail.com\n`;
+        zip.file("README.txt", readmeTxt);
+        zip.file("metadata.csv", csv);
+        if(msgEl) msgEl.innerText='⏳ Final ZIP dey build...';
+        const content=await zip.generateAsync({type:"blob"}, (metadata)=>{ if(msgEl) msgEl.innerText=`⏳ Building ZIP: ${metadata.percent.toFixed(0)}%`; });
+        const url=URL.createObjectURL(content);
+        const a=document.createElement('a'); a.href=url; a.download='TAPBOMBA-PIDGIN-VOICE-DATASET-v1.zip'; a.click();
+        if(msgEl) msgEl.innerText=`✅ DONE! ${allRecs.length} files packaged! ZIP don download for your phone! Ready to sell! 💃💃💃`;
+        setTimeout(()=>URL.revokeObjectURL(url), 10000);
+      }catch(e){ alert('Export failed: '+e.message); if(msgEl) msgEl.innerText='❌ Error: '+e.message; }
+    }
+    window.exportChairmanDataset=exportChairmanDataset;
+
     (async function boot(){
       try{
         const path=location.pathname;
         if(path==='/admin/login'){await renderLoginAdmin(); return;}
         if(path==='/user/login'){await renderLoginUser(); return;}
         if(path==='/login'){location.pathname='/user/login'; return;}
-        const sessionPromise=supabaseClient.auth.getSession(); const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth timeout – check Supabase key / network')),8000));
+        const sessionPromise=supabaseClient.auth.getSession(); const timeoutPromise=new Promise((_,reject)=>setTimeout(()=>reject(new Error('Auth timeout')),8000));
         const {data:{session}}=await Promise.race([sessionPromise,timeoutPromise]);
         if(!session){ if(path.startsWith('/admin')){location.pathname='/admin/login'; return;} location.pathname='/user/login'; return;}
         if(path==='/admin/dashboard'){await renderAdminDashboard(session); return;}
