@@ -98,9 +98,47 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     if(error){alert(error.message);}else{alert('✅ Announcement posted!');document.getElementById('announce_text').value='';location.reload();}
   }
 
+  // === FORGOT PASSWORD SYSTEM ADDED BY CHAIRMAN REQUEST ===
+  async function forgotPassword(){
+    const emailInput = document.getElementById('email');
+    let email = emailInput ? emailInput.value.trim() : '';
+    if(!email){
+      email = prompt("Enter your email to reset password:");
+    }
+    if(!email) return;
+    const msg=document.getElementById('msg');
+    if(msg) msg.innerText = '⏳ Sending reset link to ' + email + '...';
+    const {error} = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://main-naija-pidgin.vercel.app/user/reset-password'
+    });
+    if(error){
+      if(msg) msg.innerText = '❌ ' + error.message;
+      else alert('Error: ' + error.message);
+    }else{
+      if(msg) msg.innerText = '✅ Reset link sent to ' + email + '! Check email inbox & spam!';
+      else alert('✅ Reset link sent to ' + email + '! Check email!');
+    }
+  }
+  async function renderResetPassword(){
+    document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔐 SET NEW PASSWORD</h2><p>Enter your new password below</p><input id="new_pass" type="password" placeholder="New Password (min 6 chars)"><input id="new_pass2" type="password" placeholder="Confirm New Password"><button class="btn gold" onclick="doUpdatePassword()">✅ UPDATE PASSWORD</button><p id="msg"></p><button class="btn gray" onclick="location.pathname='/user/login'">⬅️ Back to Login</button></div>`;
+  }
+  async function doUpdatePassword(){
+    const p1=document.getElementById('new_pass').value;
+    const p2=document.getElementById('new_pass2').value;
+    const msg=document.getElementById('msg');
+    if(!p1||!p2){msg.innerText='Fill both fields';return;}
+    if(p1!==p2){msg.innerText='❌ Passwords no match!';return;}
+    if(p1.length<6){msg.innerText='❌ Password too short - min 6';return;}
+    msg.innerText='⏳ Updating...';
+    const {error} = await supabaseClient.auth.updateUser({password: p1});
+    if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Password updated! Redirecting to login...';setTimeout(()=>{supabaseClient.auth.signOut().then(()=>location.pathname='/user/login');},1500);}
+  }
+  window.forgotPassword=forgotPassword;
+  window.doUpdatePassword=doUpdatePassword;
+
   // AUTH
-  async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p id="msg"></p></div>`;}
-  async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p id="msg"></p></div>`;}
+  async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:gold;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
+  async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:#00ff88;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
   async function doLogin(type){
     const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const msg=document.getElementById('msg');
     if(!e||!p){msg.innerText='Fill email and password';return;}msg.innerText='Checking...';
@@ -199,9 +237,21 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
       const path=location.pathname;
       if(path==='/admin/login'){await renderLoginAdmin();return;}
       if(path==='/user/login'){await renderLoginUser();return;}
+      if(path==='/user/reset-password' || path==='/reset-password'){await renderResetPassword();return;}
       if(path==='/login'){location.pathname='/user/login';return;}
       const {data:{session}}=await supabaseClient.auth.getSession();
-      if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}location.pathname='/user/login';return;}
+      if(!session){
+        if(path.startsWith('/admin')){location.pathname='/admin/login';return;}
+        // Allow reset-password without session check because Supabase will create session from link
+        if(path.includes('reset-password')){
+          await renderResetPassword();return;
+        }
+        location.pathname='/user/login';return;
+      }
+      // If user came from email recovery link, force to reset page
+      if(path.includes('reset-password')){
+        await renderResetPassword();return;
+      }
       if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}
       if(path==='/admin/users'){await renderAdminUsers(session);return;}
       if(path.startsWith('/admin/users/')){const uid=path.split('/').pop();await renderAdminUserDetail(session,uid);return;}
