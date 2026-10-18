@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Naija Pidgin System - CHAIRMAN PRANK EDITION + COPY LINK + PRICE ₦1000</title>
+<title>Naija Pidgin System - CHAIRMAN + API KEYS SECRET</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
@@ -22,7 +22,7 @@ body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padd
 input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}
 .user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:14px;border-radius:12px;margin:8px 0}
 .big{font-size:24px;font-weight:900}
-.nav{display:flex;gap:8px;overflow-x:auto}
+.nav{display:flex;gap:8px;overflow-x:auto;flex-wrap:wrap}
 .nav button{white-space:nowrap;padding:12px 18px}
 .clean-badge{display:inline-flex;align-items:center;gap:6px;background:#0a2e1a;border:1px solid #00ff88;color:#00ff88;padding:8px 12px;border-radius:20px;font-size:13px;font-weight:600;margin:8px 0}
 .announce{background:#1a1a00;border:2px solid gold;border-radius:12px;padding:12px;margin:10px 0}
@@ -36,7 +36,6 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
   const SUPABASE_URL = "https://rupuxvpupdhlhxgjrbsh.supabase.co";
   const SUPABASE_KEY = "sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
   const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
-  // === PRICE FIX - ONE FIX ONLY ===
   const PRICE_PER_VOICE = 1000;
   const PRICE_PER_RECORDING = 10;
   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -45,8 +44,7 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
 "Today na another beautiful day for this country. Sun dey shine and people dey go about their daily work.",
 "Chairman, I don finish the work wey you give me yesterday. Make you check am make you confirm.",
 "How you dey? I dey come your side now now. No comot for house, I dey road already.",
-"Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.",
-"Omo, this thing sweet die! I never see this kain sweet thing for my life before.",
+"Abeg give me small time, I dey road. Traffic hold me for Lekki but I dey move small small.","Omo, this thing sweet die! I never see this kain sweet thing for my life before.",
 "No worry, I go sort am now now. Just give me five minutes make I arrange everything.",
 "Shey you don chop? Make we go eat for that new buka wey dem open for junction.",
 "Wetin dey sup? Abeg no vex for me. I know say I late small but make you no vex.",
@@ -60,289 +58,92 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
 "I wan tell you something wey dey my mind since. I no fit hide am again.",
 "As I dey waka for road today, I see one fine girl wey make my head scatter.",
 "Work no dey finish, but man must chop. So make we go find food first.",
-"Last last, everything go better. Na just time we dey wait for this country.",
-"Warri no dey carry last. If you come Warri, you go understand wetin we dey talk.",
-"My mama say make I no follow bad friends, but this life no easy for anybody.",
-"The thing wey happen yesterday for market, na only God fit explain that one.",
-"Abeg borrow me small money, I go pay you back before Friday. I swear.",
-"You see that guy wey dey wear red shirt? Na him be my chairman for office.",
-"For Warri, we dey speak pidgin wey sweet for ear. Na our own be that.",
-"I dey try to hustle make I fit pay my house rent before month end.",
-"She tell me say she no go come again, but I know say she dey play.",
-"That bobo too get mouth. Everything wey you talk, e go put mouth inside.",
-"Na so life be. Today you dey up, tomorrow you fit dey down.",
-"I go Sapele yesterday, and the road too bad. Government need to fix am.",
-"My oga for work dey too vex. E no dey gree make person rest small.",
-"Wetin you dey do for here? I bin dey find you since morning for your house.",
-"Make you no worry yourself, everything go set. Na small time remain.",
-"That my guy, na correct guy. If e talk say e go do am, e go do am.",
-"Abeg make you help me carry this bag, e heavy die. My hand dey pain me.",
-"For this country, if you no get connection, you go suffer well.",
-"I hear say dem go increase fuel price again. How we wan take survive?",
-"You no see as rain fall yesterday? Water full everywhere for Warri.",
-"I wan go buy fish for market, but price don cost. Everything don cost now.",
-"My sister just born pikin yesterday. The pikin fine die, e resemble me.",
-"That film wey we watch yesterday, e sweet but e too long. I sleep inside.",
-"Abeg make you come help me do this thing, I no sabi am well well.",
-"You know say Warri boys sabi enjoy life. We no dey carry problem for head.",
-"I dey vex for that guy. How e go collect my money come dey form boss?",
-"Make we go that joint for evening, make we drink small stout and gist.",
-"Na me and my guys go play ball for stadium tomorrow by four o'clock.",
-"The light for my area don spoil since three days. NEPA no gree bring am.",
-"You fit imagine? That small boy don buy motor. Life don change for am.",
-"Abeg no dey lie to me. I know say you no dey house yesterday.",
-"My phone don spoil. I need to go repair am for Computer Village.",
-"That girl wey you see yesterday, na my cousin sister be that. She fine abi?",
-"I don tire for this work. Every day na same thing, no improvement.",
-"Make you try dey come early tomorrow. Oga say e wan see everybody by eight.",
-"Warri pidgin sweet pass any other language. If you hear am, you go like am.",
-"I wan travel go Benin tomorrow, but I never see transport money complete.",
-"You don see my cap? I keep am for table here but I no dey see am again.",
-"Na so dem dey do for this office. If you no sabi eye service, you no go grow.",
-"Abeg give me your charger make I charge my phone small. My battery don low.",
-"That my neighbour dey too make noise. Every night na party for him house.",
-"I tell am say make e no come late, but e still come late again today.",
-"How much dem dey sell rice for market now? I hear say price don go up.",
-"My brother dey learn work for mechanic workshop. E wan become engineer.",
-"You need to dey careful for this town. Thief full everywhere for night.",
-"I go church on Sunday, and pastor preach about how to hustle with God.",
-"That food wey you cook yesterday, e sweet die. You need to teach me.",
-"Abeg make you no tell anybody wetin I tell you. Na secret between us.",
-"For Warri, if you waka without slippers, dem go know say you be Warri boy.",
-"I dey wait for my friend for junction since one hour, e never show.",
-"You see as that man dey drive? E dey drive like say e wan kill person.",
-"Make we contribute money make we buy fuel for generator. Light no dey.",
-"My papa talk say make I go school well, so that I go become big man.",
-"That cloth wey you wear today, e fine for your body. Where you buy am?",
-"I no fit come today, my body dey do me somehow. I need to rest small.",
-"You sabi say Warri no dey carry last for anything? We be number one always.",
-"Abeg help me check if my name dey for that list wey dem paste for wall.",
-"Na God dey protect us for this town. If no be God, we for don die finish.",
-"I wan buy new phone, but money never complete. I dey save small small.",
-"You don hear the latest gist for town? Dem say governor go come Warri.",
-"Make you try dey smile small. Life too short to dey vex every time.",
-"That boy wey dey play for that team, na Warri boy. E sabi ball well well.",
-"I dey think about my future. I no want make I remain like this forever.",
-"Abeg make you come with me make we go see that land for Ughelli.",
-"You too like food. Every time wey I see you, you dey chop something.",
-"My oga wife cook better soup yesterday. Na banga soup with starch.",
-"For this life, you need to get better friend wey go dey support you always.",
-"I go market go buy wrapper for my mama. She say she need new one.",
-"That my guy don travel go abroad. E say life for there better pass here.",
-"You no go believe wetin I see today for road. Na real film be that.",
-"Abeg make you shift small make I sit down. Everywhere full for bus.",
-"Na today I know say Warri pidgin hard to write but e easy to speak.",
-"I dey plan to open small business for my area. I need your advice.",
-"You don pay your NEPA bill? Dem say dem go cut light tomorrow for everybody.",
-"Make we dey pray make better thing happen for this country for next year.",
-"My younger brother don dey grow tall now. E don pass me for height.",
-"I see one fine motor for road today, na Benz. I wan get that kain motor.",
-"Abeg make you no forget to call me when you reach house. I go dey wait.",
-"That teacher wey teach us for school, na Warri man. E dey lash us well well.",
-"You need to come Warri come enjoy. Our food and our people sweet die.",
-"I wan tell you one story wey go make you laugh. But make you no vex.",
-"Last week, I go see my friend for hospital. E don dey better now small."
+"Last last, everything go better. Na just time we dey wait for this country."
 ];
   function countW(t){ return t.trim().split(/\s+/).filter(Boolean).length; }
   async function cleanVoice(inputBlob){ try{const ab=await inputBlob.arrayBuffer();const AudioCtx=window.AudioContext||window.webkitAudioContext;const ctx=new AudioCtx();let dec;try{dec=await ctx.decodeAudioData(ab.slice(0));}catch(e){await ctx.close();return inputBlob;}const ch=dec.numberOfChannels,len=dec.length,sr=dec.sampleRate;const mono=new Float32Array(len);if(ch===1)mono.set(dec.getChannelData(0));else{for(let i=0;i<len;i++){let s=0;for(let c=0;c<ch;c++)s+=dec.getChannelData(c)[i];mono[i]=s/ch;}} const wav=encodeWav(mono,sr);await ctx.close();return wav;}catch(e){return inputBlob;}}
   function encodeWav(samples,sr){const buf=new ArrayBuffer(44+samples.length*2);const v=new DataView(buf);function ws(o,s){for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));} ws(0,'RIFF');v.setUint32(4,36+samples.length*2,true);ws(8,'WAVE');ws(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);ws(36,'data');v.setUint32(40,samples.length*2,true);let off=44;for(let i=0;i<samples.length;i++){const s=Math.max(-1,Math.min(1,samples[i]));v.setInt16(off,s<0?s*0x8000:s*0x7fff,true);off+=2;}return new Blob([buf],{type:'audio/wav'});}
-
   function showChairmanBlockScreen(){
-    document.getElementById('app').innerHTML = `
-      <div id="prankBox" style="background:black; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; font-family:system-ui;">
-        <div style="font-size:90px; animation:shake 0.4s infinite;" id="emojiIcon">🚫</div>
-        <h1 style="font-size:32px; font-weight:900; color:red; margin:15px 0; line-height:1.2;" id="mainText">DON'T CLICK ON THE<br>CHAIRMAN</h1>
-        <h2 style="font-size:26px; color:white; background:red; padding:12px 22px; border-radius:12px; margin:10px 0; font-weight:900;" id="subText">OR YOU WILL BE BLOCKED!</h2>
-        <div style="background:#1a1a00; border:2px solid gold; border-radius:12px; padding:15px; margin:20px 0; max-width:400px;" id="warnBox">
-          <p style="color:yellow; font-size:16px; margin:5px; font-weight:bold;">⚠️ CHAIRMAN HOUSE! NO ENTRY!</p>
-          <p style="color:white; font-size:13px; margin:8px 0;">Your IP don save for Chairman database!</p>
-          <p style="color:#ff8888; font-size:12px; margin:5px;">Chairman dey para... e dey come!</p>
-        </div>
-        <div style="font-size:20px; color:yellow; font-weight:bold;" id="countdown">😱 4...</div>
-      </div>
-      <style>@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}</style>
-    `;
-    let count = 4;
-    const timer = setInterval(() => {
-      count--;
-      const cd = document.getElementById('countdown');
-      if(cd) cd.innerText = `😱 ${count}...`;
-      if(count <= 0){
-        clearInterval(timer);
-        document.getElementById('prankBox').innerHTML = `
-          <div style="font-size:90px;">😂</div>
-          <h1 style="font-size:33px; font-weight:900; color:#00ff88; margin:15px 0; line-height:1.2;">CHAIRMAN DEY<br>PULL YOUR LEG! 🤣</h1>
-          <h2 style="font-size:20px; color:black; background:gold; padding:12px 22px; border-radius:12px; margin:10px 0; font-weight:900;">NA PRANK O! NO VEX! 😅</h2>
-          <div style="background:#0a2e1a; border:2px solid #00ff88; border-radius:14px; padding:18px; margin:20px 0; max-width:420px; text-align:left;">
-            <p style="color:#00ff88; font-size:15px; margin:8px 0; font-weight:bold;">🗣️ Oya make I yarn you for Pidgin:</p>
-            <p style="color:white; font-size:14px; margin:8px 0;">😂 My guy, your heart don cut abi? No fear jare!</p>
-            <p style="color:white; font-size:14px; margin:8px 0;">Na Chairman dey use you catch cruise! We no go block you!</p>
-            <p style="color:white; font-size:14px; margin:8px 0;">That Admin Panel na for Chairman only - na business secret dey there! 🤫</p>
-            <p style="color:#aaa; font-size:13px; margin:8px 0;">But you sabi say you try? 😂 You get mind o! Chairman like your courage!</p>
-            <hr style="border:1px solid #333; margin:12px 0;">
-            <p style="color:gold; font-size:14px; margin:8px 0; font-weight:bold;">👉 Business be this: Go back go record your Pidgin make you hammer! 💰 Rate: ₦${PRICE_PER_VOICE} per voice!</p>
-            <p style="color:#888; font-size:11px; margin-top:10px;">Part of Broken & Pidgin English Business - One Love! ❤️ Warri no dey carry last!</p>
-          </div>
-          <button onclick="location.pathname='/user/dashboard'" style="margin-top:10px; padding:18px 38px; background:#00ff88; color:black; font-weight:900; border-radius:35px; font-size:17px; border:none; cursor:pointer;">
-            😂 HAHA! CHAIRMAN YOU WICKED! MAKE I GO WORK!
-          </button>
-        `;
-      }
-    }, 1000);
+    document.getElementById('app').innerHTML = `<div id="prankBox" style="background:black; min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;"><div style="font-size:90px;">🚫</div><h1 style="font-size:32px; font-weight:900; color:red;">DON'T CLICK ON THE<br>CHAIRMAN</h1><h2 style="font-size:26px; color:white; background:red; padding:12px 22px; border-radius:12px;">OR YOU WILL BE BLOCKED!</h2><div style="background:#1a1a00; border:2px solid gold; border-radius:12px; padding:15px; margin:20px 0; max-width:400px;"><p style="color:yellow; font-weight:bold;">⚠️ CHAIRMAN HOUSE! NO ENTRY!</p></div><div id="countdown" style="color:yellow;font-weight:bold">😱 4...</div></div>`;
+    let count=4; const timer=setInterval(()=>{count--; const cd=document.getElementById('countdown'); if(cd) cd.innerText=`😱 ${count}...`; if(count<=0){clearInterval(timer); document.getElementById('prankBox').innerHTML=`<div style="font-size:90px;">😂</div><h1 style="color:#00ff88">CHAIRMAN DEY PULL YOUR LEG! 🤣</h1><p style="color:white">Na prank o! Go back go work! Rate: ₦${PRICE_PER_VOICE}</p><button onclick="location.pathname='/user/dashboard'" style="padding:18px 38px; background:#00ff88; color:black; font-weight:900; border-radius:35px; border:none;">MAKE I GO WORK!</button>`;}},1000);
   }
-
   function copyLink(text, btnId){
-    if(!text){ alert('No link to copy'); return; }
+    if(!text){ alert('No link'); return; }
     navigator.clipboard.writeText(text).then(()=>{
-      const btn = document.getElementById(btnId);
-      if(btn){ const old = btn.innerHTML; btn.innerHTML='✅ COPIED!'; btn.style.background='#00ff88'; btn.style.color='black'; setTimeout(()=>{ btn.innerHTML=old; btn.style.background=''; btn.style.color=''; },1500); }
-    }).catch(()=>{
-      const ta = document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-      alert('✅ Copied!');
-    });
+      const btn=document.getElementById(btnId);
+      if(btn){ const old=btn.innerHTML; btn.innerHTML='✅ COPIED!'; setTimeout(()=>{btn.innerHTML=old;},1500); }
+    }).catch(()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('✅ Copied!'); });
   }
-  window.showChairmanBlockScreen = showChairmanBlockScreen;
-  window.copyLink = copyLink;
-
-  async function saveWorkerAccount(){
-    const full_name=document.getElementById('acc_fullname')?.value.trim();
-    const bank_name=document.getElementById('acc_bank')?.value;
-    const account_number=document.getElementById('acc_number')?.value.trim();
-    const account_name=document.getElementById('acc_name')?.value.trim();
-    const phone_number=document.getElementById('acc_phone')?.value.trim();
-    const msg=document.getElementById('acc_msg');
-    if(!full_name||!bank_name||!account_number||!account_name){msg.innerText='❌ Fill all!';return;}
-    msg.innerText='⏳ Saving...';
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    const {error}=await supabaseClient.from('worker_accounts').upsert({user_id:session.user.id,full_name,bank_name,account_number,account_name,phone_number},{onConflict:'user_id'});
-    if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Saved! Chairman go pay you ₦'+PRICE_PER_VOICE+' per voice! 💰';}
+  window.showChairmanBlockScreen=showChairmanBlockScreen; window.copyLink=copyLink;
+  async function hashKeyClient(text){
+    const encoder=new TextEncoder(); const data=encoder.encode(text);
+    const hashBuffer=await crypto.subtle.digest('SHA-256', data);
+    const hashArray=Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
   }
-  async function loadWorkerAccount(){
+  function generateApiKeyRaw(){
+    const chars='abcdef0123456789'; let rand='';
+    for(let i=0;i<48;i++) rand+=chars[Math.floor(Math.random()*chars.length)];
+    return 'mn_live_' + rand;
+  }
+  async function renderKeysPage(session){
+    const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+    if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
+    const {data:keys} = await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
+    document.getElementById('app').innerHTML=`
+      <div class="card" style="border:2px solid gold"><h2>🔑 CHAIRMAN SECRET - API KEYS</h2><div class="price-banner">🔒 ONLY CHAIRMAN FIT SEE THIS! SECRET AREA!</div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">⬅️ Dashboard</button><button class="btn gray" onclick="location.pathname='/api-docs'">📚 Public Docs</button><button class="btn gray" onclick="location.pathname='/admin/users'">👥 Users</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyKeysPage')" id="copyKeysPage">📋 COPY LINK</button></div></div>
+      <div class="card" style="border:2px solid #facc15;background:#1a1a00"><h3>➕ Generate New API Key</h3><p style="font-size:12px;color:#aaa">Generate key to sell to developers!</p><input id="key_name" placeholder="Key Name e.g. For Client 1"><button class="btn gold" onclick="doGenerateKey()">🔑 GENERATE NEW KEY</button><p id="key_msg"></p><div id="newKeyBox" style="display:none;background:#00c950;color:black;padding:15px;border-radius:10px;margin-top:15px;word-break:break-all;"><b>✅ COPY NOW - SHOWS ONCE!</b><br><br><code id="newKeyText" style="font-size:14px;font-weight:bold"></code><br><br><button class="btn gray" style="background:black;color:white" onclick="copyLink(document.getElementById('newKeyText').innerText, 'copyNewKey')" id="copyNewKey">📋 COPY KEY</button></div></div>
+      <div class="card"><h3>📋 Your API Keys - ${(keys||[]).length}</h3>${(keys||[]).length==0?'<p>No keys yet</p>':keys.map(k=>`<div class="card" style="background:#181818;border:1px solid #333"><b>${k.name||'Unnamed'}</b><br><small>Prefix: ${k.key_prefix}...</small><br><small>${new Date(k.created_at).toLocaleString()}</small><br><small>Status: ${k.is_active?'<span style="color:#00ff88">ACTIVE ✅</span>':'<span style="color:red">INACTIVE ❌</span>'}</small><br><div style="display:flex;gap:6px;margin-top:8px"><button class="btn gray" style="padding:8px;font-size:11px;flex:1" onclick="toggleKey('${k.id}', ${k.is_active})">${k.is_active?'🔒 DEACTIVATE':'✅ ACTIVATE'}</button><button class="btn gray" style="padding:8px;font-size:11px;flex:1;background:red;color:white" onclick="deleteKey('${k.id}')">🗑️ DELETE</button></div></div>`).join('')}</div>`;
+  }  async function doGenerateKey(){
+    const nameEl=document.getElementById('key_name'); const msgEl=document.getElementById('key_msg'); const box=document.getElementById('newKeyBox'); const textEl=document.getElementById('newKeyText');
+    const name=nameEl.value.trim()||'Main Key'; msgEl.innerText='⏳ Generating...';
     try{
+      const raw=generateApiKeyRaw(); const hash=await hashKeyClient(raw); const prefix=raw.substring(0,18);
       const {data:{session}}=await supabaseClient.auth.getSession();
-      const {data}=await supabaseClient.from('worker_accounts').select('*').eq('user_id',session.user.id).single();
-      if(data){
-        if(document.getElementById('acc_fullname'))document.getElementById('acc_fullname').value=data.full_name||'';
-        if(document.getElementById('acc_bank'))document.getElementById('acc_bank').value=data.bank_name||'';
-        if(document.getElementById('acc_number'))document.getElementById('acc_number').value=data.account_number||'';
-        if(document.getElementById('acc_name'))document.getElementById('acc_name').value=data.account_name||'';
-        if(document.getElementById('acc_phone'))document.getElementById('acc_phone').value=data.phone_number||'';
-        if(document.getElementById('acc_msg'))document.getElementById('acc_msg').innerText='✅ Account saved already';
-      }
-    }catch(e){}
+      const {error}=await supabaseClient.from('api_keys').insert([{user_id:session.user.id,name:name,key_hash:hash,key_prefix:prefix,is_active:true}]);
+      if(error) throw error;
+      textEl.innerText=raw; box.style.display='block'; msgEl.innerText='✅ Generated! COPY AM NOW!'; nameEl.value='';
+    }catch(e){ msgEl.innerText='❌ '+e.message+' - Create api_keys table first!'; }
   }
-  async function viewWorkerAccounts(){
-    document.getElementById('app').innerHTML='<div class="card"><h2>⏳ Loading accounts...</h2></div>';
-    const {data}=await supabaseClient.from('worker_accounts').select('*').order('created_at',{ascending:false});
-    let html=`<div class="card"><h2>💳 ALL WORKERS ACCOUNTS - ${data?.length||0}</h2><div class="price-banner">💰 CURRENT RATE: ₦${PRICE_PER_VOICE} PER VOICE (100 recordings)</div><button class="btn gold" onclick="location.pathname='/admin/dashboard'">⬅️ Back</button><button class="btn gray" onclick="exportAccountsCSV()">📄 EXPORT CSV</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyAccPage')" id="copyAccPage">📋 COPY PAGE LINK</button>`;
-    if(!data||data.length==0)html+='<p>No account yet</p>';else html+=data.map(a=>`<div class="card" style="background:#181818;border:1px solid gold"><b>${a.full_name}</b><br>Bank: ${a.bank_name} - ${a.account_number}<br>Name: ${a.account_name}<br>Phone: ${a.phone_number}<br><div style="display:flex;gap:6px;margin-top:8px;"><button class="btn gray" style="padding:10px;width:auto;flex:1;" onclick="copyLink('${a.account_number}', 'copyNo${a.user_id}')" id="copyNo${a.user_id}">📋 COPY NO</button><button class="btn gold" style="padding:10px;width:auto;flex:1;" onclick="copyLink('${a.bank_name} - ${a.account_number} - ${a.account_name}', 'copyFull${a.user_id}')" id="copyFull${a.user_id}">📋 COPY FULL</button></div></div>`).join('');
-    html+=`</div>`;document.getElementById('app').innerHTML=html;
+  async function toggleKey(id, current){ await supabaseClient.from('api_keys').update({is_active:!current}).eq('id',id); location.reload(); }
+  async function deleteKey(id){ if(!confirm('Delete?')) return; await supabaseClient.from('api_keys').delete().eq('id',id); location.reload(); }
+  function renderApiDocsPage(){
+    document.getElementById('app').innerHTML=`
+      <div class="card" style="border:2px solid #facc15;text-align:center"><h1 style="color:#facc15">🔥 Main Naija Pidgin API</h1><p>Authentic Warri Pidgin voice dataset</p><div class="nav"><button class="btn gray" onclick="location.pathname='/'">⬅️ Home</button><button class="btn gray" onclick="location.pathname='/admin/login'">👑 Chairman Login</button></div></div>
+      <div class="card"><h3>📍 Base URL</h3><code style="background:#222;padding:10px;display:block;border-radius:8px">https://main-naija-pidgin.vercel.app/api</code></div>
+      <div class="card" style="border:1px solid gold;background:#1a1a00"><h3>🔑 How to Get API Key</h3><p>1. Chat Chairman on WhatsApp<br>2. Pay ₦5000 per 1000 calls<br>3. Chairman generates from /admin/keys (secret) and sends you</p><div class="price-banner">💰 ₦5000 / 1000 calls | ₦1000 per voice</div><a href="https://wa.me/2340000000000?text=I%20want%20Pidgin%20API%20key" style="display:block;background:#25D366;color:white;padding:15px;border-radius:25px;text-align:center;text-decoration:none;font-weight:bold;margin-top:15px">💬 Chat Chairman</a></div>
+      <div class="card"><h3>💻 Usage</h3><pre style="background:black;padding:12px;border-radius:8px;overflow:auto;font-size:12px">fetch('https://main-naija-pidgin.vercel.app/api/voices', {
+  headers: { 'Authorization': 'Bearer YOUR_API_KEY' }
+})</pre><button class="btn gray" onclick="copyLink(this.previousElementSibling.innerText, 'copyCode')" id="copyCode">📋 COPY CODE</button></div>`;
   }
-  async function exportAccountsCSV(){
-    const {data}=await supabaseClient.from('worker_accounts').select('*');
-    if(!data||data.length==0){alert('No accounts');return;}
-    let csv='full_name,bank_name,account_number,account_name,phone,user_id\n';data.forEach(a=>{csv+=`"${a.full_name}","${a.bank_name}","${a.account_number}","${a.account_name}","${a.phone_number}","${a.user_id}"\n`;});
-    const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='WORKER_ACCOUNTS.csv';link.click();
-  }
-  async function loadAnnouncements(){
-    try{
-      const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(5);
-      return data||[];
-    }catch(e){return [];}
-  }
-  async function postAnnouncement(){
-    const text=document.getElementById('announce_text')?.value.trim();
-    if(!text){alert('Type message!');return;}
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    const {error}=await supabaseClient.from('announcements').insert({message:text,created_by:session.user.id});
-    if(error){alert(error.message);}else{alert('✅ Announcement posted!');document.getElementById('announce_text').value='';location.reload();}
-  }
-  async function forgotPassword(){
-    const emailInput = document.getElementById('email');
-    let email = emailInput ? emailInput.value.trim() : '';
-    if(!email){ email = prompt("Enter your email to reset password:"); }
-    if(!email) return;
-    const msg=document.getElementById('msg');
-    if(msg) msg.innerText = '⏳ Sending reset link to ' + email + '...';
-    const {error} = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: 'https://main-naija-pidgin.vercel.app/user/reset-password' });
-    if(error){ if(msg) msg.innerText = '❌ ' + error.message; else alert('Error: ' + error.message); }else{ if(msg) msg.innerText = '✅ Reset link sent to ' + email + '! Check email inbox & spam!'; else alert('✅ Reset link sent!'); }
-  }
-  async function renderResetPassword(){
-    document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔐 SET NEW PASSWORD</h2><p>Enter your new password below</p><input id="new_pass" type="password" placeholder="New Password (min 6 chars)"><input id="new_pass2" type="password" placeholder="Confirm New Password"><button class="btn gold" onclick="doUpdatePassword()">✅ UPDATE PASSWORD</button><p id="msg"></p><button class="btn gray" onclick="location.pathname='/user/login'">⬅️ Back to Login</button></div>`;
-  }
-  async function doUpdatePassword(){
-    const p1=document.getElementById('new_pass').value; const p2=document.getElementById('new_pass2').value; const msg=document.getElementById('msg');
-    if(!p1||!p2){msg.innerText='Fill both fields';return;} if(p1!==p2){msg.innerText='❌ Passwords no match!';return;} if(p1.length<6){msg.innerText='❌ Password too short - min 6';return;}
-    msg.innerText='⏳ Updating...'; const {error} = await supabaseClient.auth.updateUser({password: p1});
-    if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Password updated! Redirecting to login...';setTimeout(()=>{supabaseClient.auth.signOut().then(()=>location.pathname='/user/login');},1500);}
-  }
+  window.doGenerateKey=doGenerateKey; window.toggleKey=toggleKey; window.deleteKey=deleteKey;
+  async function saveWorkerAccount(){ const full_name=document.getElementById('acc_fullname')?.value.trim(); const bank_name=document.getElementById('acc_bank')?.value; const account_number=document.getElementById('acc_number')?.value.trim(); const account_name=document.getElementById('acc_name')?.value.trim(); const phone_number=document.getElementById('acc_phone')?.value.trim(); const msg=document.getElementById('acc_msg'); if(!full_name||!bank_name||!account_number||!account_name){msg.innerText='❌ Fill all!';return;} msg.innerText='⏳ Saving...'; const {data:{session}}=await supabaseClient.auth.getSession(); const {error}=await supabaseClient.from('worker_accounts').upsert({user_id:session.user.id,full_name,bank_name,account_number,account_name,phone_number},{onConflict:'user_id'}); if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Saved!';}}
+  async function loadWorkerAccount(){ try{ const {data:{session}}=await supabaseClient.auth.getSession(); const {data}=await supabaseClient.from('worker_accounts').select('*').eq('user_id',session.user.id).single(); if(data){ if(document.getElementById('acc_fullname'))document.getElementById('acc_fullname').value=data.full_name||''; if(document.getElementById('acc_bank'))document.getElementById('acc_bank').value=data.bank_name||''; if(document.getElementById('acc_number'))document.getElementById('acc_number').value=data.account_number||''; if(document.getElementById('acc_name'))document.getElementById('acc_name').value=data.account_name||''; if(document.getElementById('acc_phone'))document.getElementById('acc_phone').value=data.phone_number||''; if(document.getElementById('acc_msg'))document.getElementById('acc_msg').innerText='✅ Account saved'; } }catch(e){} }
+  async function viewWorkerAccounts(){ document.getElementById('app').innerHTML='<div class="card"><h2>⏳ Loading...</h2></div>'; const {data}=await supabaseClient.from('worker_accounts').select('*').order('created_at',{ascending:false}); let html=`<div class="card"><h2>💳 ACCOUNTS - ${data?.length||0}</h2><button class="btn gold" onclick="location.pathname='/admin/dashboard'">⬅️ Back</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyAccPage')" id="copyAccPage">📋 COPY LINK</button>`; if(!data||data.length==0)html+='<p>No account</p>';else html+=data.map(a=>`<div class="card" style="background:#181818;border:1px solid gold"><b>${a.full_name}</b><br>${a.bank_name} - ${a.account_number}<br>${a.account_name}<br>${a.phone_number}<br><button class="btn gray" style="padding:10px;" onclick="copyLink('${a.account_number}', 'copyNo${a.user_id}')" id="copyNo${a.user_id}">📋 COPY NO</button></div>`).join(''); html+=`</div>`;document.getElementById('app').innerHTML=html; }
+  async function loadAnnouncements(){ try{ const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(5); return data||[]; }catch(e){return [];} }
+  async function postAnnouncement(){ const text=document.getElementById('announce_text')?.value.trim(); if(!text){alert('Type message!');return;} const {data:{session}}=await supabaseClient.auth.getSession(); const {error}=await supabaseClient.from('announcements').insert({message:text,created_by:session.user.id}); if(error){alert(error.message);}else{alert('✅ Posted!');location.reload();} }
+  async function forgotPassword(){ const emailInput=document.getElementById('email'); let email=emailInput?emailInput.value.trim():''; if(!email){ email=prompt("Enter email:"); } if(!email) return; const msg=document.getElementById('msg'); if(msg) msg.innerText='⏳ Sending...'; const {error}=await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: 'https://main-naija-pidgin.vercel.app/user/reset-password' }); if(error){ if(msg) msg.innerText='❌ '+error.message; else alert(error.message); }else{ if(msg) msg.innerText='✅ Sent to '+email; else alert('✅ Sent!'); } }
+  async function renderResetPassword(){ document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔐 SET NEW PASSWORD</h2><input id="new_pass" type="password" placeholder="New Password"><input id="new_pass2" type="password" placeholder="Confirm"><button class="btn gold" onclick="doUpdatePassword()">✅ UPDATE</button><p id="msg"></p><button class="btn gray" onclick="location.pathname='/user/login'">⬅️ Back</button></div>`; }
+  async function doUpdatePassword(){ const p1=document.getElementById('new_pass').value; const p2=document.getElementById('new_pass2').value; const msg=document.getElementById('msg'); if(!p1||!p2){msg.innerText='Fill both';return;} if(p1!==p2){msg.innerText='❌ No match';return;} if(p1.length<6){msg.innerText='❌ Too short';return;} msg.innerText='⏳ Updating...'; const {error}=await supabaseClient.auth.updateUser({password:p1}); if(error){msg.innerText='❌ '+error.message;}else{msg.innerText='✅ Updated! Redirecting...';setTimeout(()=>{supabaseClient.auth.signOut().then(()=>location.pathname='/user/login');},1500);} }
   window.forgotPassword=forgotPassword; window.doUpdatePassword=doUpdatePassword;
-  async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:gold;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
-  async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><div class="price-banner">💰 Earn ₦${PRICE_PER_VOICE} per Voice - 100 Recordings = ₦${PRICE_PER_VOICE}</div><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Your Name (for signup)"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:#00ff88;text-decoration:underline;font-size:14px;">🔐 Forgot Password? Click here</a></p><p id="msg"></p></div>`;}
-  async function doLogin(type){
-    const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const msg=document.getElementById('msg');
-    if(!e||!p){msg.innerText='Fill email and password';return;}msg.innerText='Checking...';
-    const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
-    if(error){msg.innerText='Login fail: '+error.message;return;}
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-    if(!prof){const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair};await supabaseClient.from('profiles').insert([newProf]);prof=newProf;}
-    if(e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase()&&!prof.is_chairman){await supabaseClient.from('profiles').update({is_chairman:true}).eq('id',session.user.id);prof.is_chairman=true;}
-    if(type==='admin'){if(!prof?.is_chairman){showChairmanBlockScreen();return;}location.href='/admin/dashboard';}else{if(prof?.is_chairman)location.href='/admin/dashboard';else location.href='/user/dashboard';}
-  }
-  async function doSignup(){
-    const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const n=document.getElementById('name').value||e.split('@')[0];const msg=document.getElementById('msg');
-    if(!e||!p){msg.innerText='Fill email and password';return;}msg.innerText='Creating...';
-    const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});
-    if(error){msg.innerText=error.message;return;}if(!data.user){msg.innerText='Check email!';return;}
-    const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();
-    await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair}]);
-    msg.innerText='✅ Created! Now LOGIN';
-  }
+  async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN</h2><input id="email" placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:gold;text-decoration:underline;">🔐 Forgot Password?</a></p><p id="msg"></p></div>`;}
+  async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><div class="price-banner">💰 Earn ₦${PRICE_PER_VOICE} per Voice</div><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Name for signup"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p style="text-align:center;margin-top:15px;"><a href="#" onclick="forgotPassword()" style="color:#00ff88;text-decoration:underline;">🔐 Forgot Password?</a></p><p id="msg"></p></div>`;}
+  async function doLogin(type){ const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const msg=document.getElementById('msg'); if(!e||!p){msg.innerText='Fill email and password';return;}msg.innerText='Checking...'; const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p}); if(error){msg.innerText='Login fail: '+error.message;return;} const {data:{session}}=await supabaseClient.auth.getSession(); let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(!prof){const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair};await supabaseClient.from('profiles').insert([newProf]);prof=newProf;} if(e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase()&&!prof.is_chairman){await supabaseClient.from('profiles').update({is_chairman:true}).eq('id',session.user.id);prof.is_chairman=true;} if(type==='admin'){if(!prof?.is_chairman){showChairmanBlockScreen();return;}location.href='/admin/dashboard';}else{if(prof?.is_chairman)location.href='/admin/dashboard';else location.href='/user/dashboard';} }
+  async function doSignup(){ const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const n=document.getElementById('name').value||e.split('@')[0];const msg=document.getElementById('msg'); if(!e||!p){msg.innerText='Fill email and password';return;}msg.innerText='Creating...'; const {data,error}=await supabaseClient.auth.signUp({email:e,password:p}); if(error){msg.innerText=error.message;return;}if(!data.user){msg.innerText='Check email!';return;} const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase(); await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair}]); msg.innerText='✅ Created! Now LOGIN'; }
   window.doLogin=doLogin;window.doSignup=doSignup;
   let userState={blob:null,url:null,recorder:null,chunks:[],total:0,list:[]};
-  async function renderUserDashboard(session){
-    const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-    if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}
-    const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');
-    userState.list=recs||[];userState.total=(recs||[]).reduce((s,r)=>s+r.word_count,0)||0;
-    const current=TEXTS[(recs||[]).length % TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100);
-    const earnedSoFar = userState.list.length * PRICE_PER_RECORDING;
-    const totalPotential = 100 * PRICE_PER_RECORDING;
-    const announcements=await loadAnnouncements();
-    let announceHTML=`<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 ANNOUNCEMENT BOARD</h3>${announcements.length==0?'<p style="font-size:12px;color:#aaa">No announcement yet - Chairman go post here</p>':announcements.map(a=>`<div class="announce">📢 ${a.message}<br><small style="color:#aaa">${new Date(a.created_at).toLocaleString()}</small><br><button class="btn gray" style="padding:8px;font-size:12px;width:auto;margin-top:6px;" onclick="copyLink(\`${a.message.replace(/`/g,'').replace(/'/g,"\\'")}\`, 'copyAnn${a.id}')" id="copyAnn${a.id}">📋 COPY ANNOUNCEMENT</button></div>`).join('')}</div>`;
-    document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING - 100 Sentences</h3><div class="price-banner">💰 RATE: ₦${PRICE_PER_VOICE} PER VOICE (100 recordings) = ₦${PRICE_PER_RECORDING} PER RECORDING<br>✅ You don record ${userState.list.length} | 💵 You don earn ₦${earnedSoFar} | ⏳ Remain ₦${totalPotential - earnedSoFar} to hammer ₦${totalPotential}!</div><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAINING | ${pct.toFixed(1)}%</small>
-    <div class="nav">
-      <button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button>
-      <button class="btn gray" style="width:auto; background:#222; color:#ff4444; border:1px solid red;" onclick="showChairmanBlockScreen()">🔒 Admin Panel</button>
-      <button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button>
-      <button class="btn gray" style="width:auto" onclick="copyLink(window.location.href, 'copyPage')" id="copyPage">📋 COPY LINK</button>
-    </div>
-    </div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 YOUR PAYMENT ACCOUNT - PUT CORRECT ONE! - YOU GO COLLECT ₦${PRICE_PER_VOICE}!</h3><p style="font-size:12px;color:#aaa">Chairman go use this account pay you ₦${PRICE_PER_VOICE} per voice!</p><input id="acc_fullname" placeholder="Your Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith Bank</option><option>Others</option></select><input id="acc_number" placeholder="Account Number (10 digits)" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp Number"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT - PAY ME ₦${PRICE_PER_VOICE}!</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} of 100 - ${countW(current)} words - Worth ₦${PRICE_PER_RECORDING}</small><div class="textbox" id="curTxt">${current}</div><button class="btn gray" style="width:auto;padding:8px 14px;font-size:12px;" onclick="copyLink(document.getElementById('curTxt').innerText, 'copyCurTxt')" id="copyCurTxt">📋 COPY THIS TEXT</button><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD - EARN ₦${PRICE_PER_RECORDING}</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active - ₦${PRICE_PER_RECORDING} dey wait!</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 RECORD AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE & EARN ₦${PRICE_PER_RECORDING}</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT TEXT ➡️ EARN MORE</button></div>${userState.total>=1000?`<div class="card" style="border:2px solid gold;text-align:center"><h2>🎉 TARGET COMPLETED! 1,000 WORDS ✅</h2><p>You don hammer ₦${PRICE_PER_VOICE}! Chairman go review and pay you!</p></div>`:''}`;
-    setTimeout(loadWorkerAccount,500);
-  }
-  async function startR(){
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:{ideal:1}}});
-      userState.chunks=[];const mr=new MediaRecorder(stream);mr.ondataavailable=e=>{if(e.data.size>0)userState.chunks.push(e.data);};
-      mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const raw=new Blob(userState.chunks);const cleaned=await cleanVoice(raw);userState.blob=cleaned;if(userState.url)URL.revokeObjectURL(userState.url);userState.url=URL.createObjectURL(cleaned);document.getElementById('prev').style.display='block';document.getElementById('aud').src=userState.url;};
-      mr.start(1000);document.getElementById('startB').style.display='none';document.getElementById('stopB').style.display='block';userState.recorder=mr;userState._stream=stream;
-    }catch(e){alert('Allow microphone: '+e.message);}
-  }
+  async function renderUserDashboard(session){ const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(profile?.is_chairman){location.pathname='/admin/dashboard';return;} const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number'); userState.list=recs||[];userState.total=(recs||[]).reduce((s,r)=>s+r.word_count,0)||0; const current=TEXTS[(recs||[]).length % TEXTS.length];const pct=Math.min(100,(userState.total/1000)*100); const earnedSoFar=userState.list.length*PRICE_PER_RECORDING; const totalPotential=100*PRICE_PER_RECORDING; const announcements=await loadAnnouncements(); let announceHTML=`<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 ANNOUNCEMENT</h3>${announcements.length==0?'<p>No announcement</p>':announcements.map(a=>`<div class="announce">📢 ${a.message}<br><small>${new Date(a.created_at).toLocaleString()}</small></div>`).join('')}</div>`; document.getElementById('app').innerHTML=`<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><h3>🎙️ PIDGIN RECORDING - 100 Sentences</h3><div class="price-banner">💰 RATE: ₦${PRICE_PER_VOICE} PER VOICE = ₦${PRICE_PER_RECORDING} PER RECORD<br>✅ ${userState.list.length} | 💵 ₦${earnedSoFar} | ⏳ Remain ₦${totalPotential-earnedSoFar}</div><div class="big">${userState.total} / 1,000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div><small>${Math.max(0,1000-userState.total)} WORDS REMAIN | ${pct.toFixed(1)}%</small><div class="nav"><button class="btn gray" style="width:auto" onclick="location.pathname='/user/dashboard'">Dashboard</button><button class="btn gray" style="width:auto; background:#222; color:#ff4444; border:1px solid red;" onclick="showChairmanBlockScreen()">🔒 Admin Panel</button><button class="btn gray" style="width:auto" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button><button class="btn gray" style="width:auto" onclick="copyLink(window.location.href, 'copyPage')" id="copyPage">📋 COPY LINK</button></div></div>${announceHTML}<div class="card" style="border:2px solid gold;background:#1a1a00"><h3>💰 PAYMENT ACCOUNT - ₦${PRICE_PER_VOICE}!</h3><input id="acc_fullname" placeholder="Full Name"><select id="acc_bank"><option value="">Select Bank</option><option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTBank</option><option>Access Bank</option><option>UBA</option><option>Zenith</option><option>Others</option></select><input id="acc_number" placeholder="Account Number" maxlength="10"><input id="acc_name" placeholder="Account Name"><input id="acc_phone" placeholder="WhatsApp"><button class="btn gold" onclick="saveWorkerAccount()">💾 SAVE ACCOUNT</button><p id="acc_msg"></p></div><div class="card"><small>Text #${(recs||[]).length+1} of 100 - ${countW(current)} words - ₦${PRICE_PER_RECORDING}</small><div class="textbox" id="curTxt">${current}</div><button class="btn gray" style="width:auto;padding:8px 14px;font-size:12px;" onclick="copyLink(document.getElementById('curTxt').innerText, 'copyCurTxt')" id="copyCurTxt">📋 COPY TEXT</button><button class="btn green" id="startB" onclick="startR()">🎙️ RECORD - EARN ₦${PRICE_PER_RECORDING}</button><button class="btn red" id="stopB" style="display:none" onclick="stopR()">⏹️ STOP</button><div id="prev" style="display:none"><div class="clean-badge">✅ Clean Voice Active</div><audio id="aud" controls style="width:100%"></audio><button class="btn gray" onclick="playP()">▶️ PLAY</button><button class="btn gray" onclick="again()">🔄 AGAIN</button><button class="btn green" id="saveB" onclick="saveR()">💾 SAVE & EARN</button><p id="smsg"></p></div><button class="btn green" id="nextB" style="display:none" onclick="location.reload()">NEXT ➡️</button></div>`; setTimeout(loadWorkerAccount,500); }
+  async function startR(){ try{ const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:{ideal:1}}}); userState.chunks=[];const mr=new MediaRecorder(stream);mr.ondataavailable=e=>{if(e.data.size>0)userState.chunks.push(e.data);}; mr.onstop=async()=>{stream.getTracks().forEach(t=>t.stop());const raw=new Blob(userState.chunks);const cleaned=await cleanVoice(raw);userState.blob=cleaned;if(userState.url)URL.revokeObjectURL(userState.url);userState.url=URL.createObjectURL(cleaned);document.getElementById('prev').style.display='block';document.getElementById('aud').src=userState.url;}; mr.start(1000);document.getElementById('startB').style.display='none';document.getElementById('stopB').style.display='block';userState.recorder=mr;userState._stream=stream; }catch(e){alert('Allow mic: '+e.message);} }
   function stopR(){if(userState.recorder&&userState.recorder.state==='recording')userState.recorder.stop();if(userState._stream)userState._stream.getTracks().forEach(t=>t.stop());}
   function playP(){document.getElementById('aud').play();} function again(){document.getElementById('prev').style.display='none';document.getElementById('startB').style.display='block';}
-  async function saveR(){
-    const saveB=document.getElementById('saveB');saveB.disabled=true;saveB.innerText='Uploading...';const text=document.querySelector('.textbox').innerText;const wc=countW(text);
-    const {data:{session}}=await supabaseClient.auth.getSession();const num=userState.list.length+1;const fname=`${String(num).padStart(3,'0')}_pidgin_recording.wav`;const path=`${session.user.id}/${fname}`;
-    try{const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob,{contentType:'audio/wav',upsert:false});if(upErr)throw upErr;const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);if(dbErr)throw dbErr;await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);document.getElementById('smsg').innerText='✅ SAVED! You earn ₦'+PRICE_PER_RECORDING+'!';document.getElementById('nextB').style.display='block';setTimeout(()=>location.reload(),1200);}catch(e){document.getElementById('smsg').innerText='❌ '+e.message;saveB.disabled=false;saveB.innerText='💾 SAVE ONLY';}
-  }
-  window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.saveWorkerAccount=saveWorkerAccount;window.viewWorkerAccounts=viewWorkerAccounts;window.exportAccountsCSV=exportAccountsCSV;window.postAnnouncement=postAnnouncement;
+  async function saveR(){ const saveB=document.getElementById('saveB');saveB.disabled=true;saveB.innerText='Uploading...';const text=document.querySelector('.textbox').innerText;const wc=countW(text); const {data:{session}}=await supabaseClient.auth.getSession();const num=userState.list.length+1;const fname=`${String(num).padStart(3,'0')}_pidgin_recording.wav`;const path=`${session.user.id}/${fname}`; try{const {error:upErr}=await supabaseClient.storage.from('pidgin-recordings').upload(path,userState.blob,{contentType:'audio/wav',upsert:false});if(upErr)throw upErr;const {data:urlD}=supabaseClient.storage.from('pidgin-recordings').getPublicUrl(path);const {error:dbErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);if(dbErr)throw dbErr;await supabaseClient.from('profiles').update({total_words:userState.total+wc,recordings_count:num,status:userState.total+wc>=1000?'completed':'recording'}).eq('id',session.user.id);document.getElementById('smsg').innerText='✅ SAVED!';document.getElementById('nextB').style.display='block';setTimeout(()=>location.reload(),1200);}catch(e){document.getElementById('smsg').innerText='❌ '+e.message;saveB.disabled=false;saveB.innerText='💾 SAVE';} }
+  window.startR=startR;window.stopR=stopR;window.playP=playP;window.again=again;window.saveR=saveR;window.saveWorkerAccount=saveWorkerAccount;window.viewWorkerAccounts=viewWorkerAccounts;window.postAnnouncement=postAnnouncement;
   async function renderAdminDashboard(session){
     const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
     if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
     const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});const list=users||[];const totalW=list.reduce((s,u)=>s+(u.total_words||0),0);const completed=list.filter(u=>u.total_words>=1000).length;const recording=list.filter(u=>u.total_words>0&&u.total_words<1000).length;const notStarted=list.filter(u=>!u.total_words||u.total_words==0).length;const totalRecs=list.reduce((s,u)=>s+(u.recordings_count||0),0);
     const announcements=await loadAnnouncements();
-    document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD - PRICE: ₦${PRICE_PER_VOICE} per Voice</h2><div class="price-banner">💰 CURRENT RATE: ₦${PRICE_PER_VOICE} per Voice (100 recordings) = ₦${PRICE_PER_RECORDING} per recording | Total Payout if all complete: ₦${list.length * PRICE_PER_VOICE}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Users<br><b class="big">${list.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" style="background:gold;color:black" onclick="viewWorkerAccounts()">💳 VIEW ACCOUNTS</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyAdminLink')" id="copyAdminLink">📋 COPY LINK</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 POST ANNOUNCEMENT BOARD</h3><textarea id="announce_text" placeholder="Type announcement for all workers... e.g. Today work na ₦${PRICE_PER_VOICE} per voice - ${PRICE_PER_RECORDING} per recording"></textarea><button class="btn gold" onclick="postAnnouncement()">📢 POST TO ALL WORKERS</button><div>${announcements.map(a=>`<div class="announce">${a.message}<br><small>${new Date(a.created_at).toLocaleString()} - <button style="background:red;color:white;border:none;border-radius:5px;padding:3px 8px" onclick="deleteAnnounce('${a.id}')">Delete</button> <button style="background:#333;color:white;border:none;border-radius:5px;padding:3px 8px" onclick="copyLink(\`${a.message.replace(/`/g,'').replace(/'/g,"\\'")}\`, 'copyAdmAnn${a.id}')" id="copyAdmAnn${a.id}">📋 COPY</button></small></div>`).join('')||'No announcement'}</div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h2>📦 PACKAGE DATASET FOR SALE</h2><button class="btn gold" style="font-size:18px;padding:20px" onclick="exportChairmanDataset()">📦 EXPORT DATASET ZIP - READY TO SELL! 💰</button><p id="exportMsg"></p></div><div class="card"><h3>Recent Users</h3>${list.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 - Earn ₦${(u.recordings_count||0)*PRICE_PER_RECORDING}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All</button></div>`;
+    document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD - ₦${PRICE_PER_VOICE}</h2><div class="price-banner">💰 RATE: ₦${PRICE_PER_VOICE} per Voice | Total Payout: ₦${list.length*PRICE_PER_VOICE}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="card">Users<br><b class="big">${list.length}</b></div><div class="card">Completed<br><b class="big">${completed}</b></div><div class="card">Recording<br><b class="big">${recording}</b></div><div class="card">Not Started<br><b class="big">${notStarted}</b></div><div class="card">Words<br><b class="big">${totalW.toLocaleString()}</b></div><div class="card">Recordings<br><b class="big">${totalRecs}</b></div></div><div class="nav"><button class="btn gold" style="background:#facc15;color:black" onclick="location.pathname='/admin/keys'">🔑 MY API KEYS - SECRET</button><button class="btn gold" style="background:black;color:#facc15;border:2px solid #facc15" onclick="location.pathname='/api-docs'">📚 PUBLIC API DOCS</button><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="location.pathname='/admin/users'">All Users</button><button class="btn gray" style="background:gold;color:black" onclick="viewWorkerAccounts()">💳 ACCOUNTS</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyAdminLink')" id="copyAdminLink">📋 COPY LINK</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h3>📢 POST ANNOUNCEMENT</h3><textarea id="announce_text" placeholder="Type announcement..."></textarea><button class="btn gold" onclick="postAnnouncement()">📢 POST</button><div>${announcements.map(a=>`<div class="announce">${a.message}<br><small>${new Date(a.created_at).toLocaleString()} - <button style="background:red;color:white;border:none;border-radius:5px;padding:3px 8px" onclick="deleteAnnounce('${a.id}')">Delete</button></small></div>`).join('')||'No announcement'}</div></div><div class="card" style="border:2px solid gold;background:#1a1a00"><h2>📦 PACKAGE DATASET FOR SALE</h2><button class="btn gold" style="font-size:18px;padding:20px" onclick="exportChairmanDataset()">📦 EXPORT DATASET ZIP</button><p id="exportMsg"></p></div><div class="card"><h3>Recent Users</h3>${list.slice(0,5).map(u=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${u.display_name}</b><br><small>${u.email}<br>${u.total_words||0}/1000 - ₦${(u.recordings_count||0)*PRICE_PER_RECORDING}</small></div><div>➡️</div></div>`).join('')}<button class="btn gray" onclick="location.pathname='/admin/users'">View All</button></div>`;
   }
   async function deleteAnnounce(id){if(!confirm('Delete?'))return;await supabaseClient.from('announcements').delete().eq('id',id);location.reload();}
   window.deleteAnnounce=deleteAnnounce;
@@ -350,7 +151,7 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
     if(!profile?.is_chairman){ showChairmanBlockScreen(); return; }
     const {data:users}=await supabaseClient.from('profiles').select('*').order('total_words',{ascending:false});
-    document.getElementById('app').innerHTML=`<div class="card"><h2>👥 ALL USERS - ${(users||[]).length}</h2><div class="price-banner">💰 RATE: ₦${PRICE_PER_VOICE} per Voice</div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gray" onclick="viewWorkerAccounts()">💳 VIEW ACCOUNTS</button><button class="btn gray" onclick="copyLink(window.location.href, 'copyUsersPage')" id="copyUsersPage">📋 COPY LINK</button></div>${(users||[]).map((u,i)=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${i+1}. ${u.display_name}</b><br><small>${u.email}</small><br><small>${u.total_words||0}/1000 | ${u.recordings_count||0} recs = ₦${(u.recordings_count||0)*PRICE_PER_RECORDING}</small><br><button class="btn gray" style="padding:6px;font-size:11px;width:auto;margin-top:4px;" onclick="event.stopPropagation(); copyLink('${u.email}', 'copyEmail${u.id}')" id="copyEmail${u.id}">📋 COPY EMAIL</button></div><div>➡️</div></div>`).join('')}</div>`;
+    document.getElementById('app').innerHTML=`<div class="card"><h2>👥 ALL USERS - ${(users||[]).length}</h2><div class="price-banner">💰 RATE: ₦${PRICE_PER_VOICE}</div><div class="nav"><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn gold" onclick="location.pathname='/admin/keys'">🔑 API KEYS</button><button class="btn gray" onclick="viewWorkerAccounts()">💳 ACCOUNTS</button></div>${(users||[]).map((u,i)=>`<div class="user-row" onclick="location.pathname='/admin/users/${u.id}'"><div><b>${i+1}. ${u.display_name}</b><br><small>${u.email}</small><br><small>${u.total_words||0}/1000 | ${u.recordings_count||0} recs = ₦${(u.recordings_count||0)*PRICE_PER_RECORDING}</small></div><div>➡️</div></div>`).join('')}</div>`;
   }
   async function renderAdminUserDetail(session,uid){
     const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
@@ -358,7 +159,7 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
     const {data:user}=await supabaseClient.from('profiles').select('*').eq('id',uid).single();
     const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',uid).order('recording_number');
     const {data:acc}=await supabaseClient.from('worker_accounts').select('*').eq('user_id',uid).single();
-    document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name} - To Pay: ₦${(recs||[]).length * PRICE_PER_RECORDING}</h3><p>Email: ${user.email} <button class="btn gray" style="padding:4px 8px;font-size:11px;width:auto;" onclick="copyLink('${user.email}', 'copyUserEmail')" id="copyUserEmail">📋 COPY</button><br>Words: ${user.total_words||0}/1000<br>Recs: ${(recs||[]).length} x ₦${PRICE_PER_RECORDING} = ₦${(recs||[]).length * PRICE_PER_RECORDING}</p>${acc?`<div class="card" style="background:#1a1a00;border:1px solid gold"><h4>💳 BANK - Pay ₦${(recs||[]).length * PRICE_PER_RECORDING}</h4><b>${acc.full_name}</b><br>${acc.bank_name} - ${acc.account_number}<br>${acc.account_name}<br>${acc.phone_number}<br><button class="btn gold" style="padding:8px;margin-top:6px;" onclick="copyLink('${acc.account_number}', 'copyBankAcc')" id="copyBankAcc">📋 COPY ACCOUNT NUMBER</button></div>`:'<p>❌ No account</p>'}<button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back</button> <button class="btn gray" onclick="copyLink(window.location.href, 'copyDetailPage')" id="copyDetailPage">📋 COPY PAGE LINK</button></div><div class="card"><h3>Recordings - ${(recs||[]).length} - Value: ₦${(recs||[]).length * PRICE_PER_RECORDING}</h3>${(recs||[]).map(r=>`<div class="card" style="background:#181818"><b>${r.file_name} - ₦${PRICE_PER_RECORDING}</b><br><div class="textbox" style="font-size:14px" id="txt${r.recording_number}">${r.pidgin_text}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;"><button class="btn green" style="width:auto;flex:1;padding:10px;" onclick="new Audio('${r.audio_url}').play()">▶️ Play</button><button class="btn gray" style="width:auto;flex:1;padding:10px;" onclick="copyLink('${r.audio_url}', 'copyAud${r.recording_number}')" id="copyAud${r.recording_number}">📋 COPY AUDIO LINK</button><button class="btn gray" style="width:auto;flex:1;padding:10px;" onclick="copyLink(document.getElementById('txt${r.recording_number}').innerText, 'copyTxt${r.recording_number}')" id="copyTxt${r.recording_number}">📋 COPY TEXT</button></div></div>`).join('')||'No recs'}</div>`;
+    document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid gold"><h3>👤 ${user.display_name} - ₦${(recs||[]).length*PRICE_PER_RECORDING}</h3><p>${user.email}<br>${user.total_words||0}/1000<br>${(recs||[]).length} recs</p>${acc?`<div class="card" style="background:#1a1a00;border:1px solid gold"><h4>💳 BANK - Pay ₦${(recs||[]).length*PRICE_PER_RECORDING}</h4><b>${acc.full_name}</b><br>${acc.bank_name} - ${acc.account_number}<br>${acc.account_name}</div>`:'<p>No account</p>'}<button class="btn gray" onclick="location.pathname='/admin/users'">⬅️ Back</button></div><div class="card"><h3>Recordings - ${(recs||[]).length}</h3>${(recs||[]).map(r=>`<div class="card" style="background:#181818"><b>${r.file_name}</b><br><div class="textbox" style="font-size:14px">${r.pidgin_text}</div><button class="btn green" style="width:auto;" onclick="new Audio('${r.audio_url}').play()">▶️ Play</button></div>`).join('')||'No recs'}</div>`;
   }
   async function exportChairmanDataset(){
     const msgEl=document.getElementById('exportMsg');try{
@@ -369,13 +170,8 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
       const map={};(profiles||[]).forEach(p=>{map[p.id]=p;});
       const zip=new JSZip();const folder=zip.folder("audios");let csv='audio_file,text,speaker_email,speaker_name,word_count,file_name,price_naira\n';let count=0;
       for(const r of allRecs){count++;if(msgEl)msgEl.innerText=`Packaging ${count}/${allRecs.length}...`;try{const resp=await fetch(r.audio_url);if(!resp.ok)continue;const blob=await resp.blob();const safe=r.file_name.replace(/[^a-zA-Z0-9._-]/g,'_');folder.file(safe,blob);const prof=map[r.user_id];csv+=`audios/${safe},"${(r.pidgin_text||'').replace(/"/g,'""')}",${prof?.email||''},${prof?.display_name||''},${r.word_count||0},${safe},${PRICE_PER_RECORDING}\n`;}catch(e){}}
-      zip.file("LICENSE.txt","TAPBOMBA PIDGIN DATASET - Owner: Chairman - Contact: tapbomba.ai@gmail.com - Price: ₦"+PRICE_PER_VOICE+" per voice");
-      zip.file("README.txt",`TAPBOMBA DATASET v1 - ${allRecs.length} recordings - Price: ₦${PRICE_PER_VOICE} per voice`);
-      zip.file("metadata.csv",csv);
-      if(msgEl)msgEl.innerText='Building ZIP...';
-      const content=await zip.generateAsync({type:"blob"},(m)=>{if(msgEl)msgEl.innerText=`Building ${m.percent.toFixed(0)}%`;});
-      const url=URL.createObjectURL(content);const a=document.createElement('a');a.href=url;a.download=`TAPBOMBA-DATASET-${allRecs.length}-voices-PRICE-${PRICE_PER_VOICE}.zip`;a.click();
-      if(msgEl)msgEl.innerText=`✅ DONE! ${allRecs.length} files packaged! ZIP don download! Price ₦${PRICE_PER_VOICE} included! Ready to sell! 🔥`;
+      zip.file("LICENSE.txt","TAPBOMBA PIDGIN DATASET - Owner: Chairman - Price: ₦"+PRICE_PER_VOICE); zip.file("README.txt",`TAPBOMBA DATASET v1 - ${allRecs.length} recordings`); zip.file("metadata.csv",csv);
+      if(msgEl)msgEl.innerText='Building ZIP...'; const content=await zip.generateAsync({type:"blob"},(m)=>{if(msgEl)msgEl.innerText=`Building ${m.percent.toFixed(0)}%`;}); const url=URL.createObjectURL(content);const a=document.createElement('a');a.href=url;a.download=`TAPBOMBA-DATASET-${allRecs.length}.zip`;a.click(); if(msgEl)msgEl.innerText=`✅ DONE! ${allRecs.length} files!`;
     }catch(e){alert('Export failed: '+e.message);if(msgEl)msgEl.innerText='❌ '+e.message;}
   }
   window.exportChairmanDataset=exportChairmanDataset;
@@ -385,14 +181,18 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
       if(path==='/admin/login'){await renderLoginAdmin();return;}
       if(path==='/user/login'){await renderLoginUser();return;}
       if(path==='/user/reset-password' || path==='/reset-password'){await renderResetPassword();return;}
+      if(path==='/api-docs'){renderApiDocsPage();return;}
       if(path==='/login'){location.pathname='/user/login';return;}
+      if(path==='/keys'){location.pathname='/admin/keys';return;}
       const {data:{session}}=await supabaseClient.auth.getSession();
       if(!session){
-        if(path.startsWith('/admin')){location.pathname='/admin/login';return;}
+        if(path.startsWith('/admin')){ if(path==='/admin/keys'){location.pathname='/admin/login';return;} if(path!=='/api-docs'){location.pathname='/admin/login';return;}}
         if(path.includes('reset-password')){await renderResetPassword();return;}
+        if(path==='/api-docs'){renderApiDocsPage();return;}
         location.pathname='/user/login';return;
       }
       if(path.includes('reset-password')){await renderResetPassword();return;}
+      if(path==='/admin/keys' || path==='/admin/keys/'){await renderKeysPage(session);return;}
       if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}
       if(path==='/admin/users'){await renderAdminUsers(session);return;}
       if(path.startsWith('/admin/users/')){const uid=path.split('/').pop();await renderAdminUserDetail(session,uid);return;}
