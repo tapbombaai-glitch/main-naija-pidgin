@@ -6,8 +6,13 @@ export async function POST(req: Request) {
   const res = await fetch("https://api.paystack.co/transaction/initialize", {
     method: "POST",
     headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ email: "customer@verify.ng", amount: price * 100, metadata: { plan: name }, callback_url: `${siteUrl}/api/paystack/verify` })
+    body: JSON.stringify({ 
+      email: "customer@verify.ng", 
+      amount: price * 100, 
+      metadata: { plan: name }, 
+      callback_url: `${siteUrl}/api/paystack/verify` 
+    })
   })
   const data = await res.json()
-  return NextResponse.json({ url: data.data.authorization_url })
+  return NextResponse.json({ url: data.data?.authorization_url })
 }
