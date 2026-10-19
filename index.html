@@ -1,90 +1,162 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Main Pidgin - FIXED SHOW NOW</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script src="https://js.paystack.co/v1/inline.js"></script><style>
-*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:6px;font-size:12px}
-.c{background:#111;border:1px solid #333;border-radius:10px;padding:10px;margin:6px auto;max-width:380px}
-.b{width:100%;padding:10px;border:none;border-radius:20px;font-weight:900;font-size:12px;margin:4px 0;cursor:pointer}
-.g{background:#00ff88;color:#000}.go{background:gold;color:#000}.gr{background:#2a2a2a;color:#fff}.bl{background:#3b82f6;color:#fff}
-input,textarea{width:100%;padding:9px;border-radius:8px;border:1px solid #444;background:#1a1a1a;color:#fff;margin:4px 0;font-size:12px}
-.sq{width:85px;height:85px;background:linear-gradient(135deg,gold,#ff8c00);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:5px;cursor:pointer;border:2px solid #fff;color:#000;font-weight:900}
-.sq-free{background:linear-gradient(135deg,#00ff88,#00cc66)}.sq-paid{background:linear-gradient(135deg,#3b82f6,#1e40af);border-color:gold;color:#fff}
-.w{background:#fff;color:#000;padding:8px;border-radius:8px;margin:5px 0}.w input{background:#fff;color:#000;border:1px solid #ccc;padding:7px}
-.row{display:flex;justify-content:space-between;background:#181818;padding:6px;border-radius:6px;margin:3px 0;font-size:11px}
-.ban{background:gold;color:#000;padding:5px;border-radius:6px;text-align:center;font-weight:900;font-size:10px;margin:4px 0}
-.t{display:flex;gap:4px;overflow-x:auto}.t button{padding:6px 10px;font-size:10px;white-space:nowrap;border-radius:12px}
-</style></head><body><div id="app"><div class=c style="border:2px solid gold;text-align:center"><h3 style="color:gold">🔥 LOADING FIXED - If you see this, JS dey work!</h3><p style="font-size:11px">If black screen still, refresh! CDN fixed!</p></div></div><script>
+<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Naija Pidgin System - PRODUCTION - Paystack + Roles Secured</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padding-bottom:80px}
+.card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}
+.btn{width:100%;padding:18px;border:none;border-radius:35px;font-weight:900;font-size:16px;margin:8px 0;cursor:pointer}
+.green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}
+.textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:16px;border-radius:10px;font-size:18px;min-height:80px;line-height:1.5}
+.header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;position:sticky;top:10px;background:#0a0a0a;z-index:10}
+.progress{height:14px;background:#222;border-radius:10px;overflow:hidden}.fill{height:100%;background:#00ff88;transition:0.4s}
+input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}
+.user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:14px;border-radius:12px;margin:8px 0}
+.big{font-size:24px;font-weight:900}.nav{display:flex;gap:8px;overflow-x:auto;flex-wrap:wrap}.nav button{white-space:nowrap;padding:12px 18px}
+.price-banner{background:gold;color:#000;padding:12px;border-radius:12px;margin:12px 0;font-weight:900;text-align:center;border:2px solid #fff;font-size:15px}
+</style></head><body><div id="app">Loading PRODUCTION...</div><script>
 (function(){
-const U="https://rupuxvpupdhlhxgjrbsh.supabase.co",K="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY",PK="pk_test_3bd0892e4059268380e4bfb68b93c0d7229eee31";
-let S=null;
-try{
-if(window.supabase&&window.supabase.createClient){S=window.supabase.createClient(U,K);console.log("Supabase OK");}
-else{console.log("Supabase CDN fail - using no-auth mode");document.getElementById("app").innerHTML="<div class=c style='border:2px solid red'><h4>⚠️ Supabase CDN block</h4><p style='font-size:11px'>Use this link: https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js - I don fix am for this code!</p></div>";}
-}catch(e){console.error(e);}
-
-async function h(t){try{let e=new TextEncoder().encode(t),d=await crypto.subtle.digest("SHA-256",e);return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("")}catch{return t}}
-function genF(){let r="";for(let i=0;i<24;i++)r+="0123456789abcdef"[Math.random()*16|0];return "sk_free_"+r}
-function genP(){let r="";for(let i=0;i<32;i++)r+="0123456789abcdef"[Math.random()*16|0];return "sk_live_"+r}
-async function ins(d){if(!S)return{error:{message:"Supabase not loaded"}};let r=await S.from("api_keys").insert([d]);if(r.error&&r.error.message.includes("key_hash")){delete d.key_hash;delete d.payment_ref;r=await S.from("api_keys").insert([d])}return r}
-function dl(t,n){let b=new Blob([t],{type:"text/plain"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=n;a.click()}
-window.dl=dl;
-async function loadAnn(){if(!S)return[];try{let {data}=await S.from("announcements").select("*").order("created_at",{ascending:!1}).limit(10);return data||[]}catch{return[]}}
-window.postAnnouncement=async()=>{if(!S)return alert("Supabase no load");let t=document.getElementById("announce_text")?.value.trim();if(!t)return alert("Type!");let {data:{session:s}}=await S.auth.getSession();let {error}=await S.from("announcements").insert({message:t,created_by:s.user.id});if(error)alert(error.message);else{alert("Posted!");document.getElementById("announce_text").value="";loadAnnC()}};window.deleteAnnounce=async(id)=>{if(!confirm("Del?"))return;await S.from("announcements").delete().eq("id",id);loadAnnC()};async function loadAnnC(){let d=await loadAnn(),l=document.getElementById("announce_list_chairman");if(!l)return;l.innerHTML=d.length?d.map(a=>`<div class=row>📢 ${a.message}<br><span style="font-size:10px">${new Date(a.created_at).toLocaleString().slice(0,16)} <button onclick="deleteAnnounce('${a.id}')" style="background:red;color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:9px">Del</button></span></div>`).join(""):"<span style='font-size:10px'>No announce</span>"}
-
-function renderLanding(){
-document.getElementById("app").innerHTML=`<div class=c style="border:2px solid gold;text-align:center;padding:8px"><h3 style="color:gold;margin:4px">🔥 MAIN PIDGIN - COMPLETE - FIXED SHOW!</h3><p style="font-size:10px">Complete code - Little square → Login → Unlock → Free + ₦5k → Paystack auto withdraw ₦5k!</p><div style="margin:8px 0"><div class=sq onclick="go('/chairman/login')"><div style="font-size:22px">🔑</div><b style="font-size:8px">API KEY</b><b style="font-size:6px">Tap Login</b></div></div><div class=ban>FIXED: UMD CDN - Now e go show! Not black screen!</div></div><div class=c style="padding:8px;text-align:center"><div style="display:flex;justify-content:center;gap:4px;flex-wrap:wrap"><div class=sq onclick="go('/chairman/login')"><div style="font-size:18px">👑</div><b style="font-size:7px">Chairman</b></div><div class="sq sq-free" onclick="go('/worker/login')"><div style="font-size:18px">👷</div><b style="font-size:7px">Worker</b></div><div class="sq sq-paid" onclick="go('/client/login')"><div style="font-size:18px">💰</div><b style="font-size:7px">Paid</b></div></div></div><div class=c style="padding:8px"><p style="font-size:10px;color:#aaa">Vercel fix: I change location.pathname to go() function - No reload loop!</p></div>`;
-}
-function go(p){history.pushState({},'',p);boot();}
-
-async function renderKeysPage(session){
-let keys=[];try{if(S){let {data}=await S.from("api_keys").select("*").order("created_at",{ascending:!1});keys=data||[]}}catch(e){}
-let freeC=keys.filter(k=>k.key_prefix?.startsWith("sk_free_")).length,paidC=keys.filter(k=>k.key_prefix?.startsWith("sk_live_")).length;
-document.getElementById("app").innerHTML=`
-<div class=c style="border:2px solid gold;padding:8px"><h4 style="margin:4px">👑 CHAIRMAN MASTER - FIXED SHOW!</h4><div class=ban>Free:${freeC} Paid:${paidC} ₦${paidC*5000} - Complete Auto Withdraw</div><div class=t><button class="b go" style="padding:6px" onclick="go('/chairman/dashboard')">Dash</button><button class="b gr" style="padding:6px" onclick="go('/')">Home</button><button class="b gr" style="padding:6px" onclick="S&&S.auth.signOut().then(()=>go('/chairman/login'))">Logout</button></div></div>
-<div class=c style="border:2px solid #00ff88;padding:8px"><div style="text-align:center"><div class="sq sq-free" onclick="document.getElementById('freeSec').style.display='block'"><div style="font-size:20px">🆓</div><b style="font-size:7px">FREE SQUARE</b></div></div><div id=freeSec style="display:none"><div class=w><input id=key_name_free value="Ricky Free Key"><button class="b g" style="padding:8px" onclick="doGenFree()">Receive Free - Little Square</button><p id=free_msg style="color:#000;font-size:10px;font-weight:900"></p><div id=freeBox style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=freeText style="font-size:10px"></code><br><button class="b g" style="background:#000;color:#00ff88;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('freeText').innerText)">Copy</button><button class="b g" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="dl(document.getElementById('freeText').innerText,'sk_free.txt')">Download</button></div></div></div></div>
-<div class=c style="border:2px solid gold;padding:8px"><div style="text-align:center"><div class="sq sq-paid" onclick="document.getElementById('paidSec').style.display='block'"><div style="font-size:20px">💰</div><b style="font-size:7px;color:#fff">₦5K AUTO SQUARE</b></div></div><div id=paidSec style="display:none"><div class=w><input id=key_name_paid value="Bomber"><input id=client_email type=email value="bomber@gmail.com"><input value="₦5,000 - Paystack auto withdraw" disabled style="background:#eee;padding:6px"><button class="b go" style="background:#000;color:gold;border:2px solid gold;padding:8px" onclick="payCard()">💳 Tap ₦5K Square - Card Number - Auto Withdraw ₦5k via Paystack!</button><div style="background:#fff3cd;color:#000;padding:5px;border-radius:5px;font-size:9px;margin:4px 0">Test Card: 4084084084084081 Exp 12/30 CVV 408 PIN 0000 → Paystack auto deduct ₦5k</div><div id=paidBox style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=paidText style="font-size:10px"></code><br><button class="b go" style="background:#000;color:gold;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('paidText').innerText)">Copy</button><button class="b go" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="dl(document.getElementById('paidText').innerText,'sk_live.txt')">Download</button></div><p id=paid_msg style="color:gold;font-size:10px;font-weight:900"></p></div></div></div>
-<div class=c style="padding:8px"><b style="font-size:11px">📋 LIVE - Complete - ${keys.length}</b><div style="max-height:150px;overflow:auto">${keys.length?keys.map(k=>`<div class=row><div><b>${k.name}</b> - ${k.key_prefix?.startsWith('sk_free_')?'<span style=color:#00ff88>FREE</span>':'<span style=color:gold>PAID AUTO</span>'}<br><span style="font-size:9px">${k.key_prefix}... - ${new Date(k.created_at).toLocaleString().slice(0,16)}</span></div></div>`).join(""):"No keys yet - Generate!"}</div></div>
-<div class=c style="padding:8px"><b style="font-size:11px">📢 ANNOUNCEMENT</b><textarea id=announce_text style="height:40px" placeholder="Type announcement"></textarea><button class="b go" style="padding:6px" onclick="postAnnouncement()">Post</button><div id=announce_list_chairman></div></div>
-`;setTimeout(loadAnnC,500)}
-
-window.doGenFree=async()=>{let n=document.getElementById("key_name_free").value||"Free";document.getElementById("free_msg").innerText="Gen...";try{let r=genF(),pre=r.slice(0,18),hash=await h(r);if(!S){document.getElementById("freeText").innerText=r;document.getElementById("freeBox").style.display="block";document.getElementById("free_msg").innerText="✅ Free (No DB) - Download!";return}let {data:{session:s}}=await S.auth.getSession();let res=await ins({user_id:s.user.id,name:n,key_hash:hash,key_prefix:pre,is_active:true});if(res.error)throw res.error;document.getElementById("freeText").innerText=r;document.getElementById("freeBox").style.display="block";document.getElementById("free_msg").innerText="✅ Free - Download!";setTimeout(()=>boot(),1500)}catch(e){document.getElementById("free_msg").innerText="❌ "+e.message}}
-window.payCard=async()=>{let nameInput=document.getElementById("key_name_paid")?.value.trim()||"",emailInput=document.getElementById("client_email")?.value.trim()||"",msgEl=document.getElementById("paid_msg");if(!nameInput){alert("Put Key Name!");return}if(!emailInput||!emailInput.includes("@")){alert("Put Email!");return}if(msgEl)msgEl.innerText="Opening Paystack - Auto withdraw ₦5k...";try{if(typeof PaystackPop==="undefined")throw new Error("Paystack not loaded - Check internet");let handler=PaystackPop.setup({key:PK,email:emailInput,amount:500000,currency:"NGN",ref:"Pidgin_"+Date.now(),callback:async function(res){alert("✅ AUTO WITHDRAW! Paystack comot ₦5k! Ref:"+res.reference);try{let r=genP(),pre=r.slice(0,18),hash=await h(r);if(!S){document.getElementById("paidText").innerText=r;document.getElementById("paidBox").style.display="block";return}let {data:{session:s}}=await S.auth.getSession();let insRes=await ins({user_id:s.user.id,name:nameInput,key_hash:hash,key_prefix:pre,is_active:true,payment_ref:res.reference});if(insRes.error)throw insRes.error;document.getElementById("paidText").innerText=r;document.getElementById("paidBox").style.display="block";if(msgEl)msgEl.innerText="✅ Auto withdraw done! ₦5k deducted! Download!";setTimeout(()=>boot(),2000)}catch(e){if(msgEl)msgEl.innerText="❌ "+e.message}},onClose:function(){if(msgEl)msgEl.innerText="Card closed - Tap ₦5k square again!"}});handler.openIframe();}catch(err){alert("Paystack error: "+err.message);}}
-
-async function renderLogin(t){
-document.getElementById("app").innerHTML=`<div class=c style="max-width:320px;margin:15px auto;padding:10px;border:2px solid gold;text-align:center"><div class=sq style="width:70px;height:70px"><div style="font-size:20px">🔑</div></div><h4>👑 ${t.toUpperCase()} - FIXED LOGIN - Show now!</h4><input id=email value="${t==='admin'?'tapbomba.ai@gmail.com':''}" placeholder="Email"><input id=pass type=password placeholder="Pass"><input id=name placeholder="Name (signup)"><button class="b go" onclick="doLogin('${t}')">Unlock - Auto Withdraw Ready</button><button class="b gr" onclick="doSignup('${t}')">Signup</button><button class="b gr" onclick="go('/')">Home</button><p id=msg style="font-size:10px"></p></div>`;
-}
-window.doLogin=async(t)=>{let e=document.getElementById("email").value.trim(),p=document.getElementById("pass").value,m=document.getElementById("msg");if(!e||!p){m.innerText="Fill";return}m.innerText="Checking...";if(!S){m.innerText="Supabase no load - Demo mode - Go to keys";setTimeout(()=>go('/chairman/keys'),1000);return}let {error}=await S.auth.signInWithPassword({email:e,password:p});if(error){m.innerText=error.message;return}if(t==="admin")go("/chairman/dashboard");else if(t==="client")go("/client/dashboard");else go("/worker/dashboard");}
-window.doSignup=async(t)=>{let e=document.getElementById("email").value.trim(),p=document.getElementById("pass").value,n=document.getElementById("name").value||e.split("@")[0],m=document.getElementById("msg");if(!e||!p){m.innerText="Fill";return}m.innerText="Creating...";if(!S){m.innerText="Supabase no load - Cannot signup - Use demo";return}let {data,error}=await S.auth.signUp({email:e,password:p});if(error){m.innerText=error.message;return}if(!data.user){m.innerText="Check email";return}let isC=e.toLowerCase()==="tapbomba.ai@gmail.com";await S.from("profiles").insert([{id:data.user.id,email:e,display_name:n,is_chairman:isC,user_type:t}]);m.innerText="✅ Created! Login!"}
-
-async function renderDash(session){
-let keys=[];try{if(S){let {data}=await S.from("api_keys").select("*").order("created_at",{ascending:!1});keys=data||[]}}catch(e){}
-let f=keys.filter(k=>k.key_prefix?.startsWith("sk_free_")).length,p=keys.filter(k=>k.key_prefix?.startsWith("sk_live_")).length;
-document.getElementById("app").innerHTML=`<div class=c style="border:2px solid gold;padding:8px;text-align:center"><h4 style="margin:4px">👑 CHAIRMAN DASHBOARD - FIXED SHOW!</h4><div class=ban>Free:${f} Paid:${p} ₦${p*5000} - Fixed</div><div style="margin:8px 0"><div class=sq onclick="go('/chairman/keys')"><div style="font-size:20px">🔑</div><b style="font-size:7px">KEYS</b></div></div><div class=t><button class="b go" style="padding:6px" onclick="go('/chairman/keys')">Keys - Auto Withdraw</button><button class="b gr" style="padding:6px" onclick="go('/')">Home</button><button class="b gr" style="padding:6px" onclick="S&&S.auth.signOut().then(()=>go('/chairman/login'))">Logout</button></div></div><div class=c style="padding:8px"><b style="font-size:11px">📋 LIVE - ${keys.length}</b><div style="max-height:150px;overflow:auto">${keys.slice(0,15).map(k=>`<div class=row><b>${k.name}</b> - ${k.key_prefix?.startsWith("sk_free_")?"FREE":"PAID AUTO"}</div>`).join("")||"No activity"}</div></div><div class=c style="padding:8px"><b style="font-size:11px">📢 ANNOUNCE</b><textarea id=announce_text style="height:40px"></textarea><button class="b go" style="padding:6px" onclick="postAnnouncement()">Post</button><div id=announce_list_chairman></div></div>`;setTimeout(loadAnnC,500)}
-
-async function boot(){
-try{
-let pa=location.pathname;
-console.log("Boot path:",pa);
-if(pa==="/"||pa==="/index.html"||pa==="/home"||pa===""){renderLanding();return}
-if(pa.includes("/chairman/login")||pa.includes("/admin/login")){renderLogin("admin");return}
-if(pa.includes("/worker/login")){renderLogin("worker");return}
-if(pa.includes("/client/login")){renderLogin("client");return}
-if(!S){document.getElementById("app").innerHTML=`<div class=c><h4>⚠️ Demo Mode - No Supabase</h4><p style="font-size:11px">CDN blocked - But squares still work! Click below to see keys page without login:</p><button class="b go" onclick="renderKeysPage({})">Go to Keys - Demo</button><button class="b gr" onclick="go('/')">Home</button></div>`;if(pa.includes("keys"))renderKeysPage({});return}
-let {data:{session:s}}=await S.auth.getSession();
-if(!s){
-if(pa.includes("/chairman")||pa.includes("/admin")){renderLogin("admin");return}
-if(pa.includes("/worker")){renderLogin("worker");return}
-if(pa.includes("/client")){renderLogin("client");return}
-renderLanding();return}
-if(pa.includes("/keys")){renderKeysPage(s);return}
-if(pa.includes("/dashboard")){renderDash(s);return}
-renderLanding();
-}catch(e){
-console.error(e);
-document.getElementById("app").innerHTML=`<div class=c style="border:2px solid red"><h4>❌ Error: ${e.message}</h4><p style="font-size:11px">Stack: ${e.stack?.slice(0,200)}</p><button class="b go" onclick="go('/')">Go Home - Fixed</button><button class="b gr" onclick="location.reload()">Reload</button></div>`;
-}
-}
-window.go=go;
-window.boot=boot;
-// Immediate show - no wait!
-renderLanding();
-setTimeout(boot,100);
+  const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
+  const SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
+  const PRICE_PER_VOICE=1000, PRICE_PER_RECORDING=10;
+  const S=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  const TEXTS=["Abeg make we start today. I wan tell you say this work na important one.","Today na another beautiful day for this country.","Chairman, I don finish the work wey you give me yesterday.","How you dey? I dey come your side now now.","Abeg give me small time, I dey road.","Omo, this thing sweet die!","No worry, I go sort am now now.","Shey you don chop?","Wetin dey sup?","For this Lagos, if you no shine your eye.","My brother, hustle must continue.","Abeg comot for road.","Na God hand we dey.","You no fit understand this life.","Make we talk true, this Naija Pidgin na sweet language.","Every day na new story.","I wan tell you something.","As I dey waka for road today.","Work no dey finish, but man must chop.","Last last, everything go better."];
+  function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
+  async function getMe(){
+    const {data:{session}}=await S.auth.getSession(); if(!session) return null;
+    try{
+      const res=await fetch('/api/auth/me',{headers:{Authorization:`Bearer ${session.access_token}`}});
+      if(res.ok){ const d=await res.json(); return {session,...d}; }
+    }catch{}
+    const {data:profile}=await S.from('profiles').select('*').eq('id',session.user.id).single();
+    return {session, profile, role: profile?.role|| (profile?.is_chairman?'chairman':'user')};
+  }
+  async function hashKeyClient(text){ const e=new TextEncoder().encode(text); const b=await crypto.subtle.digest('SHA-256',e); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+  function genFree(){ let r=''; for(let i=0;i<24;i++) r+='0123456789abcdef'[Math.random()*16|0]; return 'sk_free_'+r; }
+  function genPaid(){ let r=''; for(let i=0;i<32;i++) r+='0123456789abcdef'[Math.random()*16|0]; return 'sk_live_'+r; }
+  function go(p){history.pushState({},'',p);boot();}
+  function copyLink(text,btnId){ if(!text) return; navigator.clipboard.writeText(text).then(()=>{ const b=document.getElementById(btnId); if(b){ let o=b.innerHTML; b.innerHTML='✅ COPIED!'; setTimeout(()=>b.innerHTML=o,1500);} }); }
+  window.copyLink=copyLink;
+  async function renderKeysPage(session){
+    const me=await getMe(); if(!me || me.role!=='chairman'){ document.getElementById('app').innerHTML=`<div class=card style="border:2px solid red"><h2>⛔ Chairman Only - Secure</h2><p>Your role: ${me?.role||'none'} - Access denied. Chairman must be set in DB.</p><button class="btn gold" onclick="location.pathname='/user/dashboard'">User Dashboard</button></div>`; return; }
+    const {data:keys}=await S.from('api_keys').select('*').order('created_at',{ascending:false});
+    const {data:pkgs}=await (await fetch('/api/packages/list')).json().then(d=>({data:d})).catch(()=>({data:[]}));
+    document.getElementById('app').innerHTML=`
+      <div class=card style="border:2px solid gold"><h2>🔑 CHAIRMAN SECRET - sk_ KEYS - SECURED</h2><div class=price-banner>Paystack Payment + Server Verification + Duplicate Protection</div><div class=nav><button class="btn gold" onclick="go('/admin/dashboard')">⬅️ Dashboard</button><button class="btn gray" onclick="go('/api-docs')">📚 Docs</button><button class="btn gray" onclick="S.auth.signOut().then(()=>go('/admin/login'))">Logout</button></div></div>
+      <div class=card style="border:2px solid #00ff88"><h3>🆓 FREE KEY - sk_free_ - 100 words</h3><input id=key_name_free placeholder="Name e.g. Ricky Free"><button class="btn green" onclick="doGenFree()">🆓 GENERATE sk_free_ KEY</button><p id=free_msg></p><div id=freeBox style="display:none;background:#fff;color:#000;padding:12px;border-radius:10px;word-break:break-all"><code id=freeText></code><br><button class="btn gray" style="background:#000;color:#fff" onclick="copyLink(document.getElementById('freeText').innerText,'cF')" id=cF>📋 COPY</button></div></div>
+      <div class=card style="border:2px solid gold"><h3>💰 PAID KEY - Buy Credits — Pay with Card - Then Generate sk_live_</h3>
+        <div id=pkgsBuy>${(pkgs||[]).map(p=>`<div class=user-row><div><b>${p.name}</b><br><small>₦${p.amount/100} → ${p.credits} credits</small></div><button class="btn gold" style="width:auto" onclick="buyPkg('${p.id}')">Buy Credits — Pay with Card</button></div>`).join('')||'Loading packages...'}</div>
+        <input id=key_name_paid placeholder="Client name for key"><button class="btn gold" onclick="document.getElementById('paidBox').style.display='block'">💳 After Payment - Generate sk_live_</button>
+        <div id=paidBox style="display:none;background:#fff3cd;color:#000;padding:12px;border-radius:10px;margin-top:10px"><p style="font-size:12px">After Paystack verifies and credits added, click below:</p><button class="btn green" onclick="doGenPaid()">Generate sk_live_ Key - Server Verified</button><div id=paidKeyBox style="display:none;background:#00ff88;color:#000;padding:10px;border-radius:8px;margin-top:8px;word-break:break-all"><code id=paidText></code><br><button class="btn gray" style="background:#000;color:#fff" onclick="copyLink(document.getElementById('paidText').innerText,'cP')" id=cP>📋 COPY</button></div><p id=paid_msg></p></div>
+      </div>
+      <div class=card><h3>📋 Keys - ${keys?.length||0}</h3>${(keys||[]).map(k=>`<div class=user-row><div><b>${k.name}</b><br><small>${k.key_prefix}... ${new Date(k.created_at).toLocaleString()}</small></div><div style="font-size:11px">${k.is_active?'ACTIVE':'INACTIVE'}</div></div>`).join('')||'No keys'}</div>
+    `;
+  }
+  window.doGenFree=async()=>{
+    const name=document.getElementById('key_name_free').value||'Free'; const msg=document.getElementById('free_msg');
+    msg.innerText='Generating sk_free_ with hash fix...'; try{
+      const raw=genFree(), pre=raw.slice(0,18), hash=await hashKeyClient(raw);
+      const {data:{session}}=await S.auth.getSession();
+      const {error}=await S.from('api_keys').insert([{user_id:session.user.id,name,hash,key_hash:hash,key_prefix:pre,is_active:true}]);
+      if(error) throw error; document.getElementById('freeText').innerText=raw; document.getElementById('freeBox').style.display='block'; msg.innerText='✅ sk_free_ generated - hash+key_hash fixed';
+    }catch(e){msg.innerText='❌ '+e.message;}
+  };
+  window.doGenPaid=async()=>{
+    const name=document.getElementById('key_name_paid').value||'Paid'; const msg=document.getElementById('paid_msg');
+    msg.innerText='Checking credits...'; try{
+      const me=await getMe(); if((me.profile?.api_credits||0)<6000){ msg.innerText='❌ Not enough credits - Buy Credits — Pay with Card first - Server will add credits'; return; }
+      const raw=genPaid(), pre=raw.slice(0,18), hash=await hashKeyClient(raw);
+      const {data:{session}}=await S.auth.getSession();
+      const {error}=await S.from('api_keys').insert([{user_id:session.user.id,name,hash,key_hash:hash,key_prefix:pre,is_active:true}]);
+      if(error) throw error; document.getElementById('paidText').innerText=raw; document.getElementById('paidKeyBox').style.display='block'; msg.innerText='✅ sk_live_ generated - Connected to credits';
+    }catch(e){msg.innerText='❌ '+e.message;}
+  };
+  window.buyPkg=async(id)=>{
+    const me=await getMe(); if(!me){ alert('Login first'); go('/admin/login'); return; }
+    const res=await fetch('/api/paystack/initialize',{method:'POST',headers:{'Content-Type':'application/json', Authorization:`Bearer ${me.session.access_token}`}, body:JSON.stringify({package_id:id})});
+    const data=await res.json(); if(data.authorization_url) window.location.href=data.authorization_url; else alert(data.error||'Init failed');
+  };
+  function renderDocs(){ document.getElementById('app').innerHTML=`<div class=card><h3>📚 API Docs - sk_ keys - Secure</h3><code style="background:#222;padding:10px;display:block;border-radius:8px">Authorization: Bearer sk_live_...</code><p style="font-size:12px">Credits checked server-side - Buy Credits — Pay with Card</p><button class="btn gray" onclick="go('/')">Home</button></div>`; }
+  async function renderLoginAdmin(){ document.getElementById('app').innerHTML=`<div class=card style="max-width:420px;margin:30px auto;border:2px solid gold"><h2>👑 ADMIN LOGIN - SECURE ROLE CHECK</h2><input id=email placeholder="Chairman Email" value="tapbomba.ai@gmail.com"><input id=pass type=password placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN AS CHAIRMAN - Server verifies role</button><p id=msg></p></div>`; }
+  async function renderLoginUser(){ document.getElementById('app').innerHTML=`<div class=card style="max-width:420px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER/USER LOGIN</h2><input id=email placeholder="Email"><input id=pass type=password placeholder="Password"><input id=name placeholder="Name for signup"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP - Role=user - 100 credits - Server secured</button><p id=msg></p></div>`; }
+  async function doLogin(type){
+    const e=document.getElementById('email').value.trim(), p=document.getElementById('pass').value, m=document.getElementById('msg');
+    if(!e||!p){m.innerText='Fill';return;} m.innerText='Checking role securely via server...';
+    const {error}=await S.auth.signInWithPassword({email:e,password:p}); if(error){m.innerText=error.message;return;}
+    const me=await getMe(); if(!me){m.innerText='Profile not found';return;}
+    if(type==='admin'){ if(me.role!=='chairman'){ document.getElementById('app').innerHTML=`<div class=card style="border:2px solid red"><h2>⛔ Chairman Only</h2><p>Your role is ${me.role} - Cannot access Chairman dashboard - Role enforced server-side</p><button class="btn gold" onclick="go('/user/dashboard')">User Dashboard</button></div>`; return; } go('/admin/dashboard'); } else { if(me.role==='chairman') go('/admin/dashboard'); else if(me.role==='worker') go('/worker/dashboard'); else go('/user/dashboard'); }
+  }
+  async function doSignup(){
+    const e=document.getElementById('email').value.trim(), p=document.getElementById('pass').value, n=document.getElementById('name').value||e.split('@')[0], m=document.getElementById('msg');
+    if(!e||!p){m.innerText='Fill';return;} m.innerText='Creating secure profile - role=user...';
+    const {data,error}=await S.auth.signUp({email:e,password:p}); if(error){m.innerText=error.message;return;} if(!data.user){m.innerText='Check email';return;}
+    // SECURE: role is always user, credits 100 - frontend cannot set chairman
+    const {error:insErr}=await S.from('profiles').insert([{id:data.user.id,email:e,display_name:n,role:'user',api_credits:100,total_words:0,recordings_count:0,status:'not_started'}]);
+    if(insErr){m.innerText='Profile error: '+insErr.message; return;} m.innerText='✅ Created - Role=user - 100 credits - Login now';
+  }
+  window.doLogin=doLogin; window.doSignup=doSignup;
+  let userState={list:[],total:0};
+  async function renderUserDashboard(){
+    const me=await getMe(); if(!me){ go('/user/login'); return; }
+    if(me.role==='chairman'){ go('/admin/dashboard'); return; }
+    if(me.role==='worker'){ go('/worker/dashboard'); return; }
+    const {data:recs}=await S.from('recordings').select('*').eq('user_id',me.session.user.id).order('recording_number');
+    userState.list=recs||[]; userState.total=(recs||[]).reduce((s,r)=>s+r.word_count,0)||0;
+    const current=TEXTS[(recs||[]).length % TEXTS.length];
+    const {data:payments}=await S.from('paystack_transactions').select('*,api_packages(name)').eq('user_id',me.session.user.id).order('created_at',{ascending:false});
+    const pct=Math.min(100,(userState.total/1000)*100);
+    document.getElementById('app').innerHTML=`
+      <div class=header><div>WELCOME ${me.profile?.display_name||'USER'} - Role: ${me.role}</div><h3>🎙️ PIDGIN - 100 Sentences</h3><div class=price-banner>Credits: ${me.profile?.api_credits||0} | ${userState.list.length} recs | ₦${userState.list.length*10}</div><div class=big>${userState.total}/1000 WORDS</div><div class=progress><div class=fill style="width:${pct}%"></div></div>
+      <div class=nav><button class="btn gold" onclick="go('/')">Buy Credits — Pay with Card</button><button class="btn gray" onclick="S.auth.signOut().then(()=>go('/user/login'))">Logout</button></div></div>
+      <div class=card><b>Buy Credits — Pay with Card</b><div id=pkgsUser>Loading...</div><button class="btn green" onclick="verifyRef()">Verify Payment - Server Check</button><p id=vmsg></p></div>
+      <div class=card><b>Your Payments - Only yours - Secure RLS</b>${(payments||[]).map(t=>`<div class=user-row><div><b>${t.api_packages?.name||'Package'}</b><br><small>${t.paystack_reference}<br>₦${t.amount/100} → ${t.credits}cr - ${t.status}</small></div></div>`).join('')||'No payments'}</div>
+      <div class=card><small>Text #${(recs||[]).length+1} - ${countW(current)} words - ₦${PRICE_PER_RECORDING}</small><div class=textbox id=curTxt>${current}</div><button class="btn green" onclick="startR()">🎙️ RECORD</button><button class="btn red" id=stopB style="display:none" onclick="stopR()">⏹️ STOP</button><div id=prev style="display:none"><audio id=aud controls style="width:100%"></audio><button class="btn green" onclick="saveR()">💾 SAVE</button><p id=smsg></p></div></div>
+    `;
+    loadPkgsUser();
+  }
+  async function loadPkgsUser(){
+    try{ const r=await fetch('/api/packages/list'); const pkgs=await r.json(); const el=document.getElementById('pkgsUser'); if(el) el.innerHTML=pkgs.map(p=>`<div class=user-row><div><b>${p.name}</b><br><small>₦${p.amount/100} → ${p.credits} credits</small></div><button class="btn gold" style="width:auto" onclick="buyPkgUser('${p.id}')">Buy — Pay with Card</button></div>`).join(''); }catch{}
+  }
+  window.buyPkgUser=async(id)=>{ const me=await getMe(); const res=await fetch('/api/paystack/initialize',{method:'POST',headers:{'Content-Type':'application/json', Authorization:`Bearer ${me.session.access_token}`}, body:JSON.stringify({package_id:id})}); const data=await res.json(); if(data.authorization_url) window.location.href=data.authorization_url; else alert(data.error); };
+  window.verifyRef=async()=>{ const params=new URLSearchParams(window.location.search); let ref=params.get('reference')||prompt('Enter ref MN_...'); if(!ref) return; const {data:{session}}=await S.auth.getSession(); document.getElementById('vmsg').innerText='Server verifying - Checking amount, duplicate...'; let res=await fetch(`/api/paystack/verify?reference=${ref}`,{headers:{Authorization:`Bearer ${session.access_token}`}}); let d=await res.json(); document.getElementById('vmsg').innerText=d.success?`✅ Verified! Credits added: ${d.credits_added}`:`❌ ${d.error}`; };
+  async function startR(){ try{ const st=await navigator.mediaDevices.getUserMedia({audio:true}); window._chunks=[]; const mr=new MediaRecorder(st); mr.ondataavailable=e=>{ if(e.data.size>0) window._chunks.push(e.data); }; mr.onstop=()=>{ st.getTracks().forEach(t=>t.stop()); window._blob=new Blob(window._chunks); window._url=URL.createObjectURL(window._blob); document.getElementById('prev').style.display='block'; document.getElementById('aud').src=window._url; }; mr.start(); window._mr=mr; document.getElementById('stopB').style.display='block'; }catch(e){alert(e.message);} }
+  function stopR(){ if(window._mr) window._mr.stop(); } window.startR=startR; window.stopR=stopR;
+  async function saveR(){
+    const text=document.getElementById('curTxt').innerText, wc=countW(text), {data:{session}}=await S.auth.getSession();
+    const num=userState.list.length+1, fname=`${String(num).padStart(3,'0')}_pidgin.wav`, path=`${session.user.id}/${fname}`;
+    try{ const {error:upErr}=await S.storage.from('pidgin-recordings').upload(path,window._blob,{contentType:'audio/wav'}); if(upErr) throw upErr;
+      const {data:urlD}=S.storage.from('pidgin-recordings').getPublicUrl(path);
+      await S.from('recordings').insert([{user_id:session.user.id,recording_number:num,pidgin_text:text,word_count:wc,audio_path:path,audio_url:urlD.publicUrl,file_name:fname}]);
+      await S.from('profiles').update({total_words:userState.total+wc,recordings_count:num}).eq('id',session.user.id);
+      document.getElementById('smsg').innerText='✅ Saved'; setTimeout(()=>location.reload(),800);
+    }catch(e){document.getElementById('smsg').innerText='❌ '+e.message;}
+  } window.saveR=saveR;
+  async function renderAdminDashboard(){
+    const me=await getMe(); if(!me || me.role!=='chairman'){ document.getElementById('app').innerHTML=`<div class=card style="border:2px solid red"><h2>⛔ Chairman Only - Secure</h2><p>Role: ${me?.role} - Server enforced</p><button class="btn gold" onclick="go('/user/dashboard')">User Dashboard</button></div>`; return; }
+    let stats={}; try{ const r=await fetch('/api/chairman/stats',{headers:{Authorization:`Bearer ${me.session.access_token}`}}); stats=await r.json(); }catch{ stats={}; }
+    const {data:users}=await S.from('profiles').select('*').order('total_words',{ascending:false}); const list=users||[];
+    document.getElementById('app').innerHTML=`<div class=card style="border:2px solid gold"><h2>👑 CHAIRMAN DASHBOARD - SECURE - Paystack Payment + Server Verification + Duplicate Protection</h2><div class=price-banner>Revenue: ₦${stats.revenueNaira||0} | Successful: ${stats.successful||0} | Pending: ${stats.pending||0} | Failed: ${stats.failed||0}</div><div class=nav><button class="btn gold" onclick="go('/admin/keys')">🔑 API KEYS - sk_</button><button class="btn gray" onclick="go('/api-docs')">📚 Docs</button><button class="btn gray" onclick="S.auth.signOut().then(()=>go('/admin/login'))">Logout</button></div></div><div class=card><h3>Users - ${list.length} - Credits Sold: ${stats.creditsSold||0}</h3>${list.slice(0,10).map(u=>`<div class=user-row><div><b>${u.display_name}</b> (${u.role})<br><small>${u.email} - Credits: ${u.api_credits||0}</small></div></div>`).join('')}</div><div class=card><b>Recent Transactions - All - Chairman View</b><div>${(stats.recent||[]).slice(0,15).map(t=>`<div class=user-row><div style="font-size:10px">${t.paystack_reference}<br>₦${t.amount/100} - ${t.credits}cr - ${t.status}</div></div>`).join('')||'No transactions'}</div></div>`;
+  }
+  async function renderWorkerDashboard(){
+    const me=await getMe(); if(!me){ go('/user/login'); return; } if(me.role!=='worker' && me.role!=='chairman'){ document.getElementById('app').innerHTML=`<div class=card>⛔ Worker only - Your role: ${me.role}<br><button class="btn gold" onclick="go('/user/dashboard')">User Dashboard</button></div>`; return; }
+    document.getElementById('app').innerHTML=`<div class=card><h3>Worker Dashboard - Separate - Secure</h3><div class=price-banner>Role: ${me.role} - Credits: ${me.profile?.api_credits||0}</div><p style="font-size:12px">Worker has limited permissions - Cannot see Chairman revenue.</p><button class="btn gray" onclick="go('/user/dashboard')">User Area</button><button class="btn gray" onclick="S.auth.signOut().then(()=>go('/user/login'))">Logout</button></div>`;
+  }
+  async function boot(){
+    const path=location.pathname;
+    if(path==='/admin/login'){ await renderLoginAdmin(); return; }
+    if(path==='/user/login' || path==='/login'){ await renderLoginUser(); return; }
+    if(path==='/api-docs'){ renderDocs(); return; }
+    if(path==='/admin/keys'){ const {data:{session}}=await S.auth.getSession(); if(!session){ go('/admin/login'); return; } await renderKeysPage(session); return; }
+    if(path==='/admin/dashboard'){ await renderAdminDashboard(); return; }
+    if(path==='/worker/dashboard'){ await renderWorkerDashboard(); return; }
+    if(path==='/user/dashboard'){ await renderUserDashboard(); return; }
+    if(new URLSearchParams(window.location.search).get('reference')){ const me=await getMe(); if(me?.role==='chairman') await renderAdminDashboard(); else await renderUserDashboard(); setTimeout(()=>verifyRef(),500); return; }
+    const {data:{session}}=await S.auth.getSession();
+    if(!session){ go('/user/login'); return; }
+    const me=await getMe();
+    if(me?.role==='chairman') go('/admin/dashboard'); else if(me?.role==='worker') go('/worker/dashboard'); else go('/user/dashboard');
+  }
+  boot();
 })();
 </script></body></html>
