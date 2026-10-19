@@ -1,168 +1,155 @@
-// api/voices.js - Vercel Serverless Function - Auto Download with API Key + 4 Languages + Credit Finished Notification ✅
+// api/voices.js - Complete - Hausa Igbo Yoruba Pidgin Together + Card Payment Keys + Credit Finished
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = "https://rupuxvpupdhlhxgjrbsh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
-async function hashKey(text){
-  const encoder = new TextEncoder();
-  const data = encoder.encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b=>b.toString(16).padStart(2,'0')).join('');
+function hashKey(key) {
+  return crypto.createHash('sha256').update(key).digest('hex');
 }
 
-export default async function handler(req, res){
-  // CORS for API customers
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-API-Key');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
   if(req.method === 'OPTIONS') return res.status(200).end();
 
-  // 1. Get API key from header OR query ?key=sk_xxx (for easy test)
-  const auth = req.headers.authorization || '';
-  let rawKey = auth.replace('Bearer ', '').trim();
-  if(!rawKey && req.query.key) rawKey = req.query.key;
-  if(req.headers['x-api-key']) rawKey = req.headers['x-api-key'];
-  
-  if(!rawKey || !rawKey.startsWith('sk_')){
+  // Get API key from header or query
+  let apiKey = req.headers.authorization?.replace('Bearer ', '') || req.query.key;
+
+  if(!apiKey) {
     return res.status(401).json({ 
-      error: 'Missing API key! Use Authorization: Bearer sk_free_xxx or sk_live_xxx or ?key=sk_xxx',
-      languages: 'Add ?language=hausa,igbo,yoruba,pidgin or ?language=all - Download 4 together!',
-      examples: {
-        all_4: 'GET /api/voices?language=hausa,igbo,yoruba,pidgin -H "Authorization: Bearer sk_live_xxx"',
-        only_hausa: 'GET /api/voices?language=hausa -H "Authorization: Bearer sk_live_xxx"',
-        c_example: 'curl -H "Authorization: Bearer sk_live_xxx" https://main-naija-pidgin.vercel.app/api/voices?language=hausa,igbo,yoruba,pidgin'
+      error: 'API key required - Get FREE 100 words or Buy 1000 words with card 💳',
+      how_to_get: {
+        free: 'POST to /api/free-key with email - Once per email',
+        paid_card: 'Pay ₦5,000 with card via Paystack - POST to /api/paystack with payment_ref'
       }
     });
   }
 
-  // 2. Hash and check key in DB
-  const keyHash = await hashKey(rawKey);
-  const { data: keyData, error } = await supabase.from('api_keys').select('*').eq('key_hash', keyHash).eq('is_active', true).single();
-  if(error || !keyData){
-    return res.status(401).json({ error: 'Invalid or inactive API key! Key not found!' });
+  // Hash and find key
+  const keyHash = hashKey(apiKey);
+  const { data: keyData, error: keyError } = await supabase
+    .from('api_keys')
+    .select('*')
+    .eq('key_hash', keyHash)
+    .eq('is_active', true)
+    .single();
+
+  if(keyError || !keyData) {
+    return res.status(401).json({ error: 'Invalid API key - Check key or buy new one' });
   }
 
-  // 3. CREDIT HAS FINISHED NOTIFICATION - Check if exhausted! 🚨
-  if(keyData.is_exhausted){
-    const maxWords = keyData.max_words || (rawKey.startsWith('sk_free_') ? 100 : 1000);
+  // Check if credit finished 🚨
+  if(keyData.is_exhausted || keyData.words_used >= keyData.max_words) {
+    // Mark as exhausted if not already
+    if(!keyData.is_exhausted) {
+      await supabase.from('api_keys').update({ is_exhausted: true }).eq('id', keyData.id);
+    }
+    
     return res.status(403).json({
-      error: rawKey.startsWith('sk_free_') ? 'FREE LIMIT REACHED! 100 words once per email!' : 'PAID LIMIT REACHED! 1000 words per ₦5,000!',
-      message: `Your credit has finished! You don use ${keyData.words_used}/${maxWords} words! 🚨 CREDIT HAS FINISHED!`,
-      solution: rawKey.startsWith('sk_free_') 
-        ? 'Use another email for new FREE 100 words at /api/login OR Buy PAID ₦5,000 - Moniepoint 8067955573' 
-        : 'Buy NEW PAID key for another 1000 words - Pay ₦5,000 again - Moniepoint 8067955573 Kingsley Alfred Suoye',
-      email: keyData.email,
-      words_used: keyData.words_used,
-      max_words: maxWords,
-      exhausted: true,
-      notification: '🚨 CREDIT HAS FINISHED! Your credit has finished! Must get new API key!',
-      credit_status: 'FINISHED'
+      error: '🚨 CREDIT HAS FINISHED! 🚨',
+      message: 'Your credit has finished! Words used up!',
+      details: {
+        email: keyData.email,
+        max_words: keyData.max_words,
+        words_used: keyData.words_used,
+        remaining: 0,
+        key_type: keyData.max_words >= 1000 ? 'PAID 1000' : 'FREE 100',
+        language_support: ['hausa','igbo','yoruba','pidgin']
+      },
+      what_next: {
+        free: 'Use new email for FREE 100 words once',
+        paid: 'Pay ₦5,000 with card for PAID 1000 words - Use new email or contact Chairman',
+        buy_url: 'POST to /api/paystack with Paystack payment_ref'
+      }
     });
   }
 
-  // 4. Check limit: sk_free_ = 100 words, sk_live_ = 1000 words
-  const isFree = rawKey.startsWith('sk_free_');
-  const maxWords = keyData.max_words || (isFree ? 100 : 1000);
-  const wordsUsedBefore = keyData.words_used || 0;
-  const wordsRemainingBefore = maxWords - wordsUsedBefore;
-
-  if(wordsRemainingBefore <= 0){
-    await supabase.from('api_keys').update({is_exhausted: true}).eq('id', keyData.id);
-    return res.status(403).json({
-      error: 'CREDIT HAS FINISHED! No remaining words!',
-      message: `Your credit has finished! Used ${wordsUsedBefore}/${maxWords}`,
-      exhausted: true,
-      notification: '🚨 CREDIT HAS FINISHED!'
-    });
-  }
-
-  // 5. LANGUAGE FILTER - ADD 4 LANGUAGES TOGETHER - NO DESTROY PLAN! ✅
-  const host = req.headers.host || 'main-naija-pidgin.vercel.app';
-  const fullUrl = new URL(req.url, `https://${host}`);
-  const languageParam = fullUrl.searchParams.get('language') || fullUrl.searchParams.get('languages') || 'all';
+  // Language filter - Handle single or multiple together!
+  // ?language=hausa or ?language=hausa,igbo,yoruba,pidgin
+  let languageFilter = req.query.language;
+  let languages = [];
   
-  let languageFilterNormalized = [];
-  if(languageParam && languageParam.toLowerCase() !== 'all'){
-    languageFilterNormalized = languageParam.toLowerCase().split(',').map(l=>{
-      let ll = l.trim();
-      if(ll.includes('hausa') || ll.includes('awosa') || ll === 'ha') return 'hausa';
-      if(ll.includes('igbo') || ll.includes('ibo') || ll === 'ig') return 'igbo';
-      if(ll.includes('yoruba') || ll.includes('yorub') || ll === 'yo') return 'yoruba';
-      if(ll.includes('pidgin') || ll.includes('pigeon') || ll.includes('pigin') || ll === 'pi') return 'pidgin';
-      return ll;
-    });
-    languageFilterNormalized = [...new Set(languageFilterNormalized)];
+  if(languageFilter) {
+    languages = languageFilter.toLowerCase().split(',').map(l => l.trim()).filter(l => l);
+    // Validate languages
+    const validLangs = ['hausa','igbo','yoruba','pidgin'];
+    languages = languages.filter(l => validLangs.includes(l));
   }
 
-  // 6. Fetch recordings - With language filter + Limit by remaining credit
-  let query = supabase.from('recordings').select('*').order('created_at', {ascending: false}).limit(100);
-  if(languageFilterNormalized.length > 0){
-    query = query.in('language', languageFilterNormalized);
-  }
-  const { data: recordings, error: recError } = await query;
-  if(recError) return res.status(500).json({ error: recError.message });
+  // Build query
+  let query = supabase.from('recordings').select('*').order('created_at', { ascending: false }).limit(100);
 
-  // Calculate total words customer fit access - Respect remaining credit!
-  let totalWords = 0;
-  let filtered = [];
-  for(let r of recordings){
-    if(totalWords + r.word_count > wordsRemainingBefore) break;
-    totalWords += r.word_count;
-    filtered.push({
-      file_name: r.file_name,
-      pidgin_text: r.pidgin_text,
-      word_count: r.word_count,
-      language: r.language || 'pidgin',
-      audio_url: r.audio_url,
-      download_with_api_key: `https://main-naija-pidgin.vercel.app/api/download?file=${encodeURIComponent(r.audio_path)}&key=${rawKey}&language=${r.language||'pidgin'}`,
-      created_at: r.created_at
-    });
+  if(languages.length > 0) {
+    query = query.in('language', languages);
   }
 
-  // Update usage
-  const newWordsUsed = wordsUsedBefore + totalWords;
-  const isNowExhausted = newWordsUsed >= maxWords;
-  await supabase.from('api_keys').update({
+  const { data: recordings, error } = await query;
+
+  if(error) {
+    return res.status(500).json({ error: 'Failed to fetch recordings: ' + error.message });
+  }
+
+  // Calculate words to be used
+  const totalWordsInResponse = recordings.reduce((sum, r) => sum + (r.word_count || 0), 0);
+
+  // Update words_used - Add this batch
+  const newWordsUsed = keyData.words_used + totalWordsInResponse;
+  const isNowExhausted = newWordsUsed >= keyData.max_words;
+
+  await supabase.from('api_keys').update({ 
     words_used: newWordsUsed,
     is_exhausted: isNowExhausted
   }).eq('id', keyData.id);
 
-  // 7. Return JSON - Customer fit auto download with language + credit status!
+  // Group by language for customer to know!
+  const byLanguage = {};
+  recordings.forEach(r => {
+    const lang = r.language || 'pidgin';
+    byLanguage[lang] = (byLanguage[lang] || 0) + 1;
+  });
+
+  // Return with language info!
   return res.status(200).json({
     success: true,
-    key_type: isFree ? 'sk_free_ - FREE 100 words - Once per email' : 'sk_live_ - PAID 1000 words - ₦5,000 once per payment',
-    key_prefix: keyData.key_prefix,
-    email: keyData.email,
-    total_recordings: filtered.length,
-    total_words: totalWords,
-    total_words_this_request: totalWords,
-    words_used_before: wordsUsedBefore,
-    words_used_now: newWordsUsed,
-    words_remaining: maxWords - newWordsUsed,
-    max_allowed: maxWords,
-    languages_filter: languageFilterNormalized.length > 0 ? languageFilterNormalized : ['all'],
-    languages_in_this_request: languageFilterNormalized.length > 0 ? languageFilterNormalized : ['hausa','igbo','yoruba','pidgin'],
-    total_by_language: {
-      hausa: filtered.filter(r=>r.language==='hausa').length,
-      igbo: filtered.filter(r=>r.language==='igbo').length,
-      yoruba: filtered.filter(r=>r.language==='yoruba').length,
-      pidgin: filtered.filter(r=>r.language==='pidgin').length,
+    message: languages.length > 0 ? `Filtered by: ${languages.join(', ')}` : 'All languages - Hausa, Igbo, Yoruba, Pidgin',
+    data: recordings.map(r => ({
+      file_name: r.file_name,
+      pidgin_text: r.pidgin_text,
+      word_count: r.word_count,
+      language: r.language || 'pidgin', // <-- Customer knows this one na Hausa, Igbo, etc!
+      audio_url: r.audio_url,
+      download_url: `https://main-naija-pidgin.vercel.app/api/download?file=${r.audio_path}&key=${apiKey}`,
+      created_at: r.created_at
+    })),
+    total: recordings.length,
+    total_by_language: byLanguage, // How many Hausa, Igbo, Yoruba, Pidgin!
+    credit: {
+      email: keyData.email,
+      type: keyData.max_words >= 1000 ? 'PAID 1000 - Card Payment' : 'FREE 100',
+      max_words: keyData.max_words,
+      words_used_before: keyData.words_used,
+      words_used_now: newWordsUsed,
+      remaining: Math.max(0, keyData.max_words - newWordsUsed),
+      is_exhausted: isNowExhausted,
+      payment_ref: keyData.payment_ref || 'free'
     },
-    credit_status: isNowExhausted ? '🚨 CREDIT HAS FINISHED! Your credit has finished!' : `ACTIVE - ${maxWords - newWordsUsed} words left`,
-    notification: isNowExhausted ? '🚨 CREDIT HAS FINISHED! Must buy new credit! Free: new email, Paid: new ₦5,000!' : null,
-    message: isNowExhausted 
-      ? `Data delivered ${totalWords} words - CREDIT NOW FINISHED! Used ${newWordsUsed}/${maxWords} - Need new credit!`
-      : `Use download_with_api_key or audio_url to download file auto with API key! Languages: ${languageFilterNormalized.length>0?languageFilterNormalized.join(','):'all'}`,
-    examples: {
-      all_4_together: `https://main-naija-pidgin.vercel.app/api/voices?language=hausa,igbo,yoruba,pidgin -H "Authorization: Bearer ${rawKey.substring(0,18)}..."`,
-      only_hausa: `https://main-naija-pidgin.vercel.app/api/voices?language=hausa`,
-      only_igbo: `https://main-naija-pidgin.vercel.app/api/voices?language=igbo`,
-      only_yoruba: `https://main-naija-pidgin.vercel.app/api/voices?language=yoruba`,
+    languages_available: ['hausa','igbo','yoruba','pidgin'],
+    filter_examples: {
+      hausa_only: '?language=hausa',
+      igbo_only: '?language=igbo',
+      yoruba_only: '?language=yoruba',
+      pidgin_only: '?language=pidgin',
+      two_together: '?language=hausa,yoruba',
+      all_together: '?language=hausa,igbo,yoruba,pidgin'
     },
-    c_example: `C: curl -H "Authorization: Bearer ${rawKey.substring(0,18)}..." "https://main-naija-pidgin.vercel.app/api/voices?language=hausa,igbo,yoruba,pidgin"`,
-    data: filtered
+    ...(isNowExhausted && {
+      warning: '🚨 CREDIT HAS FINISHED AFTER THIS REQUEST! Buy new key with card!'
+    })
   });
 }
