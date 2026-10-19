@@ -137,30 +137,46 @@ input,select,textarea{width:100%;padding:18px;border-radius:12px;border:1px soli
       setTimeout(()=>{location.pathname='/api/dashboard';},1500);
     }catch(e){msg.innerText='❌ '+e.message;}
   }
-  function renderApiDashboard(){
-    const raw=localStorage.getItem('bomba_api_key');
-    const userStr=localStorage.getItem('bomba_api_user');
-    const currentLink=window.location.origin + '/api/login';
-    if(!raw){ location.pathname='/api/login'; return; }
-    const user=userStr?JSON.parse(userStr):{name:'API User'};
-    document.getElementById('app').innerHTML=`
-      <div class="card" style="border:2px solid #00ff88">
-        <h2>🔑 API DASHBOARD - ${user.name||'User'}</h2>
-        <p>Key: <code>${raw.substring(0,20)}...***</code></p>
-        <div class="copy-box">
-          <p style="color:gold;font-size:12px;font-weight:bold">📤 Share API Login link!</p>
-          <div style="display:flex;gap:8px">
-            <input type="text" value="${currentLink}" readonly style="flex:1;padding:10px;border-radius:10px;background:#222;color:#fff;border:1px solid #444;font-size:11px">
-            <button onclick="copyLink('${currentLink}', 'copyDashLink')" id="copyDashLink" style="padding:10px 15px;border-radius:10px;background:gold;color:#000;font-weight:900;border:none">📋 COPY LINK</button>
-          </div>
+  function renderApiKeyLogin(){
+  const currentLink = window.location.href;
+  document.getElementById('app').innerHTML=`
+    <div class="card" style="max-width:500px;margin:20px auto;border:3px solid #00ff88;background:#0a2e1a">
+      <h1 style="text-align:center;color:#00ff88">🔑 API KEY LOGIN - OWN LINK</h1>
+      <p style="text-align:center;color:#aaa;font-size:13px">ROOM 3: Separate - ONLY API Users - sk_free_ / sk_live_ ✅</p>
+      
+      <!-- ONLY ONE COPY LINK - AT TOP! ✅ -->
+      <div style="background:#1a1a00;border:2px solid gold;padding:12px;border-radius:12px;margin:10px 0;text-align:center">
+        <p style="color:gold;font-size:12px;font-weight:bold;margin:0 0 8px 0">📤 Share this link to customers!</p>
+        <div style="display:flex;gap:8px">
+          <input id="shareLinkInput" type="text" value="${currentLink}" readonly style="flex:1;padding:10px;border-radius:10px;background:#222;color:#fff;border:1px solid #444;font-size:11px">
+          <button onclick="copyLink(document.getElementById('shareLinkInput').value, 'copyShareLink')" id="copyShareLink" style="padding:10px 15px;border-radius:10px;background:gold;color:#000;font-weight:900;border:none;font-size:11px">📋 COPY LINK</button>
         </div>
-        <div class="nav">
-          <button class="btn green" onclick="location.pathname='/api-docs'">📚 API Docs</button>
-          <button class="btn gray" onclick="localStorage.removeItem('bomba_api_key');location.pathname='/api/login'">Logout</button>
-        </div>
+        <p style="color:#888;font-size:10px;margin:8px 0 0 0">Customer can copy and send to other customers!</p>
       </div>
-    `;
-  }
+
+      <!-- API KEY INPUT - NO COPY LINK HERE ANYMORE! -->
+      <div style="border:3px dashed #00ff88;padding:15px;border-radius:15px;background:#0a0a0a;margin:15px 0">
+        <p style="color:#00ff88;font-weight:bold">✅ Enter your API key</p>
+        <input id="apiKeyInput" placeholder="sk_free_xxx or sk_live_xxx" style="font-family:monospace">
+        <button class="btn green" onclick="doApiKeyLogin()">🔓 LOGIN WITH API KEY</button>
+        <p id="apiLoginMsg"></p>
+      </div>
+
+      <!-- FREE AND PAID KEYS - NO COPY LINK BUTTONS! ✅ -->
+      <div style="background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0">
+        <button class="btn green" onclick="location.pathname='/api-docs'">🆓 Get FREE sk_free_ key</button>
+        <button class="btn gold" onclick="location.pathname='/admin/keys'">💰 Buy PAID sk_live_ key - ₦5,000</button>
+      </div>
+
+      <!-- WORKER AND CHAIRMAN ROOMS - NO COPY LINK BUTTONS! ✅ -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn gray" onclick="location.pathname='/user/login'">🎙️ Worker Room - Room 1</button>
+        <button class="btn gray" onclick="location.pathname='/admin/login'" style="border:2px solid gold">👑 Chairman Room - Room 2</button>
+        <button class="btn gray" onclick="location.pathname='/'">🏠 Home</button>
+      </div>
+    </div>
+  `;
+}
 
   // ... ALL YOUR OLD FUNCTIONS FOR WORKER, CHAIRMAN, KEYS, PAYSTACK FIXED ARE INSIDE FINAL FILE ...
   // For brevity in chat, the rest of your old code (renderKeysPage, payWithPaystackCard with card box fix, admin dashboard, user dashboard, etc.) is same as before and already included in the file at /mnt/data/FINAL_COMPLETE_3_ROOMS_COPYLINK.html
