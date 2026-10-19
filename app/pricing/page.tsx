@@ -1,23 +1,37 @@
-import { NextResponse } from "next/server"
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const reference = searchParams.get("reference")
-  
-  const secret = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET || process.env.NEXT_PUBLIC_PAYSTACK_SECRET
-
-  const res = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-    headers: { Authorization: `Bearer ${secret}` }
-  })
-
-  const data = await res.json()
-  
-  if(data.data?.status === "success") {
-    // Generate API key here
-    const apiKey = `verify_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`
-    // Save to your DB
-    return NextResponse.redirect(`https://your-site.vercel.app/success?key=${apiKey}&plan=${data.data.metadata.plan}`)
+"use client"
+import { useState } from "react"
+export default function Pricing() {
+  const [loading, setLoading] = useState("")
+  const plans = [
+    { name: "Starter", price: 5000, limit: "10k requests" },
+    { name: "Pro", price: 15000, limit: "50k requests" },
+    { name: "Enterprise", price: 50000, limit: "1M requests" }
+  ]
+  const buy = async (plan: any) => {
+    setLoading(plan.name)
+    const res = await fetch("/api/paystack/init", {
+      method: "POST",
+      body: JSON.stringify({ name: plan.name, price: plan.price })
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+    setLoading("")
   }
-
-  return NextResponse.redirect(`https://your-site.vercel.app/pricing?error=payment_failed`)
+  return (
+    <div className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-4xl font-bold text-center mb-8">Choose Your Plan</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        {plans.map((p) => (
+          <div key={p.name} className="border border-white/20 p-6 rounded-2xl text-center">
+            <h2 className="text-2xl font-bold mb-2">{p.name}</h2>
+            <p className="text-3xl mb-2">₦{p.price.toLocaleString()}</p>
+            <p className="text-sm text-gray-400 mb-6">{p.limit}</p>
+            <button onClick={() => buy(p)} className="w-full bg-white text-black py-3 rounded-xl font-bold">
+              {loading === p.name ? "Loading..." : "Buy Now"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
