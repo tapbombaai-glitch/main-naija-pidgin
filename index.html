@@ -1,794 +1,156 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Main Pidgin - Email First + Card Number Flow - Chairman Master</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://js.paystack.co/v1/inline.js"></script>
-<style>
-*{box-sizing:border-box}
-body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padding-bottom:80px}
-.card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}
-.btn{width:100%;padding:18px;border:none;border-radius:35px;font-weight:900;font-size:16px;margin:8px 0;cursor:pointer}
-.green{background:#00ff88;color:#000}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}.blue{background:#3b82f6;color:#fff}
-input,textarea{width:100%;padding:18px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}
-.user-row{display:flex;justify-content:space-between;align-items:center;background:#181818;padding:14px;border-radius:12px;margin:8px 0}
-.nav{display:flex;gap:8px;overflow-x:auto;flex-wrap:wrap}.nav button{white-space:nowrap;padding:12px 18px}
-.price-banner{background:gold;color:#000;padding:12px;border-radius:12px;margin:12px 0;font-weight:900;text-align:center;border:2px solid #fff}
-.platform-card{border:3px solid;border-radius:20px;padding:20px;margin:15px 0;text-align:center}
-.announce{background:#1a1a00;border:2px solid gold;border-radius:12px;padding:12px;margin:10px 0}
-.step{background:#222;border-left:5px solid gold;padding:12px;border-radius:8px;margin:10px 0}
-.step-green{border-left-color:#00ff88;background:#0a2e1a}
-.white-box{background:white;color:black;padding:18px;border-radius:16px;margin:12px 0}
-.white-box input{background:white;color:black;border:2px solid #333}
-.white-box label{color:black;font-weight:900;display:block;margin-top:10px}
-</style>
-</head>
-<body>
-<div id="app">Loading - Email First Flow...</div>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Main Pidgin - COMPLETE Compact Auto Withdraw</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="https://js.paystack.co/v1/inline.js"></script><style>
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:6px;padding-bottom:60px;font-size:12px}
+.c{background:#111;border:1px solid #222;border-radius:10px;padding:10px;margin:6px 0}.b{width:100%;padding:10px;border:none;border-radius:20px;font-weight:900;font-size:12px;margin:4px 0;cursor:pointer}
+.g{background:#00ff88;color:#000}.gr{background:#2a2a2a;color:#fff}.go{background:gold;color:#000}.bl{background:#3b82f6;color:#fff}
+input,textarea{width:100%;padding:9px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;margin:4px 0;font-size:12px}
+.sq{width:85px;height:85px;background:linear-gradient(135deg,gold,#ff8c00);border-radius:12px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;margin:5px;cursor:pointer;border:2px solid #fff}.sq-free{background:linear-gradient(135deg,#00ff88,#00cc66)}.sq-paid{background:linear-gradient(135deg,#3b82f6,#1e40af);border-color:gold}
+.w{background:#fff;color:#000;padding:8px;border-radius:8px;margin:5px 0}.w input{background:#fff;color:#000;border:1px solid #ccc;padding:7px}
+.row{display:flex;justify-content:space-between;background:#181818;padding:6px;border-radius:6px;margin:3px 0;font-size:11px}
+.ban{background:gold;color:#000;padding:5px;border-radius:6px;text-align:center;font-weight:900;font-size:10px;margin:4px 0}
+.t{display:flex;gap:4px;overflow-x:auto}.t button{padding:6px 10px;font-size:10px;white-space:nowrap;border-radius:12px}
+</style></head><body><div id="app">Loading COMPLETE compact...</div><script>
+!function(){const U="https://rupuxvpupdhlhxgjrbsh.supabase.co",K="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY",PK="pk_test_3bd0892e4059268380e4bfb68b93c0d7229eee31",S=supabase.createClient(U,K);
+async function h(t){let e=new TextEncoder().encode(t),d=await crypto.subtle.digest("SHA-256",e);return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("")}
+function genF(){let r="";for(let i=0;i<24;i++)r+="0123456789abcdef"[Math.random()*16|0];return "sk_free_"+r}
+function genP(){let r="";for(let i=0;i<32;i++)r+="0123456789abcdef"[Math.random()*16|0];return "sk_live_"+r}
+async function ins(d){let r=await S.from("api_keys").insert([d]);if(r.error&&r.error.message.includes("key_hash")){delete d.key_hash;delete d.payment_ref;r=await S.from("api_keys").insert([d])}return r}
+function dl(t,n){let b=new Blob([t],{type:"text/plain"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=n;a.click()}
+async function loadAnn(){try{let {data}=await S.from("announcements").select("*").order("created_at",{ascending:!1}).limit(10);return data||[]}catch{return[]}}
+window.postAnnouncement=async()=>{let t=document.getElementById("announce_text")?.value.trim();if(!t)return alert("Type!");let {data:{session:s}}=await S.auth.getSession();let {error}=await S.from("announcements").insert({message:t,created_by:s.user.id});if(error)alert(error.message);else{alert("Posted!");document.getElementById("announce_text").value="";loadAnnC()}};window.deleteAnnounce=async(id)=>{if(!confirm("Del?"))return;await S.from("announcements").delete().eq("id",id);loadAnnC()};async function loadAnnC(){let d=await loadAnn(),l=document.getElementById("announce_list_chairman");if(!l)return;l.innerHTML=d.length?d.map(a=>`<div class=row>📢 ${a.message}<br><span style="font-size:10px">${new Date(a.created_at).toLocaleString().slice(0,16)} <button onclick="deleteAnnounce('${a.id}')" style="background:red;color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:9px">Del</button></span></div>`).join(""):"<span style="font-size:10px">No announce</span>"}
 
-<script>
-(function(){
-const SUPABASE_URL = "https://rupuxvpupdhlhxgjrbsh.supabase.co";
-const SUPABASE_KEY = "sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
-const PAYSTACK_PUBLIC_KEY = "pk_test_3bd0892e4059268380e4bfb68b93c0d7229eee31";
-
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-async function hashKeyClient(text) {
-  const enc = new TextEncoder();
-  const data = enc.encode(text);
-  const hb = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hb)).map(b => b.toString(16).padStart(2, '0')).join('');
+function renderLanding(){
+document.getElementById("app").innerHTML=`<div class=c style="border:2px solid gold;text-align:center;padding:8px"><h3 style="color:gold;margin:4px">🔥 MAIN PIDGIN - COMPLETE - AUTO WITHDRAW</h3><p style="font-size:10px">Complete code - Little square → Login → Unlock → Free + ₦5k → Paystack auto withdraw ₦5k!</p><div style="margin:8px 0"><div class=sq onclick="location.pathname='/chairman/login'"><div style="font-size:22px">🔑</div><b style="font-size:8px;color:#000">API KEY</b><b style="font-size:6px;color:#000">Tap Login</b></div></div><div class=ban>COMPLETE: Chairman + Worker + Paid + Announce + LIVE + Auto Withdraw!</div></div><div class=c style="padding:8px;text-align:center"><div style="display:flex;justify-content:center;gap:4px;flex-wrap:wrap"><div class=sq onclick="location.pathname='/chairman/login'"><div style="font-size:18px">👑</div><b style="font-size:7px;color:#000">Chairman</b></div><div class="sq sq-free" onclick="location.pathname='/worker/login'"><div style="font-size:18px">👷</div><b style="font-size:7px;color:#000">Worker</b></div><div class="sq sq-paid" onclick="location.pathname='/client/login'"><div style="font-size:18px">💰</div><b style="font-size:7px;color:#fff">Paid</b></div></div></div>`;
 }
 
-function genFree() {
-  const c = '0123456789abcdef';
-  let r = '';
-  for (let i = 0; i < 24; i++) r += c[Math.floor(Math.random() * c.length)];
-  return 'sk_free_' + r;
+async function renderKeysPage(session){
+let {data:profile}=await S.from("profiles").select("*").eq("id",session.user.id).single();if(!profile?.is_chairman){document.getElementById("app").innerHTML="<h3>🚫 Chairman Only</h3>";return}
+let {data:keys}=await S.from("api_keys").select("*").order("created_at",{ascending:!1});
+let freeC=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_free_")).length:0,paidC=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_live_")).length:0;
+document.getElementById("app").innerHTML=`
+<div class=c style="border:2px solid gold;padding:8px"><h4 style="margin:4px">👑 CHAIRMAN MASTER - COMPLETE - Compact!</h4><div class=ban>Free:${freeC} Paid:${paidC} ₦${paidC*5000} - Complete Auto Withdraw</div><div class=t><button class="b go" style="padding:6px" onclick="location.pathname='/chairman/dashboard'">Dash</button><button class="b gr" style="padding:6px" onclick="location.pathname='/'">Home</button><button class="b gr" style="padding:6px" onclick="S.auth.signOut().then(()=>location.pathname='/chairman/login')">Logout</button></div></div>
+
+<div class=c style="border:2px solid #00ff88;padding:8px"><div style="text-align:center"><div class="sq sq-free" onclick="document.getElementById('freeSec').style.display='block'"><div style="font-size:20px">🆓</div><b style="font-size:7px;color:#000">FREE SQUARE</b></div></div><div id=freeSec style="display:none"><div class=w><label style="font-size:10px;font-weight:900">Key Name</label><input id=key_name_free value="Ricky Free Key"><button class="b g" style="padding:8px" onclick="doGenFree()">Receive Free - Little Square</button><p id=free_msg style="color:#000;font-size:10px;font-weight:900"></p><div id=freeBox style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=freeText style="font-size:10px"></code><br><button class="b g" style="background:#000;color:#00ff88;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('freeText').innerText)">Copy</button><button class="b g" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="dl(document.getElementById('freeText').innerText,'sk_free.txt')">Download</button></div></div></div></div>
+
+<div class=c style="border:2px solid gold;padding:8px"><div style="text-align:center"><div class="sq sq-paid" onclick="document.getElementById('paidSec').style.display='block'"><div style="font-size:20px">💰</div><b style="font-size:7px;color:#fff">₦5K AUTO SQUARE</b></div></div><div id=paidSec style="display:none"><div class=w><label style="font-size:10px;font-weight:900">Key Name</label><input id=key_name_paid value="Bomber"><label style="font-size:10px;font-weight:900">Email - Before Card!</label><input id=client_email type=email value="bomber@gmail.com"><input value="₦5,000 - Paystack auto withdraw" disabled style="background:#eee;padding:6px"><button class="b go" style="background:#000;color:gold;border:2px solid gold;padding:8px" onclick="payCard()">💳 Tap ₦5K Square - Card Number - Auto Withdraw ₦5k via Paystack!</button><div style="background:#fff3cd;color:#000;padding:5px;border-radius:5px;font-size:9px;margin:4px 0">Test Card: 4084084084084081 Exp 12/30 CVV 408 PIN 0000 → Paystack auto deduct ₦5k</div><div id=paidBox style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=paidText style="font-size:10px"></code><br><button class="b go" style="background:#000;color:gold;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('paidText').innerText)">Copy</button><button class="b go" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="dl(document.getElementById('paidText').innerText,'sk_live.txt')">Download</button></div><p id=paid_msg style="color:gold;font-size:10px;font-weight:900"></p></div></div></div>
+
+<div class=c style="padding:8px"><b style="font-size:11px">📋 LIVE ACTIVITY - Complete</b><div style="max-height:150px;overflow:auto">${keys?keys.map(k=>`<div class=row><div><b>${k.name}</b> - ${k.key_prefix?.startsWith('sk_free_')?'<span style=color:#00ff88>FREE</span>':'<span style=color:gold>PAID AUTO ₦5k</span>'}<br><span style="font-size:9px">${k.key_prefix}... - ${new Date(k.created_at).toLocaleString().slice(0,16)}</span></div></div>`).join(""):"No keys"}</div></div>
+
+<div class=c style="padding:8px"><b style="font-size:11px">📢 ANNOUNCEMENT - Complete</b><textarea id=announce_text style="height:40px" placeholder="Type announcement"></textarea><button class="b go" style="padding:6px" onclick="postAnnouncement()">Post Announcement</button><div id=announce_list_chairman></div></div>
+`;setTimeout(loadAnnC,500)}
+
+async function doGenFree(){let n=document.getElementById("key_name_free").value||"Free";document.getElementById("free_msg").innerText="Gen...";try{let r=genF(),pre=r.slice(0,18),hash=await h(r),{data:{session:s}}=await S.auth.getSession(),res=await ins({user_id:s.user.id,name:n,key_hash:hash,key_prefix:pre,is_active:true});if(res.error)throw res.error;document.getElementById("freeText").innerText=r;document.getElementById("freeBox").style.display="block";document.getElementById("free_msg").innerText="✅ Free - Download!";setTimeout(()=>location.reload(),1500)}catch(e){document.getElementById("free_msg").innerText="❌ "+e.message}}
+function copyFree(){navigator.clipboard.writeText(document.getElementById("freeText").innerText).then(()=>alert("Copied!"))}
+function downloadFree(){dl(document.getElementById("freeText").innerText,"sk_free.txt")}
+function copyPaid(){navigator.clipboard.writeText(document.getElementById("paidText").innerText).then(()=>alert("Copied!"))}
+function downloadPaid(){dl(document.getElementById("paidText").innerText,"sk_live.txt")}
+async function payCard(){
+let nameInput=document.getElementById("key_name_paid")?.value.trim()||"",emailInput=document.getElementById("client_email")?.value.trim()||"",msgEl=document.getElementById("paid_msg");
+if(!nameInput){alert("Put Key Name!");return}if(!emailInput||!emailInput.includes("@")){alert("Put Email before card!");return}
+if(msgEl)msgEl.innerText="Opening Paystack - Auto withdraw ₦5k from card...";
+try{
+if(typeof PaystackPop==="undefined")throw new Error("Paystack not loaded");
+let handler=PaystackPop.setup({
+key:PK,email:emailInput,amount:500000,currency:"NGN",ref:"Pidgin_"+Date.now(),
+metadata:{custom_fields:[{display_name:"Key Name",variable_name:"key_name",value:nameInput}]},
+callback:async function(res){
+alert("✅ AUTO WITHDRAW SUCCESS! Paystack comot ₦5k from card! Ref:"+res.reference);
+try{let r=genP(),pre=r.slice(0,18),hash=await h(r),{data:{session:s}}=await S.auth.getSession(),insRes=await ins({user_id:s.user.id,name:nameInput,key_hash:hash,key_prefix:pre,is_active:true,payment_ref:res.reference});if(insRes.error)throw insRes.error;document.getElementById("paidText").innerText=r;document.getElementById("paidBox").style.display="block";if(msgEl)msgEl.innerText="✅ Auto withdraw done! ₦5k deducted via Paystack! Download!";setTimeout(()=>location.reload(),2000)}catch(e){if(msgEl)msgEl.innerText="❌ "+e.message}
+},
+onClose:function(){if(msgEl)msgEl.innerText="Card closed - Tap ₦5k square again for auto withdraw!";if(confirm("Card closed - Generate TEST key? Moniepoint 8067955573 for real")){genFallback(nameInput)}}
+});handler.openIframe();
+}catch(err){alert("Paystack error: "+err.message+" - Fallback");genFallback(nameInput)}
+}
+async function genFallback(name){try{let r=genP(),pre=r.slice(0,18),hash=await h(r),{data:{session:s}}=await S.auth.getSession(),res=await ins({user_id:s.user.id,name:name,key_hash:hash,key_prefix:pre,is_active:true,payment_ref:"Fallback_Moniepoint"});if(res.error)throw res.error;document.getElementById("paidText").innerText=r;document.getElementById("paidBox").style.display="block";document.getElementById("paid_msg").innerText="✅ Fallback - Moniepoint 8067955573 - Download!";setTimeout(()=>location.reload(),2000)}catch(e){alert(e.message)}}
+window.doGenFree=doGenFree;window.payCard=payCard;window.copyFree=copyFree;window.downloadFree=downloadFree;window.copyPaid=copyPaid;window.downloadPaid=downloadPaid;
+
+async function renderLoginAdmin(){document.getElementById("app").innerHTML=`<div class=c style="max-width:320px;margin:15px auto;padding:10px;border:2px solid gold;text-align:center"><div class=sq style="width:70px;height:70px"><div style="font-size:20px">🔑</div></div><h4>👑 Chairman - Complete Auto Withdraw Login</h4><input id=email value="tapbomba.ai@gmail.com"><input id=pass type=password placeholder="Pass"><button class="b go" onclick="doLogin('admin')">Unlock Complete</button><button class="b gr" onclick="location.pathname='/'">Home</button><p id=msg style="font-size:10px"></p></div>`}
+async function renderLoginWorker(){document.getElementById("app").innerHTML=`<div class=c style="max-width:320px;margin:15px auto;padding:10px;border:2px solid #00ff88;text-align:center"><div class="sq sq-free" style="width:70px;height:70px"><div style="font-size:20px">👷</div></div><h4>👷 Worker - Complete Login</h4><input id=email placeholder="Email"><input id=pass type=password placeholder="Pass"><input id=name placeholder="Name"><button class="b g" onclick="doLogin('worker')">Login - Free Key</button><button class="b gr" onclick="doSignup('worker')">Signup</button><button class="b gr" onclick="location.pathname='/'">Home</button><p id=msg style="font-size:10px"></p></div>`}
+async function renderLoginClient(){document.getElementById("app").innerHTML=`<div class=c style="max-width:320px;margin:15px auto;padding:10px;border:2px solid #3b82f6;text-align:center"><div class="sq sq-paid" style="width:70px;height:70px"><div style="font-size:20px">💰</div></div><h4>💰 Paid Client - Complete Auto Withdraw Login</h4><input id=email placeholder="Email"><input id=pass type=password placeholder="Pass"><input id=name placeholder="Name"><button class="b bl" onclick="doLogin('client')">Login - Paid Auto</button><button class="b gr" style="background:gold;color:#000" onclick="doSignup('client')">Signup Paid</button><button class="b gr" onclick="location.pathname='/'">Home</button><p id=msg style="font-size:10px"></p></div>`}
+async function doLogin(t){let e=document.getElementById("email").value.trim(),p=document.getElementById("pass").value,m=document.getElementById("msg");if(!e||!p){m.innerText="Fill email+pass";return}m.innerText="Checking...";let {error}=await S.auth.signInWithPassword({email:e,password:p});if(error){m.innerText=error.message;return}if(t==="admin")location.pathname="/chairman/dashboard";else if(t==="client")location.pathname="/client/dashboard";else location.pathname="/worker/dashboard"}
+async function doSignup(t){let e=document.getElementById("email").value.trim(),p=document.getElementById("pass").value,n=document.getElementById("name").value||e.split("@")[0],m=document.getElementById("msg");if(!e||!p){m.innerText="Fill";return}m.innerText="Creating...";let {data,error}=await S.auth.signUp({email:e,password:p});if(error){m.innerText=error.message;return}if(!data.user){m.innerText="Check email";return}let isC=e.toLowerCase()==="tapbomba.ai@gmail.com";await S.from("profiles").insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:"not_started",is_chairman:isC,user_type:t}]);m.innerText="✅ Created! Login now!"}
+window.doLogin=doLogin;window.doSignup=doSignup;
+
+async function renderChairmanDashboard(session){
+let {data:profile}=await S.from("profiles").select("*").eq("id",session.user.id).single();if(!profile?.is_chairman){document.getElementById("app").innerHTML="<h4>🚫 Chairman Only</h4>";return}
+let {data:keys}=await S.from("api_keys").select("*").order("created_at",{ascending:!1}),{data:users}=await S.from("profiles").select("*").order("total_words",{ascending:!1});
+let f=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_free_")).length:0,p=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_live_")).length:0;
+document.getElementById("app").innerHTML=`
+<div class=c style="border:2px solid gold;padding:8px;text-align:center"><h4 style="margin:4px">👑 CHAIRMAN DASHBOARD - COMPLETE - Compact!</h4><div class=ban>Free:${f} Paid:${p} ₦${p*5000} Users:${users?users.length:0} - Complete</div><div style="margin:8px 0"><div class=sq onclick="location.pathname='/chairman/keys'"><div style="font-size:20px">🔑</div><b style="font-size:7px;color:#000">KEYS</b></div></div><div class=t><button class="b go" style="padding:6px" onclick="location.pathname='/chairman/keys'">Keys - Auto Withdraw</button><button class="b gr" style="padding:6px" onclick="location.pathname='/'">Home</button><button class="b gr" style="padding:6px" onclick="S.auth.signOut().then(()=>location.pathname='/chairman/login')">Logout</button></div></div>
+<div class=c style="padding:8px"><b style="font-size:11px">📋 LIVE ACTIVITY - Complete</b><div style="max-height:150px;overflow:auto">${keys?keys.slice(0,15).map(k=>`<div class=row><div><b>${k.name}</b> - ${k.key_prefix?.startsWith("sk_free_")?"FREE":"PAID AUTO ₦5k"}<br><span style="font-size:9px">${k.key_prefix}... - ${new Date(k.created_at).toLocaleString().slice(0,16)}</span></div></div>`).join(""):"No activity"}</div></div>
+<div class=c style="padding:8px"><b style="font-size:11px">👥 USERS - Complete</b><div style="max-height:100px;overflow:auto">${users?users.slice(0,10).map(u=>`<div class=row><div>${u.display_name||u.email}<br><span style="font-size:9px">${u.user_type} - ${u.total_words||0} words</span></div></div>`).join(""):"No users"}</div></div>
+<div class=c style="padding:8px"><b style="font-size:11px">📢 ANNOUNCEMENT - Complete</b><textarea id=announce_text style="height:40px" placeholder="Type announcement"></textarea><button class="b go" style="padding:6px" onclick="postAnnouncement()">Post Announcement</button><div id=announce_list_chairman></div></div>
+`;setTimeout(loadAnnC,500)}
+
+async function renderWorkerDash(session){
+let {data:profile}=await S.from("profiles").select("*").eq("id",session.user.id).single();if(profile?.is_chairman){location.pathname="/chairman/dashboard";return}
+let announcements=await loadAnn();let annHTML=`<div class=c style="border:2px solid gold;padding:8px"><b style="font-size:11px">📢 FROM CHAIRMAN - Complete</b>${announcements.length==0?"<p style='font-size:10px'>No announce</p>":announcements.map(a=>`<div class=row>📢 ${a.message}<br><span style="font-size:9px">${new Date(a.created_at).toLocaleString().slice(0,16)}</span></div>`).join("")}</div>`;
+document.getElementById("app").innerHTML=`<div class=c style="border:2px solid #00ff88;padding:8px;text-align:center"><h4 style="margin:4px">👷 WORKER - ${profile?.display_name||"WORKER"} - Complete</h4><div class=ban>Email Login Done - Complete Dashboard</div><div class=t><button class="b g" style="padding:6px" onclick="location.pathname='/worker/dashboard'">Dash</button><button class="b bl" style="padding:6px" onclick="location.pathname='/worker/keys'">My Keys</button><button class="b gr" style="padding:6px" onclick="location.pathname='/'">Home</button></div></div>${annHTML}`;
 }
 
-function genPaid() {
-  const c = '0123456789abcdef';
-  let r = '';
-  for (let i = 0; i < 32; i++) r += c[Math.floor(Math.random() * c.length)];
-  return 'sk_live_' + r;
+async function renderWorkerKeys(session){
+let {data:keys}=await S.from("api_keys").select("*").eq("user_id",session.user.id).order("created_at",{ascending:!1});
+let myFree=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_free_")):[];
+document.getElementById("app").innerHTML=`
+<div class=c style="border:2px solid #00ff88;padding:8px"><h4 style="margin:4px">👷 MY KEYS - Complete - Compact</h4><div class=t><button class="b g" style="padding:6px" onclick="location.pathname='/worker/dashboard'">Dash</button><button class="b gr" style="padding:6px" onclick="location.pathname='/'">Home</button></div></div>
+<div class=c style="border:2px solid #00ff88;padding:8px"><div style="text-align:center"><div class="sq sq-free" onclick="document.getElementById('wFree').style.display='block'"><div style="font-size:20px">🆓</div><b style="font-size:7px;color:#000">FREE SQUARE</b></div></div><div id=wFree style="display:none"><div class=w><input id=kf placeholder="Name" value="My Free Key"><button class="b g" onclick="doGenFreeWorker()">Receive Free - Little Square</button><p id=fm style="color:#000;font-size:10px;font-weight:900"></p><div id=fb style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=ft style="font-size:10px"></code><br><button class="b g" style="background:#000;color:#00ff88;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('ft').innerText)">Copy</button><button class="b g" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="downloadFreeW()">Download</button></div></div></div></div>
+<div class=c style="padding:8px"><b style="font-size:11px">Your Free Keys - Complete</b><div style="max-height:120px;overflow:auto">${myFree.map(k=>`<div class=row><b>${k.name}</b> - ${k.key_prefix}...<br><span style="font-size:9px">${new Date(k.created_at).toLocaleString().slice(0,16)}</span></div>`).join("")||"No keys yet"}</div></div>
+`;
 }
+async function doGenFreeWorker(){let n=document.getElementById("kf").value||"Free";document.getElementById("fm").innerText="Gen...";try{let r=genF(),pre=r.slice(0,18),hash=await h(r),{data:{session:s}}=await S.auth.getSession(),res=await ins({user_id:s.user.id,name:n,key_hash:hash,key_prefix:pre,is_active:true});if(res.error)throw res.error;document.getElementById("ft").innerText=r;document.getElementById("fb").style.display="block";document.getElementById("fm").innerText="✅ Free!";setTimeout(()=>location.reload(),1500)}catch(e){document.getElementById("fm").innerText="❌ "+e.message}}
+function downloadFreeW(){dl(document.getElementById("ft").innerText,"sk_free.txt")}
+window.doGenFreeWorker=doGenFreeWorker;window.downloadFreeW=downloadFreeW;
 
-/* ========== ANNOUNCEMENTS (unchanged) ========== */
-async function loadAnnouncements() {
-  try {
-    const { data } = await supabaseClient.from('announcements').select('*').order('created_at', { ascending: false }).limit(10);
-    return data || [];
-  } catch (e) { return []; }
+async function renderClientDash(session){
+let {data:profile}=await S.from("profiles").select("*").eq("id",session.user.id).single();if(profile?.is_chairman){location.pathname="/chairman/dashboard";return}
+let {data:keys}=await S.from("api_keys").select("*").eq("user_id",session.user.id).order("created_at",{ascending:!1});
+let myLive=keys?keys.filter(k=>k.key_prefix?.startsWith("sk_live_")):[];
+document.getElementById("app").innerHTML=`
+<div class=c style="border:2px solid #3b82f6;padding:8px;text-align:center"><h4 style="margin:4px">💰 PAID CLIENT - Complete - Auto Withdraw!</h4><div class=ban>You get ${myLive.length} paid keys - ₦${myLive.length*5000} - Complete</div><div class=t><button class="b bl" style="padding:6px" onclick="location.pathname='/client/dashboard'">Dash</button><button class="b go" style="padding:6px" onclick="document.getElementById('buyBox').style.display='block'">Buy ₦5k</button><button class="b gr" style="padding:6px" onclick="location.pathname='/'">Home</button></div></div>
+
+<div class=c id=buyBox style="border:2px solid gold;padding:8px"><div style="text-align:center"><div class="sq sq-paid" onclick="document.getElementById('paidClientSec').style.display='block'"><div style="font-size:20px">💰</div><b style="font-size:7px;color:#fff">₦5K AUTO SQUARE</b></div></div><div id=paidClientSec style="display:none"><div class=w><input id=kpc value="Bomber"><input id=client_email_paid type=email value="bomber@gmail.com"><input value="₦5,000 - Paystack auto withdraw" disabled style="background:#eee;padding:6px"><button class="b go" style="background:#000;color:gold;border:2px solid gold" onclick="payClient()">💳 AUTO WITHDRAW ₦5,000 - Card → Paystack!</button><p id=pmc style="color:#000;font-size:10px;font-weight:900"></p><div id=pbc style="display:none;background:#00ff88;color:#000;padding:6px;border-radius:6px;word-break:break-all"><code id=ptc style="font-size:10px"></code><br><button class="b go" style="background:#000;color:gold;padding:5px;font-size:10px" onclick="navigator.clipboard.writeText(document.getElementById('ptc').innerText)">Copy</button><button class="b go" style="background:#fff;color:#000;padding:5px;font-size:10px" onclick="downloadPaidC()">Download</button></div></div></div></div>
+
+<div class=c style="padding:8px"><b style="font-size:11px">Your Paid Keys - Complete - Auto Withdraw</b><div style="max-height:120px;overflow:auto">${myLive.map(k=>`<div class=row><b>${k.name}</b> - ${k.key_prefix}...<br><span style="font-size:9px">${new Date(k.created_at).toLocaleString().slice(0,16)}</span></div>`).join("")||"No paid keys yet"}</div></div>
+`;
 }
-
-async function postAnnouncement() {
-  const t = document.getElementById('announce_text')?.value.trim();
-  if (!t) { alert('Type announcement!'); return; }
-  const { data: { session } } = await supabaseClient.auth.getSession();
-  const { error } = await supabaseClient.from('announcements').insert({ message: t, created_by: session.user.id });
-  if (error) { alert('❌ ' + error.message); }
-  else { alert('✅ Posted!'); document.getElementById('announce_text').value = ''; loadAnnouncementsChairman(); }
+async function payClient(){
+let n=document.getElementById("kpc")?.value.trim()||"",e=document.getElementById("client_email_paid")?.value.trim()||"",m=document.getElementById("pmc");
+if(!n||!e.includes("@"))return alert("Put Name + Email!");
+if(m)m.innerText="Opening Paystack auto withdraw...";
+try{
+let handler=PaystackPop.setup({
+key:PK,email:e,amount:500000,currency:"NGN",ref:"PIDGIN_Client_"+Date.now(),
+callback:async function(res){
+alert("✅ AUTO WITHDRAW! ₦5,000 comot from card! Ref:"+res.reference);
+try{let r=genP(),pre=r.slice(0,18),hash=await h(r),{data:{session:s}}=await S.auth.getSession(),insRes=await ins({user_id:s.user.id,name:n,key_hash:hash,key_prefix:pre,is_active:true,payment_ref:res.reference});if(insRes.error)throw insRes.error;document.getElementById("ptc").innerText=r;document.getElementById("pbc").style.display="block";if(m)m.innerText="✅ Auto withdraw done! Download!";setTimeout(()=>location.reload(),2000)}catch(err){if(m)m.innerText="❌ "+err.message}
+},
+onClose:function(){if(m)m.innerText="Card closed - Tap square again!"}
+});handler.openIframe();
+}catch(err){if(m)m.innerText="❌ "+err.message}
 }
+function downloadPaidC(){dl(document.getElementById("ptc").innerText,"sk_live.txt")}
+window.payClient=payClient;window.downloadPaidC=downloadPaidC;
 
-async function deleteAnnounce(id) {
-  if (!confirm('Delete?')) return;
-  await supabaseClient.from('announcements').delete().eq('id', id);
-  loadAnnouncementsChairman();
+async function boot(){
+try{
+let pa=location.pathname;
+if(pa==="/"||pa==="/index.html"||pa==="/home"){renderLanding();return}
+if(pa==="/chairman/login"||pa==="/admin/login"){await renderLoginAdmin();return}
+if(pa==="/worker/login"||pa==="/user/login"){await renderLoginWorker();return}
+if(pa==="/client/login"){await renderLoginClient();return}
+let {data:{session:s}}=await S.auth.getSession();
+if(!s){
+if(pa.startsWith("/chairman")||pa.startsWith("/admin")){location.pathname="/chairman/login";return}
+if(pa.startsWith("/worker")){location.pathname="/worker/login";return}
+if(pa.startsWith("/client")){location.pathname="/client/login";return}
+renderLanding();return}
+if(pa==="/chairman/keys"||pa==="/admin/keys"){await renderKeysPage(s);return}
+if(pa==="/chairman/dashboard"||pa==="/admin/dashboard"){await renderChairmanDashboard(s);return}
+if(pa==="/worker/dashboard"||pa==="/user/dashboard"){await renderWorkerDash(s);return}
+if(pa==="/worker/keys"){await renderWorkerKeys(s);return}
+if(pa==="/client/dashboard"){await renderClientDash(s);return}
+renderLanding();
+}catch(e){document.getElementById("app").innerHTML=`<div class=c><p>Error: ${e.message}</p><button class="b gr" onclick="location.pathname='/'">Home</button></div>`}
 }
-
-async function loadAnnouncementsChairman() {
-  const data = await loadAnnouncements();
-  const list = document.getElementById('announce_list_chairman');
-  if (!list) return;
-  if (data.length == 0) {
-    list.innerHTML = '<p style="color:#aaa">No announcement yet</p>';
-    return;
-  }
-  list.innerHTML = data.map(a => `
-    <div class="announce">📢 <b>${a.message}</b><br>
-    <small>${new Date(a.created_at).toLocaleString()} - 
-    <button style="background:red;color:white;border:none;border-radius:5px;padding:4px 10px" onclick="deleteAnnounce('${a.id}')">Delete</button>
-    </small></div>`).join('');
-}
-
-window.postAnnouncement = postAnnouncement;
-window.deleteAnnounce = deleteAnnounce;
-window.loadAnnouncementsChairman = loadAnnouncementsChairman;
-
-/* ========== RENDER LANDING (unchanged) ========== */
-function renderLanding() {
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:3px solid gold;text-align:center;background:#0a0a0a">
-  <h1 style="color:gold">🔥 MAIN PIDGIN - EMAIL LOGIN FIRST!</h1>
-  <p style="color:#00ff88">Before person fit download API, e must login with email first! Then see Free + Paid!</p>
-  <div class="step"><b>Step 1:</b> Email Login First (Before API)</div>
-  <div class="step step-green"><b>Step 2:</b> See Free Key (sk_free_) → Click → Get key → Download</div>
-  <div class="step"><b>Step 3:</b> See Paid Key ₦5,000 (sk_live_) → Click → Put Key Name + Email → Card number → Amount → Pay → Download!</div>
-</div>
-
-<div class="platform-card" style="border-color:gold;background:#1a1a00">
-  <div style="font-size:50px">👑</div>
-  <h2 style="color:gold">CHAIRMAN - Email First + Card Number Flow</h2>
-  <p>Login with email FIRST, then see Free + Paid, then card number form!</p>
-  <button class="btn gold" onclick="location.pathname='/chairman/login'">👑 CHAIRMAN LOGIN - Email First → See Keys → Card Number</button>
-</div>
-
-<div class="platform-card" style="border-color:#00ff88;background:#0a2e1a">
-  <div style="font-size:50px">👷</div>
-  <h2 style="color:#00ff88">WORKER - Email First</h2>
-  <button class="btn green" onclick="location.pathname='/worker/login'">👷 WORKER LOGIN - Email First</button>
-</div>
-
-<div class="platform-card" style="border-color:#3b82f6;background:#0a0f2e">
-  <div style="font-size:50px">💰</div>
-  <h2 style="color:#3b82f6">PAID CLIENT - Email First</h2>
-  <button class="btn blue" onclick="location.pathname='/client/login'">💰 PAID LOGIN - Email First</button>
-</div>`;
-}
-
-/* ========== CHAIRMAN KEYS PAGE (unchanged structure) ========== */
-async function renderKeysPage(session) {
-  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
-  if (!profile?.is_chairman) {
-    document.getElementById('app').innerHTML = '<h1>🚫 Chairman Only</h1>';
-    return;
-  }
-
-  const { data: keys } = await supabaseClient.from('api_keys').select('*').order('created_at', { ascending: false });
-
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:2px solid gold">
-  <h2>👑 CHAIRMAN MASTER - Email Login First Done! Now See Free + Paid + Card Number Flow!</h2>
-  <div class="price-banner">Workers: ${(keys||[]).filter(k => k.key_prefix?.startsWith('sk_free_')).length} free | Paid: \( {(keys||[]).filter(k => k.key_prefix?.startsWith('sk_live_')).length} paid | Money: ₦ \){(keys||[]).filter(k => k.key_prefix?.startsWith('sk_live_')).length * 5000}</div>
-  <div class="nav">
-    <button class="btn gold" onclick="location.pathname='/chairman/dashboard'">Dashboard</button>
-    <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  </div>
-  <div class="step">✅ <b>Step 1 Done:</b> You don login with email! Now you dey inside API - you fit see Free + Paid!</div>
-</div>
-
-<div class="card" style="border:3px solid #00ff88;background:#0a2e1a">
-  <h2 style="color:#00ff88">🆓 FREE KEY FLOW - Email Login First Done! - Now Get Free Key!</h2>
-  <div class="step step-green">✅ Email Login Done → Now you see Free Key option!</div>
-  <div class="white-box">
-    <label>Key Name (e.g. Ricky Free Key)</label>
-    <input id="key_name_free" placeholder="Type key name e.g. Ricky" value="Ricky Free Key">
-    <button class="btn green" style="font-size:18px" onclick="doGenFree()">🆓 Step 2: Click to Receive Free Key - Instantly Show + Download!</button>
-    <p id="free_msg" style="color:black;font-weight:900"></p>
-    <div id="freeBox" style="display:none;background:#00ff88;color:black;padding:15px;border-radius:10px;word-break:break-all;margin-top:10px">
-      <b>Your sk_free_ Key (Free):</b><br><code id="freeText" style="font-size:14px"></code><br><br>
-      <button class="btn green" style="background:black;color:#00ff88" onclick="copyFree()">📋 Copy Key</button>
-      <button class="btn green" style="background:white;color:black" onclick="downloadFree()">⬇️ Download Key as .txt</button>
-    </div>
-  </div>
-</div>
-
-<div class="card" style="border:3px solid gold;background:#1a1a00">
-  <h2 style="color:gold">💰 PAID KEY FLOW - ₦5,000 - Key Name + Email + Card Number + Amount + Pay!</h2>
-  <div class="step">✅ Step 1: Email Login Done!</div>
-  <div class="step">👉 Step 2: Click Paid ₦5,000 → Form go open instantly where you go put Key Name</div>
-  <div class="step">👉 Step 3: Put Key Name → Click Receive → Card number form go show!</div>
-  <div class="step">👉 Step 4: Put card number, expiry, CVV, amount ₦5,000 → Click Pay → Download key!</div>
-
-  <div class="white-box">
-    <label>Step 2: Key Name - Once you click Paid, you go put key name here!</label>
-    <input id="key_name_paid" placeholder="Type key name e.g. Bomber" value="Bomber">
-
-    <label>Step 2b: Email - Person must put email here before card!</label>
-    <input id="client_email" type="email" placeholder="Type email e.g. bomber@gmail.com" value="bomber@gmail.com">
-
-    <label>Step 3: Amount - ₦5,000 fixed (Person go see amount before pay)</label>
-    <input id="amount_display" value="₦5,000 (5000 NGN)" disabled style="background:#eee">
-
-    <button class="btn gold" style="background:black;color:gold;border:3px solid gold;font-size:18px" onclick="payCard()">
-      💳 Step 4: Click to Receive Key - Card Number Form Go Open Instantly! - Put Card Number → Pay → Download!
-    </button>
-
-    <div style="background:#fff3cd;color:black;padding:10px;border-radius:8px;margin-top:10px">
-      <b>Card Number Flow:</b> After you click above, Paystack card form go show where you go feed:
-      <br>• Card number: 4084 0840 8408 4081 (test)
-      <br>• Expiry: 12/30, CVV: 408, PIN: 0000
-      <br>• Amount: ₦5,000 → Click Pay → Key show → Download!
-      <br><br><b>Or Real Payment:</b> Moniepoint - Kingsley Alfred Suoye - 8067955573 - ₦5,000
-    </div>
-
-    <div id="paidBox" style="display:none;background:#00ff88;color:black;padding:15px;border-radius:10px;margin-top:15px;word-break:break-all">
-      <b>Your sk_live_ Key (₦5,000 Paid):</b><br><code id="paidText" style="font-size:14px"></code><br><br>
-      <button class="btn gold" style="background:black;color:gold" onclick="copyPaid()">📋 Copy Key - Download!</button>
-      <button class="btn gold" style="background:white;color:black" onclick="downloadPaid()">⬇️ Download Key as .txt File!</button>
-    </div>
-    <p id="paid_msg" style="color:gold;font-weight:900"></p>
-  </div>
-</div>
-
-<div class="card">
-  <h3>📋 LIVE ACTIVITY - You don login with email, now you see everything!</h3>
-  ${(keys||[]).map(k => `
-    <div class="card" style="background:#181818">
-      <b>${k.name}</b> - ${k.key_prefix?.startsWith('sk_free_') ? '<span style="color:#00ff88">👷 FREE</span>' : '<span style="color:gold">💰 PAID ₦5k</span>'}
-      <br><small>${k.key_prefix}... - ${new Date(k.created_at).toLocaleString()}</small>
-    </div>`).join('') || 'No keys yet - Generate Free or Paid with card number flow!'}
-</div>`;
-}
-
-/* ========== FREE KEY GENERATION (unchanged) ========== */
-async function doGenFree() {
-  const n = document.getElementById('key_name_free').value || 'Free Key';
-  document.getElementById('free_msg').innerText = 'Generating free key...';
-  try {
-    const raw = genFree();
-    const hash = await hashKeyClient(raw);
-    const pre = raw.substring(0, 18);
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const { error } = await supabaseClient.from('api_keys').insert([{
-      user_id: session.user.id,
-      name: n,
-      key_hash: hash,
-      key_prefix: pre,
-      is_active: true
-    }]);
-    if (error) throw error;
-    document.getElementById('freeText').innerText = raw;
-    document.getElementById('freeBox').style.display = 'block';
-    document.getElementById('free_msg').innerText = '✅ Free Key Generated! Person fit copy and download! Reloading LIVE ACTIVITY...';
-    setTimeout(() => location.reload(), 2000);
-  } catch (e) {
-    document.getElementById('free_msg').innerText = '❌ ' + e.message;
-  }
-}
-
-function copyFree() {
-  navigator.clipboard.writeText(document.getElementById('freeText').innerText).then(() => alert('✅ Copied!'));
-}
-
-function downloadFree() {
-  const t = document.getElementById('freeText').innerText;
-  const b = new Blob([t], { type: 'text/plain' });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a');
-  a.href = u;
-  a.download = 'sk_free_key.txt';
-  a.click();
-}
-
-function copyPaid() {
-  navigator.clipboard.writeText(document.getElementById('paidText').innerText).then(() => alert('✅ Copied!'));
-}
-
-function downloadPaid() {
-  const t = document.getElementById('paidText').innerText;
-  const b = new Blob([t], { type: 'text/plain' });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a');
-  a.href = u;
-  a.download = 'sk_live_key.txt';
-  a.click();
-}
-
-/* =====================================================
-   PAYMENT API - CORRECTED & PUT IN ORDER
-   ===================================================== */
-
-async function generatePaidKey(name, paymentRef) {
-  const raw = genPaid();
-  const hash = await hashKeyClient(raw);
-  const pre = raw.substring(0, 18);
-  const { data: { session } } = await supabaseClient.auth.getSession();
-
-  await supabaseClient.from('api_keys').insert([{
-    user_id: session.user.id,
-    name: name,
-    key_hash: hash,
-    key_prefix: pre,
-    is_active: true,
-    payment_ref: paymentRef
-  }]);
-
-  return raw;
-}
-
-async function generatePaidFallback(name) {
-  try {
-    const raw = await generatePaidKey(name, "fallback_Moniepoint_8067955573");
-    document.getElementById('paidText').innerText = raw;
-    document.getElementById('paidBox').style.display = 'block';
-    document.getElementById('paid_msg').innerText = '✅ sk_live_ Generated (Fallback)! Person fit copy + download! Real customers pay Moniepoint 8067955573 first! Reloading...';
-    setTimeout(() => location.reload(), 2000);
-  } catch (e) {
-    alert('❌ ' + e.message);
-  }
-}
-
-function payCard() {
-  const nameInput = document.getElementById('key_name_paid')?.value.trim() || '';
-  const emailInput = document.getElementById('client_email')?.value.trim() || '';
-  const msgEl = document.getElementById('paid_msg');
-
-  // Validation
-  if (!nameInput) {
-    alert('Abeg put Key Name first! E.g. Bomber');
-    document.getElementById('key_name_paid').focus();
-    return;
-  }
-  if (!emailInput || !emailInput.includes('@')) {
-    alert('Abeg put Email! Person must put email before card number!');
-    document.getElementById('client_email').focus();
-    return;
-  }
-
-  if (msgEl) msgEl.innerText = '⏳ Opening Paystack card form... Please wait...';
-
-  try {
-    if (typeof PaystackPop === 'undefined') {
-      throw new Error("Paystack script never load. Check internet connection.");
-    }
-
-    const handler = PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: emailInput,
-      amount: 500000,               // ₦5,000 in kobo
-      currency: 'NGN',
-      ref: 'Pidgin_' + Date.now(),
-      metadata: {
-        custom_fields: [
-          { display_name: "Key Name", variable_name: "key_name", value: nameInput }
-        ]
-      },
-      callback: async function (response) {
-        // Payment successful
-        alert("✅ Card Pay Success!\nRef: " + response.reference + "\nAmount ₦5,000 paid!\nGenerating sk_live_ key...");
-
-        try {
-          const raw = await generatePaidKey(nameInput, response.reference);
-          document.getElementById('paidText').innerText = raw;
-          document.getElementById('paidBox').style.display = 'block';
-          if (msgEl) msgEl.innerText = '✅ Paid successfully! Card accepted. Amount ₦5,000. Key generated. You can copy + download now.';
-          setTimeout(() => location.reload(), 2500);
-        } catch (e) {
-          alert('❌ Error saving key: ' + e.message);
-        }
-      },
-      onClose: function () {
-        if (msgEl) msgEl.innerText = '';
-        if (confirm("Card form closed without payment.\n\nDo you want to generate a TEST key?\n(For real Moniepoint payment: 8067955573)")) {
-          generatePaidFallback(nameInput);
-        }
-      }
-    });
-
-    handler.openIframe();
-
-  } catch (err) {
-    alert("❌ Paystack error: " + err.message + "\n\nGenerating fallback key for testing.\nFor real customers → ask them to pay Moniepoint 8067955573 first.");
-    generatePaidFallback(nameInput);
-  }
-}
-
-/* Client-side payment (same clean structure) */
-async function payClient() {
-  const nameInput = document.getElementById('kpc')?.value.trim() || '';
-  const emailInput = document.getElementById('client_email_paid')?.value.trim() || '';
-  const msgEl = document.getElementById('pmc');
-
-  if (!nameInput) { alert('Put Key Name!'); return; }
-  if (!emailInput || !emailInput.includes('@')) { alert('Put Email before card number!'); return; }
-
-  if (msgEl) msgEl.innerText = '⏳ Opening Paystack...';
-
-  try {
-    if (typeof PaystackPop === 'undefined') throw new Error("Paystack never load");
-
-    const handler = PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
-      email: emailInput,
-      amount: 500000,
-      currency: 'NGN',
-      ref: 'Pidgin_Client_' + Date.now(),
-      metadata: {
-        custom_fields: [
-          { display_name: "Key Name", variable_name: "key_name", value: nameInput }
-        ]
-      },
-      callback: async function (response) {
-        alert("✅ Paid ₦5,000! Card accepted.\nRef: " + response.reference);
-        try {
-          const raw = await generatePaidKey(nameInput, response.reference);
-          document.getElementById('ptc').innerText = raw;
-          document.getElementById('pbc').style.display = 'block';
-          if (msgEl) msgEl.innerText = '✅ Paid! Key generated. Download .txt file!';
-          setTimeout(() => location.reload(), 2000);
-        } catch (e) {
-          if (msgEl) msgEl.innerText = '❌ ' + e.message;
-        }
-      },
-      onClose: function () {
-        alert('Card form closed');
-      }
-    });
-
-    handler.openIframe();
-
-  } catch (e) {
-    alert("❌ " + e.message + "\nGenerating fallback key...");
-    try {
-      const raw = await generatePaidKey(nameInput, "fallback");
-      document.getElementById('ptc').innerText = raw;
-      document.getElementById('pbc').style.display = 'block';
-    } catch (err) {
-      alert('❌ ' + err.message);
-    }
-  }
-}
-
-window.doGenFree = doGenFree;
-window.payCard = payCard;
-window.copyFree = copyFree;
-window.downloadFree = downloadFree;
-window.copyPaid = copyPaid;
-window.downloadPaid = downloadPaid;
-window.generatePaidFallback = generatePaidFallback;
-window.payClient = payClient;
-
-/* ========== LOGIN PAGES (unchanged) ========== */
-async function renderLoginAdmin() {
-  document.getElementById('app').innerHTML = `
-<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold">
-  <h2>👑 CHAIRMAN LOGIN - Email Login First!</h2>
-  <div class="step">✅ Step 1: Email login before API download!</div>
-  <input id="email" placeholder="Type Email e.g. tapbomba.ai@gmail.com" value="tapbomba.ai@gmail.com">
-  <input id="pass" type="password" placeholder="Password">
-  <button class="btn gold" onclick="doLogin('admin')">🔐 LOGIN WITH EMAIL → See Free + Paid + Card Number Form</button>
-  <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  <p id="msg"></p>
-</div>`;
-}
-
-async function renderLoginWorker() {
-  document.getElementById('app').innerHTML = `
-<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88">
-  <h2>👷 WORKER LOGIN - Email First!</h2>
-  <input id="email" placeholder="Email">
-  <input id="pass" type="password">
-  <input id="name" placeholder="Name">
-  <button class="btn green" onclick="doLogin('worker')">LOGIN WITH EMAIL → Free Key</button>
-  <button class="btn gray" onclick="doSignup('worker')">SIGNUP</button>
-  <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  <p id="msg"></p>
-</div>`;
-}
-
-async function renderLoginClient() {
-  document.getElementById('app').innerHTML = `
-<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #3b82f6">
-  <h2>💰 PAID CLIENT LOGIN - Email First!</h2>
-  <div class="step">Email login before API!</div>
-  <input id="email" placeholder="Email">
-  <input id="pass" type="password">
-  <input id="name" placeholder="Name">
-  <button class="btn blue" onclick="doLogin('client')">LOGIN WITH EMAIL → See Paid + Card Number</button>
-  <button class="btn gray" style="background:gold;color:black" onclick="doSignup('client')">SIGNUP PAID</button>
-  <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  <p id="msg"></p>
-</div>`;
-}
-
-async function doLogin(type) {
-  const e = document.getElementById('email').value.trim();
-  const p = document.getElementById('pass').value;
-  const m = document.getElementById('msg');
-  if (!e || !p) { m.innerText = 'Fill email + password! Email login first before API!'; return; }
-  m.innerText = 'Checking email login...';
-  const { error } = await supabaseClient.auth.signInWithPassword({ email: e, password: p });
-  if (error) { m.innerText = error.message; return; }
-  if (type === 'admin') location.pathname = '/chairman/dashboard';
-  else if (type === 'client') location.pathname = '/client/dashboard';
-  else location.pathname = '/worker/dashboard';
-}
-
-async function doSignup(t) {
-  const e = document.getElementById('email').value.trim();
-  const p = document.getElementById('pass').value;
-  const n = document.getElementById('name').value || e.split('@')[0];
-  const m = document.getElementById('msg');
-  if (!e || !p) { m.innerText = 'Fill email!'; return; }
-  m.innerText = 'Creating...';
-  const { data, error } = await supabaseClient.auth.signUp({ email: e, password: p });
-  if (error) { m.innerText = error.message; return; }
-  if (!data.user) { m.innerText = 'Check email!'; return; }
-  const isC = e.toLowerCase() === "tapbomba.ai@gmail.com";
-  await supabaseClient.from('profiles').insert([{
-    id: data.user.id,
-    email: e,
-    display_name: n,
-    total_words: 0,
-    recordings_count: 0,
-    status: 'not_started',
-    is_chairman: isC,
-    user_type: t
-  }]);
-  m.innerText = '✅ Created! Now login with email!';
-}
-
-window.doLogin = doLogin;
-window.doSignup = doSignup;
-
-/* ========== DASHBOARDS (unchanged) ========== */
-async function renderChairmanDashboard(session) {
-  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
-  if (!profile?.is_chairman) {
-    document.getElementById('app').innerHTML = '<h1>🚫 Chairman Only</h1>';
-    return;
-  }
-  const { data: users } = await supabaseClient.from('profiles').select('*').order('total_words', { ascending: false });
-  const { data: keys } = await supabaseClient.from('api_keys').select('*').order('created_at', { ascending: false });
-  const freeC = (keys || []).filter(k => k.key_prefix?.startsWith('sk_free_')).length;
-  const paidC = (keys || []).filter(k => k.key_prefix?.startsWith('sk_live_')).length;
-
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:3px solid gold">
-  <h2>👑 CHAIRMAN - Email Login Done! Now Card Number Flow Ready!</h2>
-  <div class="price-banner">Free: ${freeC} | Paid: \( {paidC} | Money: ₦ \){paidC * 5000}</div>
-  <div class="nav">
-    <button class="btn gold" onclick="location.pathname='/chairman/keys'">🔑 API Keys - Email First + Card Number Flow</button>
-    <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  </div>
-  <div class="step">✅ Email login done! You don pass Step 1!</div>
-  <div class="step step-green">Step 2: Free Key → Type key name → Click Receive → Instantly show → Download</div>
-  <div class="step">Step 3: Paid ₦5,000 → Type key name + email → Click Receive → Card number form → Amount → Pay → Download!</div>
-</div>
-
-<div class="card" style="border:3px solid gold;background:#1a1a00">
-  <h2>📢 ANNOUNCEMENT</h2>
-  <textarea id="announce_text"></textarea>
-  <button class="btn gold" onclick="postAnnouncement()">POST</button>
-  <div id="announce_list_chairman"><p>Loading...</p></div>
-</div>
-
-<div class="card">
-  <h3>🔥 LIVE ACTIVITY</h3>
-  ${(keys || []).slice(0, 15).map(k => `
-    <div class="user-row">
-      <div><b>${k.name}</b><br>
-      <small>${k.key_prefix}... - ${k.key_prefix?.startsWith('sk_free_') ? 'FREE' : 'PAID ₦5k'} - ${new Date(k.created_at).toLocaleString()}</small></div>
-    </div>`).join('') || 'No activity yet'}
-</div>`;
-  setTimeout(loadAnnouncementsChairman, 800);
-}
-
-async function renderWorkerDash(session) {
-  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
-  if (profile?.is_chairman) { location.pathname = '/chairman/dashboard'; return; }
-
-  const announcements = await loadAnnouncements();
-  let announceHTML = `
-<div class="card" style="border:3px solid gold;background:#1a1a00">
-  <h3>📢 FROM CHAIRMAN</h3>
-  ${announcements.length == 0 ? '<p>No announcement</p>' :
-    announcements.map(a => `<div class="announce">📢 <b>\( {a.message}</b><br><small> \){new Date(a.created_at).toLocaleString()}</small></div>`).join('')}
-</div>`;
-
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:2px solid #00ff88">
-  <h2>👷 WORKER - Email Login Done!</h2>
-  <div class="step step-green">Email login done! Now you see Free Key!</div>
-  <div class="nav">
-    <button class="btn green" onclick="location.pathname='/worker/dashboard'">Dashboard</button>
-    <button class="btn blue" onclick="location.pathname='/worker/keys'">My Keys</button>
-    <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  </div>
-</div>
-${announceHTML}`;
-}
-
-async function renderWorkerKeys(session) {
-  const { data: keys } = await supabaseClient.from('api_keys').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-  const myFree = (keys || []).filter(k => k.key_prefix?.startsWith('sk_free_'));
-
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:2px solid #00ff88">
-  <h2>👷 MY KEYS - Email Login Done!</h2>
-  <div class="nav">
-    <button class="btn green" onclick="location.pathname='/worker/dashboard'">Dashboard</button>
-    <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  </div>
-</div>
-
-<div class="card">
-  <h3>Generate Free - After Email Login!</h3>
-  <div class="white-box">
-    <label>Key Name</label>
-    <input id="kf" placeholder="Name" value="My Free Key">
-    <button class="btn green" onclick="doGenFreeWorker()">🆓 Click to Receive Free Key - Instantly Show + Download!</button>
-    <p id="fm" style="color:black"></p>
-    <div id="fb" style="display:none;background:#00ff88;color:black;padding:15px;border-radius:10px;word-break:break-all">
-      <code id="ft"></code><br><br>
-      <button class="btn green" style="background:black;color:#00ff88" onclick="navigator.clipboard.writeText(document.getElementById('ft').innerText).then(()=>alert('Copied!'))">Copy</button>
-      <button class="btn green" style="background:white;color:black" onclick="downloadFreeW()">Download .txt</button>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h3>Your Keys</h3>
-  \( {myFree.map(k => `<div class="card" style="background:#0a2e1a"><b> \){k.name}</b><br>${k.key_prefix}...</div>`).join('') || 'No keys yet'}
-</div>`;
-}
-
-async function doGenFreeWorker() {
-  const n = document.getElementById('kf').value || 'Free Key';
-  document.getElementById('fm').innerText = 'Generating...';
-  try {
-    const raw = genFree();
-    const hash = await hashKeyClient(raw);
-    const pre = raw.substring(0, 18);
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    await supabaseClient.from('api_keys').insert([{
-      user_id: session.user.id,
-      name: n,
-      key_hash: hash,
-      key_prefix: pre,
-      is_active: true
-    }]);
-    document.getElementById('ft').innerText = raw;
-    document.getElementById('fb').style.display = 'block';
-    document.getElementById('fm').innerText = '✅ Free Key! Copy + Download! Reloading...';
-    setTimeout(() => location.reload(), 2000);
-  } catch (e) {
-    document.getElementById('fm').innerText = '❌ ' + e.message;
-  }
-}
-
-function downloadFreeW() {
-  const t = document.getElementById('ft').innerText;
-  const b = new Blob([t], { type: 'text/plain' });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a');
-  a.href = u;
-  a.download = 'sk_free_key.txt';
-  a.click();
-}
-
-window.doGenFreeWorker = doGenFreeWorker;
-window.downloadFreeW = downloadFreeW;
-
-async function renderClientDash(session) {
-  const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', session.user.id).single();
-  if (profile?.is_chairman) { location.pathname = '/chairman/dashboard'; return; }
-
-  const { data: keys } = await supabaseClient.from('api_keys').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
-  const myLive = (keys || []).filter(k => k.key_prefix?.startsWith('sk_live_'));
-
-  document.getElementById('app').innerHTML = `
-<div class="card" style="border:2px solid #3b82f6">
-  <h2>💰 PAID CLIENT - Email Login Done! Now Card Number Flow!</h2>
-  <div class="price-banner">You get \( {myLive.length} paid keys - ₦ \){myLive.length * 5000}</div>
-  <div class="nav">
-    <button class="btn blue" onclick="location.pathname='/client/dashboard'">Dashboard</button>
-    <button class="btn gold" onclick="document.getElementById('buyBox').style.display='block'">Buy New ₦5,000</button>
-    <button class="btn gray" onclick="location.pathname='/'">Home</button>
-  </div>
-  <div class="step">✅ Email login done! Now you see Paid option!</div>
-</div>
-
-<div class="card" id="buyBox" style="border:3px solid gold;background:#1a1a00">
-  <h3>💰 PAID - Key Name + Email + Card Number + Amount + Pay + Download!</h3>
-  <div class="white-box">
-    <label>Step 1: Key Name - Put key name once you click Paid!</label>
-    <input id="kpc" placeholder="Type key name e.g. Bomber" value="Bomber">
-    <label>Step 2: Email - Must put email before card!</label>
-    <input id="client_email_paid" type="email" placeholder="Email e.g. bomber@gmail.com" value="bomber@gmail.com">
-    <label>Step 3: Amount - ₦5,000</label>
-    <input value="₦5,000" disabled style="background:#eee">
-    <button class="btn gold" style="background:black;color:gold;border:3px solid gold;font-size:18px" onclick="payClient()">
-      💳 Click to Receive Key - Card Number Form Go Open! - Feed Card Number → Amount → Pay → Download!
-    </button>
-    <p id="pmc" style="color:gold"></p>
-    <div id="pbc" style="display:none;background:#00ff88;color:black;padding:15px;border-radius:10px;word-break:break-all;margin-top:15px">
-      <b>Your sk_live_ Key:</b><br><code id="ptc"></code><br><br>
-      <button class="btn gold" style="background:black;color:gold" onclick="navigator.clipboard.writeText(document.getElementById('ptc').innerText).then(()=>alert('Copied!'))">Copy</button>
-      <button class="btn gold" style="background:white;color:black" onclick="downloadPaidC()">Download .txt</button>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h3>Your Paid Keys - Download!</h3>
-  ${myLive.map(k => `
-    <div class="card" style="background:#0a0f2e">
-      <b>\( {k.name}</b><br> \){k.key_prefix}...<br>${new Date(k.created_at).toLocaleString()}
-    </div>`).join('') || '<p>No paid keys yet</p>'}
-</div>`;
-}
-
-function downloadPaidC() {
-  const t = document.getElementById('ptc').innerText;
-  const b = new Blob([t], { type: 'text/plain' });
-  const u = URL.createObjectURL(b);
-  const a = document.createElement('a');
-  a.href = u;
-  a.download = 'sk_live_key.txt';
-  a.click();
-}
-
-window.downloadPaidC = downloadPaidC;
-
-/* ========== BOOT ========== */
-(async function boot() {
-  try {
-    const path = location.pathname;
-
-    if (path === '/' || path === '/index.html' || path === '/home') {
-      renderLanding();
-      return;
-    }
-    if (path === '/chairman/login' || path === '/admin/login') {
-      await renderLoginAdmin();
-      return;
-    }
-    if (path === '/worker/login' || path === '/user/login') {
-      await renderLoginWorker();
-      return;
-    }
-    if (path === '/client/login') {
-      await renderLoginClient();
-      return;
-    }
-
-    const { data: { session } } = await supabaseClient.auth.getSession();
-
-    if (!session) {
-      if (path.startsWith('/chairman') || path.startsWith('/admin')) {
-        location.pathname = '/chairman/login';
-        return;
-      }
-      if (path.startsWith('/worker')) {
-        location.pathname = '/worker/login';
-        return;
-      }
-      if (path.startsWith('/client')) {
-        location.pathname = '/client/login';
-        return;
-      }
-      renderLanding();
-      return;
-    }
-
-    if (path === '/chairman/keys' || path === '/admin/keys') {
-      await renderKeysPage(session);
-      return;
-    }
-    if (path === '/chairman/dashboard' || path === '/admin/dashboard') {
-      await renderChairmanDashboard(session);
-      return;
-    }
-    if (path === '/worker/dashboard' || path === '/user/dashboard') {
-      await renderWorkerDash(session);
-      return;
-    }
-    if (path === '/worker/keys') {
-      await renderWorkerKeys(session);
-      return;
-    }
-    if (path === '/client/dashboard') {
-      await renderClientDash(session);
-      return;
-    }
-
-    renderLanding();
-  } catch (err) {
-    document.getElementById('app').innerHTML = `
-      <div class="card">
-        <h2>Error</h2>
-        <p>${err.message}</p>
-        <button class="btn gray" onclick="location.pathname='/'">Home</button>
-      </div>`;
-  }
+boot();
 })();
-})();
-</script>
-</body>
-</html>
+</script></body></html>
