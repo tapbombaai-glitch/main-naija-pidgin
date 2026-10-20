@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<title>Main Naija Pidgin - FINAL - Deduct Credit Button</title>
+<title>Main Naija Pidgin - FINAL - Deduct Credit Button + API Dashboard Full</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
@@ -20,7 +20,7 @@ input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px soli
 </style>
 </head>
 <body>
-<div id="app">Loading FINAL - Deduct Credit Button...</div>
+<div id="app">Loading FINAL - Deduct Credit Button + Full API Dashboard...</div>
 <script>
 (function(){
   const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
@@ -53,7 +53,7 @@ input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px soli
   window.doLogin=doLogin;window.doSignup=doSignup;
   async function renderUserDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');const total=(recs||[]).reduce((s,r)=>s+r.word_count,0)||0;const lang=getLang();const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin;const current=texts[(recs||[]).length%texts.length];const pct=Math.min(100,(total/1000)*100);const ann=await fetchAnn();document.getElementById('app').innerHTML=`${ann?`<div class="announce">📢 ${ann.title}<br><small>${ann.message.substring(0,180)}</small></div>`:`<div class="announce">💃 FINAL - Deduct Button Added!</div>`}<div class="header"><div>WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><select id="langSelect" onchange="changeLanguage(this.value)" style="background:gold;color:black;font-weight:900;padding:10px;margin-top:8px"><option value="pidgin" ${lang==='pidgin'?'selected':''}>Pidgin</option><option value="hausa" ${lang==='hausa'?'selected':''}>Hausa</option><option value="igbo" ${lang==='igbo'?'selected':''}>Igbo</option><option value="yoruba" ${lang==='yoruba'?'selected':''}>Yoruba</option></select><div>${total} / 1000 WORDS</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div></div><div class="card" style="border:3px solid #00ff88"><h3>📖 BUTTON 1: READ</h3><div class="textbox" id="curTxt">${current}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START READ</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>🔴 Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn blue" style="display:none" onclick="saveReadRecord()">💾 SAVE READ</button><p id="saveReadMsg"></p></div></div><div class="card" style="border:3px solid gold;background:#1a1a00"><h3>🎤 BUTTON 2: FREE TALK</h3><label style="display:flex;gap:8px;align-items:center;background:#000;padding:8px;border-radius:8px"><input type="checkbox" id="isWhatsAppCheck" style="width:20px"> 📱 WhatsApp Group?</label><button id="freeTalkBtn" class="btn gold" onclick="toggleFreeTalk()">🎙️ START FREE TALK</button><button id="stopFreeTalkBtn" class="btn red" style="display:none" onclick="stopFreeTalk()">⏹️ STOP</button><div id="freeTalkStatus" style="display:none;background:black;padding:12px;border-radius:10px"><p>🔴 Recording <span id="freeTimer">0s</span></p><audio id="freeAudioPreview" controls style="width:100%;display:none"></audio></div><div id="freeTalkTranscribe" style="display:none;margin-top:12px;background:#111;padding:12px;border-radius:10px;border:2px solid #00ff88"><textarea id="freeTranscription" placeholder="Type wetin you talk..." rows="3"></textarea><button class="btn green" onclick="saveFreeTalk()">💾 SAVE FREE TALK</button><p id="saveFreeMsg"></p></div></div><div class="card"><h3>Your Recordings - ${(recs||[]).length}</h3>${(recs||[]).map(r=>`<div style="background:#181818;padding:8px;border-radius:6px;margin:4px 0;display:flex;justify-content:space-between"><span>#${r.recording_number} - ${r.word_count}w - ${r.quality_status} - ${r.admin_status}</span><span>${r.language?.toUpperCase()}</span></div>`).join('')||'No recordings'}</div>`;}
 
-  // ====== DEDUCT CREDIT LOGIC - NEW ======
+  // ====== DEDUCT CREDIT LOGIC - YOURS INTACT ======
   window.deductCredit=async function(keyId, amount){
     if(!confirm(`Deduct ${amount} credits from this key?`)) return;
     const {data:key}=await supabaseClient.from('api_keys').select('*').eq('id',keyId).single();
@@ -78,13 +78,10 @@ input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px soli
   }
 
   window.downloadWithDeduct=async function(fileName, keyId){
-    // Download + Deduct 1 credit
     const {data:key}=await supabaseClient.from('api_keys').select('*').eq('id',keyId).single();
     if(!key || (key.credits_remaining||0) <=0){ alert('❌ No credit in this key!'); return; }
-    // 1. Download
     const url=`https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/${fileName}`;
     const a=document.createElement('a'); a.href=url; a.download=fileName; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
-    // 2. Deduct
     const newRemaining = (key.credits_remaining||0) - 1;
     const newUsed = (key.credits_used||0) + 1;
     await supabaseClient.from('api_keys').update({credits_remaining:newRemaining, credits_used:newUsed, is_active:newRemaining>0}).eq('id',keyId);
@@ -163,11 +160,88 @@ input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px soli
     window.doGenerateFreeKey=async function(){const nameEl=document.getElementById('key_name_free'),msgEl=document.getElementById('free_msg'),box=document.getElementById('freeKeyBox'),textEl=document.getElementById('freeKeyText');const name=nameEl.value.trim()||'Free Test';msgEl.innerText='Generating FREE 100 credits...';try{const raw=genFree();const hash=await hashKeyClient(raw);const prefix=raw.substring(0,18);const {data:{session}}=await supabaseClient.auth.getSession();await supabaseClient.from('api_keys').insert([{user_id:session.user.id,name:name+' - 100 credits FREE',key_hash:hash,key_prefix:prefix,is_active:true,payment_ref:'FREE_100',credits_total:100,credits_used:0,credits_remaining:100,voices_package:100}]);textEl.innerText=raw;box.style.display='block';msgEl.innerText='✅ FREE 100 credits key!';}catch(e){msgEl.innerText='❌ '+e.message;}}
     window.payWithPaystackCard=function(){let email=document.getElementById('paid_email')?.value.trim();if(!email||!email.includes('@')){email=prompt("Customer email:")||"";}if(!email||!email.includes('@')){alert('Valid email');return;}const msgEl=document.getElementById('paid_msg');const amount=currentPackage.amount;const voices=currentPackage.voices;msgEl.innerText=`Loading Paystack ₦${amount.toLocaleString()}...`;if(typeof PaystackPop==='undefined'){const s=document.createElement('script');s.src='https://js.paystack.co/v1/inline.js';s.onload=()=>{msgEl.innerText='Loaded! Click Pay again';};document.head.appendChild(s);return;}try{const handler=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email:email,amount:amount*100,currency:'NGN',ref:'BOMBA_'+voices+'_'+Date.now(),callback:async function(res){msgEl.innerText='Paid! Ref:'+res.reference+' Generating key...';try{const nameEl=document.getElementById('key_name_paid');const name=nameEl.value.trim()||'Company';const raw=genPaid();const hash=await hashKeyClient(raw);const prefix=raw.substring(0,18);const {data:{session}}=await supabaseClient.auth.getSession();await supabaseClient.from('api_keys').insert([{user_id:session.user.id,name:`${name} - ${voices.toLocaleString()} credits - ₦${amount.toLocaleString()}`,key_hash:hash,key_prefix:prefix,is_active:true,payment_ref:res.reference+`_${voices}credits_₦${amount}`,credits_total:voices,credits_used:0,credits_remaining:voices,voices_package:voices}]);document.getElementById('paidKeyText').innerText=raw;document.getElementById('paidPackageInfo').innerText=`Package: ${voices.toLocaleString()} credits - ₦${amount.toLocaleString()} - Ref: ${res.reference}`;document.getElementById('paidKeyBox').style.display='block';msgEl.innerText=`✅ PAID! ${voices.toLocaleString()} credits key ready!`;}catch(e){msgEl.innerText='❌ DB: '+e.message;}},onClose:function(){msgEl.innerText='Payment closed';}});handler.openIframe();}catch(e){msgEl.innerText='❌ '+e.message;}}
   }
-  function renderApiDashboard(){const rawKey=localStorage.getItem('api_key')||'';const prefix=localStorage.getItem('api_key_prefix')||'';document.getElementById('app').innerHTML=`<div class="card"><h2>API Dashboard - ${prefix}...</h2><p>Key: ${prefix}... - Use key to download - 1 voice = 1 credit</p><button class="btn gray" onclick="localStorage.removeItem('api_key');location.pathname='/api/login'">Logout</button></div>`;}
-  function renderApiKeyLogin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:500px;margin:20px auto;border:3px solid #00ff88"><h1 style="text-align:center">🔑 API LOGIN</h1><input id="apiKeyInput" placeholder="sk_free_ or sk_live_"><button class="btn green" onclick="doApiKeyLogin()">LOGIN</button><p id="apiLoginMsg"></p></div>`;}
-  async function doApiKeyLogin(){const raw=document.getElementById('apiKeyInput').value.trim(),msg=document.getElementById('apiLoginMsg');if(!raw){msg.innerText='Enter key';return;}msg.innerText='Checking...';try{const hash=await hashKeyClient(raw);const {data,error}=await supabaseClient.from('api_keys').select('*').eq('key_hash',hash).eq('is_active',true).single();if(error||!data){msg.innerText='❌ Invalid or no credit!';return;}localStorage.setItem('api_key',raw);localStorage.setItem('api_key_prefix',data.key_prefix);msg.innerText=`✅ ${data.credits_remaining||0} credits left - Success!`;setTimeout(()=>location.pathname='/api/dashboard',800);}catch(e){msg.innerText='❌ '+e.message;}}
+
+  // ====== FULL API DASHBOARD - NEW FIX - ONLY THIS PART CHANGED - NO REMOVE OTHER THINGS ======
+  async function renderApiDashboard(){
+    const rawKey=localStorage.getItem('api_key')||'';
+    const prefix=localStorage.getItem('api_key_prefix')||'';
+    if(!rawKey){ location.pathname='/api/login'; return; }
+    document.getElementById('app').innerHTML=`<div class="card"><h3>Loading API Dashboard... Checking key ${prefix}...</h3></div>`;
+    try{
+      const hash=await hashKeyClient(rawKey);
+      const {data:key, error}=await supabaseClient.from('api_keys').select('*').eq('key_hash',hash).single();
+      if(error||!key){ 
+        document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid #ff3b3b"><h3>❌ Key not found or expired</h3><p>Prefix: ${prefix}</p><button class="btn gray" onclick="localStorage.clear();location.pathname='/api/login'">Login again</button></div>`;
+        return;
+      }
+      if(!key.is_active || (key.credits_remaining||0)<=0){
+        document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid #ff3b3b"><h3>❌ Key expired - ${key.credits_remaining||0} credits left</h3><p>${key.name} - ${key.key_prefix}...</p><p>Package: ${key.voices_package||key.credits_total} voices</p><button class="btn gold" onclick="location.pathname='/admin/keys'">Buy More</button><button class="btn gray" onclick="localStorage.clear();location.pathname='/api/login'">Logout</button></div>`;
+        return;
+      }
+      const {data:allRecs}=await supabaseClient.from('recordings').select('*').eq('admin_status','approved').order('created_at',{ascending:false}).limit(100);
+      const pct=Math.min(100,((key.credits_used||0)/(key.credits_total||1)*100));
+      const isFree=(key.payment_ref||'').includes('FREE');
+      const remaining=key.credits_remaining||0;
+
+      document.getElementById('app').innerHTML=`
+        <div class="card" style="border:3px solid #00ff88">
+          <h2 style="color:#00ff88;margin:0">🔑 API DASHBOARD - ${isFree?'🆓 FREE':'💰 PAID'}</h2>
+          <div style="background:#111;padding:14px;border-radius:12px;margin:12px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center"><div><b style="font-size:14px">${key.name}</b><br><small style="color:#aaa">${key.key_prefix}... | ${key.payment_ref||'FREE'} | ${new Date(key.created_at).toLocaleDateString()}</small></div><span style="background:${isFree?'#00ff88':'gold'};color:#000;padding:6px 12px;border-radius:20px;font-size:11px;font-weight:900">${isFree?'FREE':'PAID'} - ${key.is_active?'ACTIVE':'EXPIRED'}</span></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px">
+              <div style="background:${remaining<=10?'#ff3b3b':remaining<=100?'gold':'#00ff88'};color:#000;padding:14px;border-radius:12px;text-align:center"><b style="font-size:24px">${remaining}</b><br><small>LEFT - Credits</small></div>
+              <div style="background:#222;color:#fff;padding:14px;border-radius:12px;text-align:center"><b style="font-size:20px">${key.credits_used||0}</b><br><small>USED</small></div>
+              <div style="background:#333;color:gold;padding:14px;border-radius:12px;text-align:center;border:1px solid gold"><b style="font-size:20px">${key.credits_total||0}</b><br><small>TOTAL</small></div>
+            </div>
+            <div style="background:#333;height:12px;border-radius:10px;margin-top:12px;overflow:hidden"><div style="background:${remaining<=10?'#ff3b3b':'#00ff88'};height:100%;width:${pct}%;transition:0.5s"></div></div>
+            <p style="font-size:11px;color:#aaa;margin-top:8px;text-align:center">💡 1 voice file download = 1 credit deducted automatically - Chairman go see am for him dashboard!</p>
+          </div>
+          <div style="display:flex;gap:8px"><button class="btn gold" style="flex:1" onclick="location.pathname='/admin/keys'">💳 Buy More Credits</button><button class="btn gray" style="flex:1" onclick="localStorage.clear();location.pathname='/api/login'">Logout</button></div>
+        </div>
+
+        <div class="card" style="border:2px solid gold;background:#0a0a0a">
+          <h3 style="color:gold;margin:0">🎙️ Download Voices - ${allRecs?.length||0} approved voices - Each = -1 Credit</h3>
+          <input id="apiSearch" placeholder="🔍 Search pidgin, hausa, igbo, yoruba..." oninput="filterApiRecs()" style="margin-top:10px;background:#000">
+          <div id="apiRecsList" style="margin-top:12px;max-height:80vh;overflow-y:auto">
+            ${(allRecs||[]).map(r=>`
+              <div class="api-rec-item" style="background:#181818;padding:12px;border-radius:12px;margin:10px 0;border-left:6px solid #00ff88" data-text="${(r.transcription||r.pidgin_text||'').toLowerCase()}">
+                <div style="display:flex;justify-content:space-between"><b>#${r.recording_number||r.id.slice(0,6)} ${r.language?.toUpperCase()||'PIDGIN'} ${r.is_whatsapp_group?'📱':''}</b><small style="color:#aaa">${r.word_count||0}w - ${r.quality_status||'clear'}</small></div>
+                <div style="background:#000;padding:8px;border-radius:8px;margin:8px 0;font-size:13px;line-height:1.4">${(r.transcription||r.pidgin_text||'').substring(0,200)}</div>
+                <div style="display:flex;gap:8px;align-items:center"><audio controls src="https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/${r.file_name}" style="height:32px;flex:1"></audio><button onclick="apiDownloadWithDeduct('${r.file_name}','${key.id}')" style="background:#00ff88;color:#000;padding:12px 16px;border:none;border-radius:35px;font-weight:900;font-size:12px">📥 -1</button></div>
+              </div>
+            `).join('')||'<div style="padding:20px;text-align:center;color:#aaa">No approved voices yet - Chairman need approve voices for admin/dashboard first</div>'}
+          </div>
+        </div>
+      `;
+
+      window.filterApiRecs=function(){
+        const q=document.getElementById('apiSearch').value.toLowerCase();
+        document.querySelectorAll('.api-rec-item').forEach(el=>{
+          el.style.display=(el.getAttribute('data-text')||'').includes(q)?'block':'none';
+        });
+      };
+
+      window.apiDownloadWithDeduct=async function(fileName, keyId){
+        if((key.credits_remaining||0)<=0){ alert('❌ No credits left! Buy more at /admin/keys'); return; }
+        const url=`https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/${fileName}`;
+        const a=document.createElement('a'); a.href=url; a.download=fileName; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove();
+        const newRemaining=(key.credits_remaining||0)-1; 
+        const newUsed=(key.credits_used||0)+1;
+        const {error:upErr}=await supabaseClient.from('api_keys').update({credits_remaining:newRemaining, credits_used:newUsed, is_active:newRemaining>0}).eq('id',keyId);
+        if(upErr){ alert('❌ Deduct failed: '+upErr.message); return; }
+        key.credits_remaining=newRemaining; key.credits_used=newUsed;
+        alert(`✅ Downloaded ${fileName}! -1 credit! Remaining: ${newRemaining} credits - Chairman dashboard go update!`);
+        setTimeout(()=>{ location.reload(); },800);
+      };
+    }catch(e){
+      document.getElementById('app').innerHTML=`<div class="card"><h3>❌ Error: ${e.message}</h3><button class="btn gray" onclick="location.pathname='/api/login'">Back to login</button></div>`;
+    }
+  }
+
+  function renderApiKeyLogin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:500px;margin:20px auto;border:3px solid #00ff88"><h1 style="text-align:center">🔑 API LOGIN</h1><input id="apiKeyInput" placeholder="sk_free_ or sk_live_"><button class="btn green" onclick="doApiKeyLogin()">LOGIN</button><p id="apiLoginMsg"></p><div style="margin-top:12px;text-align:center"><a href="/admin/keys" style="color:gold">Don't have key? Get FREE 100 or Buy Paid</a></div></div>`;}
+  async function doApiKeyLogin(){const raw=document.getElementById('apiKeyInput').value.trim(),msg=document.getElementById('apiLoginMsg');if(!raw){msg.innerText='Enter key';return;}msg.innerText='Checking...';try{const hash=await hashKeyClient(raw);const {data,error}=await supabaseClient.from('api_keys').select('*').eq('key_hash',hash).eq('is_active',true).single();if(error||!data){msg.innerText='❌ Invalid key or 0 credit left - Buy new key!';return;}localStorage.setItem('api_key',raw);localStorage.setItem('api_key_prefix',data.key_prefix);msg.innerText=`✅ ${data.credits_remaining||0} credits left - ${data.name} - Success!`;setTimeout(()=>location.pathname='/api/dashboard',800);}catch(e){msg.innerText='❌ '+e.message;}}
   window.doApiKeyLogin=doApiKeyLogin;
-  (async function boot(){const path=location.pathname;if(path==='/api/login'){renderApiKeyLogin();return;}if(path==='/api/dashboard'){renderApiDashboard();return;}if(path==='/admin/login'){renderLoginAdmin();return;}if(path==='/user/login'){renderLoginUser();return;}const {data:{session}}=await supabaseClient.auth.getSession();if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}if(path==='/api/dashboard'){location.pathname='/api/login';return;}location.pathname='/user/login';return;}if(path==='/admin/keys'){await renderKeysPage();return;}if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}if(path==='/user/dashboard'){await renderUserDashboard(session);return;}location.pathname='/user/dashboard';})();
+  (async function boot(){const path=location.pathname;if(path==='/api/login'){renderApiKeyLogin();return;}if(path==='/api/dashboard'){await renderApiDashboard();return;}if(path==='/admin/login'){renderLoginAdmin();return;}if(path==='/user/login'){renderLoginUser();return;}const {data:{session}}=await supabaseClient.auth.getSession();if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}if(path==='/api/dashboard'){location.pathname='/api/login';return;}location.pathname='/user/login';return;}if(path==='/admin/keys'){await renderKeysPage();return;}if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}if(path==='/user/dashboard'){await renderUserDashboard(session);return;}location.pathname='/user/dashboard';})();
 })();
 </script>
 </body>
