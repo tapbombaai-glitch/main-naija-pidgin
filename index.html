@@ -1,135 +1,75 @@
-<!-- ==================== USER SIDE - PROFESSIONAL API PLATFORM ==================== -->
-<div class="card" style="background:linear-gradient(135deg,#0a0a0a,#1a1a2e);border:3px solid gold;border-radius:20px;padding:20px;color:#fff">
-<h1 style="color:gold;text-align:center">🔑 PONTI API PLATFORM - PROFESSIONAL</h1>
-
-<!-- USER STATS -->
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:15px 0">
-<div style="background:#111;border:1px solid #00ff88;border-radius:12px;padding:15px;text-align:center">
-<p style="margin:0;color:#888">MY BALANCE</p>
-<h2 id="userBalance" style="color:#00ff88;margin:5px 0">$0.00</h2>
-</div>
-<div style="background:#111;border:1px solid #00aaff;border-radius:12px;padding:15px;text-align:center">
-<p style="margin:0;color:#888">API CALLS</p>
-<h2 id="userCalls" style="color:#00aaff;margin:5px 0">0</h2>
-</div>
-<div style="background:#111;border:1px solid gold;border-radius:12px;padding:15px;text-align:center">
-<p style="margin:0;color:#888">STATUS</p>
-<h2 id="userStatus" style="color:gold;margin:5px 0">NO KEY</h2>
-</div>
-</div>
-
-<!-- REQUEST FORM - LONG PROFESSIONAL -->
-<div style="background:#000;border:2px solid #333;border-radius:15px;padding:20px;margin:15px 0">
-<h3 style="color:gold">📩 REQUEST NEW API KEY - Chairman Must Approve</h3>
-<p style="color:#888">Fill form, Chairman Ponti go see am for dashboard, e go credit you!</p>
-
-<label style="color:#fff;font-weight:700">💰 How much you want? (USD):</label>
-<select id="proAmount" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid gold;font-size:16px">
-<option value="">Select Amount</option>
-<option value="10">$10 - 1,000 Requests - Starter</option>
-<option value="50">$50 - 5,000 Requests - Popular 🔥</option>
-<option value="100">$100 - 12,000 Requests - Pro</option>
-<option value="500">$500 - 70,000 Requests - Business</option>
-<option value="1000">$1000 - 150,000 Requests - Enterprise 👑</option>
-</select>
-
-<label style="color:#fff;font-weight:700">🎯 Wetin you wan use API do?</label>
-<textarea id="proPurpose" rows="3" placeholder="Explain well... Eg: I dey build Pidgin translation app for my customers, I need 5000 requests per month for voice to text..." style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333"></textarea>
-
-<label style="color:#fff;font-weight:700">🏢 Company Name (Optional):</label>
-<input id="proCompany" type="text" placeholder="Your company name" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333">
-
-<label style="color:#fff;font-weight:700">📞 WhatsApp Number:</label>
-<input id="proPhone" type="text" placeholder="Eg: 08012345678 - Chairman fit call you" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333">
-
-<button onclick="requestProAPI()" id="reqBtnPro" style="width:100%;padding:18px;background:linear-gradient(90deg,gold,#ffaa00);color:#000;font-weight:900;border:none;border-radius:12px;font-size:18px;margin-top:10px">🚀 SUBMIT REQUEST TO CHAIRMAN</button>
-
-<p id="proReqMsg" style="text-align:center;font-weight:900;padding:10px;border-radius:10px;margin-top:10px"></p>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ponti API - Price + Sample Voice</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px}
+.card{background:#111;border:1px solid #333;border-radius:16px;padding:14px;margin:10px 0}
+.btn{width:100%;padding:14px;border:none;border-radius:12px;font-weight:900;font-size:13px;cursor:pointer}
+.gold{background:gold;color:#000}.green{background:#00ff88;color:#000}
+.sample{background:#181818;padding:12px;border-radius:12px;margin:8px 0;border-left:5px solid #00ff88}
+</style>
+</head>
+<body>
+<div class="card" style="border:2px solid gold;text-align:center">
+<h2 style="margin:0;color:gold">🔑 PONTI API</h2>
+<p style="margin:4px 0;color:#aaa;font-size:12px">Naija Voice API - Real Human Voices</p>
 </div>
 
-<!-- MY REQUESTS HISTORY -->
-<div style="background:#111;border-radius:15px;padding:15px;margin:15px 0">
-<h3 style="color:#00aaff">📋 MY REQUESTS HISTORY</h3>
-<div id="myProRequests">Loading...</div>
+<div class="card" style="border:2px solid #00ff88">
+<h3 style="margin:0 0 10px 0">🎧 Sample Voices - Clean & Simple - Click Play!</h3>
+
+<div class="sample">
+<b style="color:gold">PIDGIN</b> - Clear Naija Pidgin
+<div style="background:#000;padding:8px;border-radius:6px;margin:6px 0;font-size:13px">"Abeg make we start today. I wan tell you say this work na important one."</div>
+<audio controls style="width:100%;height:35px" src="https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/sample_pidgin.mp3"></audio>
+<button class="btn green" style="margin-top:6px;padding:8px;font-size:11px" onclick="playText('Abeg make we start today. I wan tell you say this work na important one.','en-NG')">🔊 Play Sample (Browser Voice)</button>
 </div>
 
-<!-- MY API KEYS -->
-<div style="background:#001100;border:2px solid #00ff88;border-radius:15px;padding:15px;margin:15px 0">
-<h3 style="color:#00ff88">🔑 MY ACTIVE API KEYS - Chairman Don Approve</h3>
-<div id="myProKeys">Loading keys...</div>
+<div class="sample" style="border-left-color:gold">
+<b style="color:gold">HAUSA</b> - Clean Hausa
+<div style="background:#000;padding:8px;border-radius:6px;margin:6px 0;font-size:13px">"Don Allah mu fara aiki yau."</div>
+<audio controls style="width:100%;height:35px" src="https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/sample_hausa.mp3"></audio>
 </div>
 
-<!-- USAGE LOGS -->
-<div style="background:#000;border:1px solid #333;border-radius:15px;padding:15px;margin:15px 0">
-<h3 style="color:#fff">📊 USAGE LOGS - How you use API</h3>
-<div id="usageLogs" style="max-height:300px;overflow-y:auto">No usage yet - Request key first!</div>
+<div class="sample" style="border-left-color:#00aaff">
+<b style="color:#00aaff">IGBO</b> - Clean Igbo
+<div style="background:#000;padding:8px;border-radius:6px;margin:6px 0;font-size:13px">"Biko ka anyi malite oru taa."</div>
+<audio controls style="width:100%;height:35px" src="https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/sample_igbo.mp3"></audio>
 </div>
 
+<div class="sample" style="border-left-color:#ffcc00">
+<b style="color:#ffcc00">YORUBA</b> - Clean Yoruba
+<div style="background:#000;padding:8px;border-radius:6px;margin:6px 0;font-size:13px">"Jowo ka a bere ise loni."</div>
+<audio controls style="width:100%;height:35px" src="https://rupuxvpupdhlhxgjrbsh.supabase.co/storage/v1/object/public/voices/sample_yoruba.mp3"></audio>
+</div>
+
+<p style="font-size:10px;color:#666;text-align:center">💡 Real voices from Naija workers - Not robot - 100% human!</p>
+</div>
+
+<div class="card" style="border:2px solid gold">
+<h3 style="text-align:center;margin:0 0 12px 0">💰 Price - Simple</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+<div style="background:#222;padding:12px;border-radius:10px;text-align:center;border:1px solid #00ff88"><b>1k</b><br><span style="color:#00ff88;font-weight:900">₦5k</span></div>
+<div style="background:#222;padding:12px;border-radius:10px;text-align:center;border:1px solid #ffcc00"><b>5k</b><br><span style="color:#ffcc00;font-weight:900">₦22k</span></div>
+<div style="background:#222;padding:12px;border-radius:10px;text-align:center;border:1px solid gold"><b>10k</b><br><span style="color:gold;font-weight:900">₦45k</span></div>
+<div style="background:#222;padding:12px;border-radius:10px;text-align:center;border:1px solid #00aaff"><b>20k</b><br><span style="color:#00aaff;font-weight:900">₦80k</span></div>
+<div style="background:#1a1a00;padding:12px;border-radius:10px;text-align:center;border:2px solid gold;grid-column:1/-1"><b>100k Enterprise</b><br><span style="color:gold;font-weight:900;font-size:18px">₦350,000</span></div>
+</div>
+<button class="btn gold" style="margin-top:14px;padding:16px;font-size:15px" onclick="location.href='/admin/keys'">🚀 Buy API Key Now</button>
+<p style="font-size:10px;color:#888;text-align:center;margin-top:8px">1 voice download = 1 credit deducted</p>
 </div>
 
 <script>
-// LONG PROFESSIONAL FUNCTIONS
-async function requestProAPI(){
- const amount=document.getElementById('proAmount').value;
- const purpose=document.getElementById('proPurpose').value;
- const company=document.getElementById('proCompany').value;
- const phone=document.getElementById('proPhone').value;
- if(!amount||!purpose||!phone){alert('Fill Amount, Purpose, and WhatsApp! Chairman need am!');return;}
- const btn=document.getElementById('reqBtnPro');
- btn.disabled=true; btn.innerText='⏳ Sending to Chairman...';
- const {data:{session}}=await supabaseClient.auth.getSession();
- const {error}=await supabaseClient.from('api_key_requests').insert([{
-  user_id:session.user.id,
-  email:session.user.email,
-  requested_amount:parseFloat(amount),
-  purpose:purpose,
-  company_name:company,
-  phone_number:phone,
-  status:'pending',
-  created_at:new Date()
- }]);
- const msg=document.getElementById('proReqMsg');
- if(error){msg.style.background='red';msg.innerText='❌ Error: '+error.message;btn.disabled=false;btn.innerText='🚀 SUBMIT REQUEST TO CHAIRMAN';return;}
- msg.style.background='#00ff88';msg.style.color='#000';msg.innerText='✅ SUCCESS! Request don go Chairman Ponti dashboard! E go see am and credit you soon! You go get notification!';
- btn.disabled=false;btn.innerText='🚀 SUBMIT REQUEST TO CHAIRMAN';
- loadProRequests();loadProKeys();
+function playText(t,lang){
+  if('speechSynthesis' in window){
+    const u=new SpeechSynthesisUtterance(t);
+    u.lang=lang; u.rate=0.9;
+    speechSynthesis.speak(u);
+  }else{ alert(t); }
 }
-
-async function loadProRequests(){
- const {data:{session}}=await supabaseClient.auth.getSession();
- const {data:reqs}=await supabaseClient.from('api_key_requests').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
- document.getElementById('myProRequests').innerHTML=reqs?.length?reqs.map(r=>`
-  <div style="background:#000;border-left:4px solid ${r.status=='pending'?'gold':r.status=='approved'?'#00ff88':'red'};padding:12px;margin:8px 0;border-radius:8px">
-   <b>$${r.requested_amount} - ${r.purpose.substring(0,60)}...</b><br>
-   Status: <span style="font-weight:900;color:${r.status=='pending'?'gold':r.status=='approved'?'#00ff88':'red'}">${r.status.toUpperCase()}</span> - ${new Date(r.created_at).toLocaleString()}
-   ${r.api_key?`<br>🔑 Key: <code style="background:#111;padding:4px;border-radius:4px">${r.api_key.substring(0,20)}...</code>`:''}
-  </div>
- `).join(''):'No requests yet!';
-}
-
-async function loadProKeys(){
- const {data:{session}}=await supabaseClient.auth.getSession();
- const {data:keys}=await supabaseClient.from('api_keys').select('*').eq('user_id',session.user.id);
- const {data:allReq}=await supabaseClient.from('api_key_requests').select('requested_amount').eq('user_id',session.user.id).eq('status','approved');
- const totalBalance=keys?.reduce((s,k)=>s+parseFloat(k.balance||0),0)||0;
- const totalCalls=allReq?.length||0;
- document.getElementById('userBalance').innerText='$'+totalBalance.toFixed(2);
- document.getElementById('userCalls').innerText=totalCalls;
- document.getElementById('userStatus').innerText=keys?.length?'ACTIVE':'NO KEY';
- document.getElementById('myProKeys').innerHTML=keys?.length?keys.map(k=>`
-  <div style="background:#000;border:2px solid #00ff88;border-radius:12px;padding:15px;margin:10px 0">
-   <p style="margin:5px 0"><b>🔑 API Key:</b> <code id="key_${k.id}" style="background:#111;padding:8px;border-radius:8px;display:block;word-break:break-all;color:#00ff88">${k.api_key}</code></p>
-   <div style="display:flex;gap:10px;margin-top:10px">
-    <button onclick="copyKey('${k.id}')" style="flex:1;padding:10px;background:#00aaff;color:#fff;border:none;border-radius:8px;font-weight:900">📋 COPY KEY</button>
-    <button onclick="revokeKey('${k.id}')" style="flex:1;padding:10px;background:red;color:#fff;border:none;border-radius:8px;font-weight:900">🗑️ REVOKE</button>
-   </div>
-   <p style="margin:10px 0 0 0"><b>💰 Balance:</b> <span style="color:#00ff88;font-weight:900">$${k.balance}</span> | <b>Active:</b> ${k.is_active?'✅ YES':'❌ NO'} | <b>Created:</b> ${new Date(k.created_at).toLocaleDateString()}</p>
-  </div>
- `).join(''):'<p style="color:#888;text-align:center;padding:20px">You never get API key - Chairman never approve you yet. Request one above! 👆</p>';
-}
-
-function copyKey(id){ const txt=document.getElementById('key_'+id).innerText; navigator.clipboard.writeText(txt); alert('✅ API Key copied! Keep am secret!'); }
-async function revokeKey(id){ if(!confirm('You sure you wan revoke this key? E go stop to work!'))return; await supabaseClient.from('api_keys').update({is_active:false}).eq('id',id); alert('Key revoked!'); loadProKeys(); }
-
-loadProRequests(); loadProKeys();
 </script>
+</body>
+</html>
