@@ -1,159 +1,135 @@
-<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FULL APP - PHONE BRAIN - NO KEY</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:10px;padding-bottom:80px} .card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0} .btn{width:100%;padding:14px;border:none;border-radius:35px;font-weight:900;font-size:13px;margin:5px 0;cursor:pointer} .green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}.blue{background:#00aaff;color:#fff} .textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:16px;border-radius:10px;font-size:18px;min-height:80px} .header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;background:#0a0a0a} .progress{height:14px;background:#222;border-radius:10px;overflow:hidden}.fill{height:100%;background:#00ff88} input,select,textarea{width:100%;padding:12px;border-radius:10px;border:1px solid #444;background:#222;color:#fff;margin:6px 0} .announce{background:linear-gradient(90deg,#00ff88,#ffcc00);color:#000;border:3px solid #fff;border-radius:16px;padding:12px;margin:12px 0;font-weight:900}</style>
-</head><body><div id="app">Loading NEW PHONE BRAIN...</div>
+<!-- ==================== USER SIDE - PROFESSIONAL API PLATFORM ==================== -->
+<div class="card" style="background:linear-gradient(135deg,#0a0a0a,#1a1a2e);border:3px solid gold;border-radius:20px;padding:20px;color:#fff">
+<h1 style="color:gold;text-align:center">🔑 PONTI API PLATFORM - PROFESSIONAL</h1>
+
+<!-- USER STATS -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:15px 0">
+<div style="background:#111;border:1px solid #00ff88;border-radius:12px;padding:15px;text-align:center">
+<p style="margin:0;color:#888">MY BALANCE</p>
+<h2 id="userBalance" style="color:#00ff88;margin:5px 0">$0.00</h2>
+</div>
+<div style="background:#111;border:1px solid #00aaff;border-radius:12px;padding:15px;text-align:center">
+<p style="margin:0;color:#888">API CALLS</p>
+<h2 id="userCalls" style="color:#00aaff;margin:5px 0">0</h2>
+</div>
+<div style="background:#111;border:1px solid gold;border-radius:12px;padding:15px;text-align:center">
+<p style="margin:0;color:#888">STATUS</p>
+<h2 id="userStatus" style="color:gold;margin:5px 0">NO KEY</h2>
+</div>
+</div>
+
+<!-- REQUEST FORM - LONG PROFESSIONAL -->
+<div style="background:#000;border:2px solid #333;border-radius:15px;padding:20px;margin:15px 0">
+<h3 style="color:gold">📩 REQUEST NEW API KEY - Chairman Must Approve</h3>
+<p style="color:#888">Fill form, Chairman Ponti go see am for dashboard, e go credit you!</p>
+
+<label style="color:#fff;font-weight:700">💰 How much you want? (USD):</label>
+<select id="proAmount" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid gold;font-size:16px">
+<option value="">Select Amount</option>
+<option value="10">$10 - 1,000 Requests - Starter</option>
+<option value="50">$50 - 5,000 Requests - Popular 🔥</option>
+<option value="100">$100 - 12,000 Requests - Pro</option>
+<option value="500">$500 - 70,000 Requests - Business</option>
+<option value="1000">$1000 - 150,000 Requests - Enterprise 👑</option>
+</select>
+
+<label style="color:#fff;font-weight:700">🎯 Wetin you wan use API do?</label>
+<textarea id="proPurpose" rows="3" placeholder="Explain well... Eg: I dey build Pidgin translation app for my customers, I need 5000 requests per month for voice to text..." style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333"></textarea>
+
+<label style="color:#fff;font-weight:700">🏢 Company Name (Optional):</label>
+<input id="proCompany" type="text" placeholder="Your company name" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333">
+
+<label style="color:#fff;font-weight:700">📞 WhatsApp Number:</label>
+<input id="proPhone" type="text" placeholder="Eg: 08012345678 - Chairman fit call you" style="width:100%;padding:15px;border-radius:10px;margin:8px 0;background:#111;color:#fff;border:1px solid #333">
+
+<button onclick="requestProAPI()" id="reqBtnPro" style="width:100%;padding:18px;background:linear-gradient(90deg,gold,#ffaa00);color:#000;font-weight:900;border:none;border-radius:12px;font-size:18px;margin-top:10px">🚀 SUBMIT REQUEST TO CHAIRMAN</button>
+
+<p id="proReqMsg" style="text-align:center;font-weight:900;padding:10px;border-radius:10px;margin-top:10px"></p>
+</div>
+
+<!-- MY REQUESTS HISTORY -->
+<div style="background:#111;border-radius:15px;padding:15px;margin:15px 0">
+<h3 style="color:#00aaff">📋 MY REQUESTS HISTORY</h3>
+<div id="myProRequests">Loading...</div>
+</div>
+
+<!-- MY API KEYS -->
+<div style="background:#001100;border:2px solid #00ff88;border-radius:15px;padding:15px;margin:15px 0">
+<h3 style="color:#00ff88">🔑 MY ACTIVE API KEYS - Chairman Don Approve</h3>
+<div id="myProKeys">Loading keys...</div>
+</div>
+
+<!-- USAGE LOGS -->
+<div style="background:#000;border:1px solid #333;border-radius:15px;padding:15px;margin:15px 0">
+<h3 style="color:#fff">📊 USAGE LOGS - How you use API</h3>
+<div id="usageLogs" style="max-height:300px;overflow-y:auto">No usage yet - Request key first!</div>
+</div>
+
+</div>
+
 <script>
-const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
-const SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
-const CHAIRMAN_EMAIL="tapbomba.ai@gmail.com";
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-const TEXTS_DATA={pidgin:["Abeg make we start today. I wan tell you say this work na important one.","Today na another beautiful day for this country. Sun dey shine.","Chairman, I don finish the work wey you give me yesterday.","How you dey? I dey come your side now now."],hausa:["Don Allah mu fara aiki yau."],igbo:["Biko ka anyi malite oru taa."],yoruba:["Jowo ka a bere ise loni."]};
-function getLang(){return localStorage.getItem('selected_language')||'pidgin';}
-function setLang(l){localStorage.setItem('selected_language',l);}
-function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
-let mediaRecorder=null,audioChunks=[],freeBlob=null,readBlob=null,recTimer=null,recSec=0;
-let phoneSpeechRec=null, finalTranscript='';
-window.copyVoiceText=function(){const t=document.getElementById('freeTranscription').value;if(!t){alert('No text, talk first');return;}navigator.clipboard.writeText(t).then(()=>{alert('✅ COPIED! Send to me for WhatsApp!');});}
-window.changeLanguage=function(l){setLang(l);location.reload();}
+// LONG PROFESSIONAL FUNCTIONS
+async function requestProAPI(){
+ const amount=document.getElementById('proAmount').value;
+ const purpose=document.getElementById('proPurpose').value;
+ const company=document.getElementById('proCompany').value;
+ const phone=document.getElementById('proPhone').value;
+ if(!amount||!purpose||!phone){alert('Fill Amount, Purpose, and WhatsApp! Chairman need am!');return;}
+ const btn=document.getElementById('reqBtnPro');
+ btn.disabled=true; btn.innerText='⏳ Sending to Chairman...';
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ const {error}=await supabaseClient.from('api_key_requests').insert([{
+  user_id:session.user.id,
+  email:session.user.email,
+  requested_amount:parseFloat(amount),
+  purpose:purpose,
+  company_name:company,
+  phone_number:phone,
+  status:'pending',
+  created_at:new Date()
+ }]);
+ const msg=document.getElementById('proReqMsg');
+ if(error){msg.style.background='red';msg.innerText='❌ Error: '+error.message;btn.disabled=false;btn.innerText='🚀 SUBMIT REQUEST TO CHAIRMAN';return;}
+ msg.style.background='#00ff88';msg.style.color='#000';msg.innerText='✅ SUCCESS! Request don go Chairman Ponti dashboard! E go see am and credit you soon! You go get notification!';
+ btn.disabled=false;btn.innerText='🚀 SUBMIT REQUEST TO CHAIRMAN';
+ loadProRequests();loadProKeys();
+}
 
-// === NEW PHONE BRAIN - NO KEY - LIVE TYPING ===
-window.toggleFreeTalk=async function(){
-  finalTranscript='';
-  const ta=document.getElementById('freeTranscription');
-  const msg=document.getElementById('brainListeningMsg');
-  const statusDiv=document.getElementById('freeTalkStatus');
-  const transBox=document.getElementById('freeTalkTranscribe');
-  try{
-    // Start audio recording for saving
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    mediaRecorder=new MediaRecorder(stream,{mimeType:'audio/webm'});
-    audioChunks=[];recSec=0;freeBlob=null;
-    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
-    mediaRecorder.onstop=()=>{
-      freeBlob=new Blob(audioChunks,{type:'audio/webm'});
-      const url=URL.createObjectURL(freeBlob);
-      const aud=document.getElementById('freeAudioPreview');aud.src=url;aud.style.display='block';
-      if(phoneSpeechRec){try{phoneSpeechRec.stop();}catch(e){}}
-    };
-    mediaRecorder.start();
+async function loadProRequests(){
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ const {data:reqs}=await supabaseClient.from('api_key_requests').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
+ document.getElementById('myProRequests').innerHTML=reqs?.length?reqs.map(r=>`
+  <div style="background:#000;border-left:4px solid ${r.status=='pending'?'gold':r.status=='approved'?'#00ff88':'red'};padding:12px;margin:8px 0;border-radius:8px">
+   <b>$${r.requested_amount} - ${r.purpose.substring(0,60)}...</b><br>
+   Status: <span style="font-weight:900;color:${r.status=='pending'?'gold':r.status=='approved'?'#00ff88':'red'}">${r.status.toUpperCase()}</span> - ${new Date(r.created_at).toLocaleString()}
+   ${r.api_key?`<br>🔑 Key: <code style="background:#111;padding:4px;border-radius:4px">${r.api_key.substring(0,20)}...</code>`:''}
+  </div>
+ `).join(''):'No requests yet!';
+}
 
-    // Start PHONE LIVE BRAIN - No key needed!
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!SpeechRecognition){
-      msg.innerText='❌ Your phone browser no support live typing. Use Chrome browser!';
-    } else {
-      phoneSpeechRec = new SpeechRecognition();
-      phoneSpeechRec.lang = 'en-NG'; // Nigerian English - understand Pidgin
-      phoneSpeechRec.continuous = true;
-      phoneSpeechRec.interimResults = true;
-      phoneSpeechRec.onstart=()=>{msg.innerText='🧠 PHONE BRAIN dey listen... talk now! E go type LIVE for white box!';};
-      phoneSpeechRec.onresult=(event)=>{
-        let interim='';
-        for(let i=event.resultIndex; i<event.results.length; i++){
-          const transcript = event.results[i][0].transcript;
-          if(event.results[i].isFinal){finalTranscript += transcript + ' ';} else {interim += transcript;}
-        }
-        ta.value = finalTranscript + interim;
-        ta.style.background='#fff';ta.style.color='#000';
-        msg.innerText='✅ PHONE BRAIN dey type LIVE... keep talking!';
-      };
-      phoneSpeechRec.onerror=(e)=>{msg.innerText='Brain error: '+e.error + ' - but keep talking';};
-      phoneSpeechRec.onend=()=>{msg.innerText='✅ BRAIN DON TYPE! Press COPY VOICE!';};
-      phoneSpeechRec.start();
-    }
+async function loadProKeys(){
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ const {data:keys}=await supabaseClient.from('api_keys').select('*').eq('user_id',session.user.id);
+ const {data:allReq}=await supabaseClient.from('api_key_requests').select('requested_amount').eq('user_id',session.user.id).eq('status','approved');
+ const totalBalance=keys?.reduce((s,k)=>s+parseFloat(k.balance||0),0)||0;
+ const totalCalls=allReq?.length||0;
+ document.getElementById('userBalance').innerText='$'+totalBalance.toFixed(2);
+ document.getElementById('userCalls').innerText=totalCalls;
+ document.getElementById('userStatus').innerText=keys?.length?'ACTIVE':'NO KEY';
+ document.getElementById('myProKeys').innerHTML=keys?.length?keys.map(k=>`
+  <div style="background:#000;border:2px solid #00ff88;border-radius:12px;padding:15px;margin:10px 0">
+   <p style="margin:5px 0"><b>🔑 API Key:</b> <code id="key_${k.id}" style="background:#111;padding:8px;border-radius:8px;display:block;word-break:break-all;color:#00ff88">${k.api_key}</code></p>
+   <div style="display:flex;gap:10px;margin-top:10px">
+    <button onclick="copyKey('${k.id}')" style="flex:1;padding:10px;background:#00aaff;color:#fff;border:none;border-radius:8px;font-weight:900">📋 COPY KEY</button>
+    <button onclick="revokeKey('${k.id}')" style="flex:1;padding:10px;background:red;color:#fff;border:none;border-radius:8px;font-weight:900">🗑️ REVOKE</button>
+   </div>
+   <p style="margin:10px 0 0 0"><b>💰 Balance:</b> <span style="color:#00ff88;font-weight:900">$${k.balance}</span> | <b>Active:</b> ${k.is_active?'✅ YES':'❌ NO'} | <b>Created:</b> ${new Date(k.created_at).toLocaleDateString()}</p>
+  </div>
+ `).join(''):'<p style="color:#888;text-align:center;padding:20px">You never get API key - Chairman never approve you yet. Request one above! 👆</p>';
+}
 
-    statusDiv.style.display='block';
-    transBox.style.display='block';
-    document.getElementById('freeTalkBtn').style.display='none';
-    document.getElementById('stopFreeTalkBtn').style.display='block';
-    recSec=0;
-    recTimer=setInterval(()=>{recSec++;document.getElementById('freeTimer').innerText=recSec+'s';if(recSec>=90)window.stopFreeTalk();},1000);
-  }catch(e){alert('Allow mic: '+e.message);}
-}
-window.stopFreeTalk=function(){
-  if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}
-  if(phoneSpeechRec){try{phoneSpeechRec.stop();}catch(e){}}
-  clearInterval(recTimer);
-  document.getElementById('freeTalkBtn').style.display='block';
-  document.getElementById('stopFreeTalkBtn').style.display='none';
-  const msg=document.getElementById('brainListeningMsg');
-  if(msg)msg.innerText='✅ DONE! White box don type! Press COPY VOICE and SAVE!';
-}
-window.saveFreeTalk=async function(){
-  const trans=document.getElementById('freeTranscription').value.trim();
-  const msgEl=document.getElementById('saveFreeMsg');
-  if(!trans){alert('Talk first, make brain type');return;}
-  if(!freeBlob){alert('Record first');return;}
-  msgEl.innerText='Saving...';
-  try{
-    const fileName='free_'+getLang()+'_'+Date.now()+'.webm';
-    await supabaseClient.storage.from('voices').upload(fileName,freeBlob);
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id);
-    await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:trans,word_count:countW(trans),language:getLang(),recording_number:(existing?.length||0)+1,is_free_talk:true,transcription:trans,quality_score:95,quality_status:'clear',admin_status:'pending',duration_seconds:recSec}]);
-    msgEl.innerText='SAVED!';setTimeout(()=>location.reload(),1000);
-  }catch(e){msgEl.innerText='Error: '+e.message;}
-}
-window.startReadRecord=async function(){
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});mediaRecorder=new MediaRecorder(stream);audioChunks=[];recSec=0;readBlob=null;
-    mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
-    mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'});const url=URL.createObjectURL(readBlob);const aud=document.getElementById('readAudioPreview');aud.src=url;aud.style.display='block';document.getElementById('saveReadBtn').style.display='block';};
-    mediaRecorder.start();
-    document.getElementById('readStatus').style.display='block';document.getElementById('readBtn').style.display='none';document.getElementById('stopReadBtn').style.display='block';
-    recTimer=setInterval(()=>{recSec++;document.getElementById('readTimer').innerText=recSec+'s';},1000);
-  }catch(e){alert('Allow mic');}
-}
-window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}clearInterval(recTimer);document.getElementById('readBtn').style.display='block';document.getElementById('stopReadBtn').style.display='none';}
-window.saveReadRecord=async function(){
-  const lang=getLang();const text=document.getElementById('curTxt').innerText;if(!readBlob){alert('Record first');return;}
-  document.getElementById('saveReadMsg').innerText='Uploading...';
-  try{
-    const fileName='read_'+lang+'_'+Date.now()+'.webm';await supabaseClient.storage.from('voices').upload(fileName,readBlob);
-    const {data:{session}}=await supabaseClient.auth.getSession();const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id);
-    await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,is_free_talk:false,quality_score:90,quality_status:'clear',admin_status:'pending',duration_seconds:recSec}]);
-    document.getElementById('saveReadMsg').innerText='SAVED!';setTimeout(()=>location.reload(),1000);
-  }catch(e){document.getElementById('saveReadMsg').innerText='Error: '+e.message;}
-}
-async function renderLoginAdmin(){document.getElementById('app').innerHTML='<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>CHAIRMAN LOGIN</h2><input id="email" placeholder="Email" value="tapbomba.ai@gmail.com"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin(\'admin\')">LOGIN</button><p id="msg"></p></div>';}
-async function renderLoginUser(){document.getElementById('app').innerHTML='<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Name"><button class="btn green" onclick="doLogin(\'user\')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p id="msg"></p></div>';}
-async function doLogin(type){
-  const e=document.getElementById('email').value.trim(),p=document.getElementById('pass').value,msg=document.getElementById('msg');
-  if(!e||!p){msg.innerText='Fill';return;}msg.innerText='Checking...';
-  const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});if(error){msg.innerText=error.message;return;}
-  const {data:{session}}=await supabaseClient.auth.getSession();let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(!prof){const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair};await supabaseClient.from('profiles').insert([newProf]);prof=newProf;}
-  if(e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase()&&!prof.is_chairman){await supabaseClient.from('profiles').update({is_chairman:true}).eq('id',session.user.id);prof.is_chairman=true;}
-  if(type==='admin'){if(!prof?.is_chairman){document.getElementById('app').innerHTML='<h1>BLOCKED</h1>';return;}location.href='/admin/dashboard';}else{if(prof?.is_chairman)location.href='/admin/dashboard';else location.href='/user/dashboard';}
-}
-async function doSignup(){
-  const e=document.getElementById('email').value.trim(),p=document.getElementById('pass').value,n=document.getElementById('name').value||e.split('@')[0],msg=document.getElementById('msg');
-  if(!e||!p){msg.innerText='Fill';return;}msg.innerText='Creating...';
-  const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});if(error){msg.innerText=error.message;return;}if(!data.user){msg.innerText='Check email';return;}
-  const isChair=e.toLowerCase()===CHAIRMAN_EMAIL.toLowerCase();await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started',is_chairman:isChair}]);
-  msg.innerText='Created! Login now';
-}
-window.doLogin=doLogin;window.doSignup=doSignup;
-async function renderUserDashboard(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(profile?.is_chairman){location.pathname='/admin/dashboard';return;}
-  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('recording_number');
-  const total=(recs||[]).reduce((s,r)=>s+r.word_count,0)||0;const lang=getLang();const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin;const current=texts[(recs||[]).length%texts.length];const pct=Math.min(100,(total/1000)*100);
-  document.getElementById('app').innerHTML='<div class="announce">🧠 NEW PHONE BRAIN - NO KEY - TYPE LIVE AS YOU TALK!</div><div class="header"><div>WELCOME, '+(profile?.display_name||'WORKER').toUpperCase()+'</div><select onchange="changeLanguage(this.value)" style="background:gold;color:black;font-weight:900;padding:10px;margin-top:8px"><option value="pidgin" '+(lang==='pidgin'?'selected':'')+'>Pidgin</option><option value="hausa" '+(lang==='hausa'?'selected':'')+'>Hausa</option><option value="igbo" '+(lang==='igbo'?'selected':'')+'>Igbo</option><option value="yoruba" '+(lang==='yoruba'?'selected':'')+'>Yoruba</option></select><div>'+total+' / 1000 WORDS</div><div class="progress"><div class="fill" style="width:'+pct+'%"></div></div></div><div class="card" style="border:3px solid #00ff88"><h3>📖 FIRST - READ</h3><div class="textbox" id="curTxt">'+current+'</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START READ</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>🔴 Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn blue" style="display:none" onclick="saveReadRecord()">💾 SAVE READ</button><p id="saveReadMsg"></p></div></div><div class="card" style="border:3px solid gold;background:#1a1a00"><h3>🎤 SECOND - FREE TALK + COPY VOICE + LIVE TYPING (NO KEY!)</h3><p style="background:#fff;color:#000;padding:8px;border-radius:8px;font-size:12px;font-weight:900">Use Chrome browser! As you talk, white box go type LIVE!</p><button id="freeTalkBtn" class="btn gold" onclick="toggleFreeTalk()">🎙️ START FREE TALK - BRAIN GO TYPE LIVE!</button><button id="stopFreeTalkBtn" class="btn red" style="display:none" onclick="stopFreeTalk()">⏹️ STOP</button><div id="freeTalkStatus" style="display:none;background:black;padding:12px;border-radius:10px"><p>🔴 Recording + Typing LIVE <span id="freeTimer">0s</span></p><p id="brainListeningMsg" style="color:#00ff88;font-weight:900"></p><audio id="freeAudioPreview" controls style="width:100%;display:none"></audio></div><div id="freeTalkTranscribe" style="display:none;margin-top:12px;background:#111;padding:12px;border-radius:10px;border:2px solid #00ff88"><p style="color:gold;font-weight:900;margin:0 0 6px 0">⬇️ White box - LIVE TYPING:</p><textarea id="freeTranscription" placeholder="Talk now... e go type LIVE here..." rows="5" style="background:#fff;color:#000;font-size:16px;font-weight:700"></textarea><button class="btn blue" onclick="copyVoiceText()" style="background:#00aaff;color:#fff;padding:16px;font-size:16px">📋 COPY VOICE - SEND TO ME</button><button class="btn green" onclick="saveFreeTalk()">💾 SAVE FREE TALK</button><p id="saveFreeMsg"></p></div></div>';
-}
-async function renderAdminDashboard(session){const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>BLOCKED</h1>';return;}const {data:allRecs}=await supabaseClient.from('recordings').select('*').order('created_at',{ascending:false});const recs=allRecs||[];document.getElementById('app').innerHTML='<div class="card" style="border:3px solid gold"><h2>👑 CHAIRMAN</h2></div><div class="card"><h3>Recordings - '+recs.length+'</h3>'+recs.slice(0,20).map(r=>'<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0"><b>#'+r.recording_number+' '+(r.language||'').toUpperCase()+'</b><div style="background:#000;padding:6px;border-radius:6px;margin:4px 0;font-size:12px">'+((r.transcription||r.pidgin_text||'').substring(0,150))+'</div></div>').join('')+'</div></div>';}
-(async function boot(){
-  try{
-    const path=location.pathname;
-    if(path==='/admin/login'){renderLoginAdmin();return;}
-    if(path==='/user/login'){renderLoginUser();return;}
-    const {data:{session}}=await supabaseClient.auth.getSession();
-    if(!session){if(path.startsWith('/admin')){location.pathname='/admin/login';return;}location.pathname='/user/login';return;}
-    if(path==='/admin/dashboard'){await renderAdminDashboard(session);return;}
-    if(path==='/user/dashboard'){await renderUserDashboard(session);return;}
-    location.pathname='/user/dashboard';
-  }catch(e){document.getElementById('app').innerHTML='<h2>ERROR: '+e.message+'</h2>';}
-})();
-</script></body></html>
+function copyKey(id){ const txt=document.getElementById('key_'+id).innerText; navigator.clipboard.writeText(txt); alert('✅ API Key copied! Keep am secret!'); }
+async function revokeKey(id){ if(!confirm('You sure you wan revoke this key? E go stop to work!'))return; await supabaseClient.from('api_keys').update({is_active:false}).eq('id',id); alert('Key revoked!'); loadProKeys(); }
+
+loadProRequests(); loadProKeys();
+</script>
