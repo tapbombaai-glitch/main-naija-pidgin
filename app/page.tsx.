@@ -1,0 +1,28 @@
+'use client'
+
+export default function Home() {
+return (
+<div style={{ padding: 20, fontFamily: 'sans-serif' }}>
+<h1>Main Naija Pidgin dey LIVE! ✅</h1>
+
+  <p>Chairman, your app don recover!</p>
+
+  <p>Supabase still get your existing users and recordings, provided they remain in your database.</p>
+
+  <a
+    href="/worker"
+    style={{
+      background: 'green',
+      color: 'white',
+      padding: 10,
+      display: 'inline-block',
+      marginTop: 10,
+      textDecoration: 'none',
+    }}
+  >
+    Go Worker Panel
+  </a>
+</div>
+
+)
+}
