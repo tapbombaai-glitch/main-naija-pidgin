@@ -103,11 +103,21 @@ async function getCurrentUser(){
   if(easyEmail){const {data:profiles}=await supabaseClient.from('profiles').select('*').eq('email',easyEmail).limit(1); if(profiles&&profiles[0]){return {id:profiles[0].id,email:easyEmail,profile:profiles[0]};} return {id:easyId||'temp',email:easyEmail,profile:{email:easyEmail,display_name:easyEmail.split('@')[0],is_chairman:false}};}
   return null;
 }
-window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; document.getElementById('readTimer').innerText=recSec+'s';},1000);}catch(e){alert('Allow mic');}};
-window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('readBtn').style.display='block'; document.getElementById('stopReadBtn').style.display='none';};
+window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block'; const d=document.getElementById('deleteReadBtn'); if(d)s.style.display='block'; if(d)d.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; document.getElementById('readTimer').innerText=recSec+'s';},1000);}catch(e){alert('Allow mic');}};
+window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='none'; document.getElementById('saveReadMsg').innerText='🎧 Check sound well - If no clear, delete & record again';};
+window.deleteReadRecord=function(){
+  readBlob=null; audioChunks=[]; recSec=0;
+  const a=document.getElementById('readAudioPreview'); if(a){a.pause(); a.src=''; a.style.display='none';}
+  document.getElementById('readStatus').style.display='none';
+  document.getElementById('readBtn').style.display='block';
+  document.getElementById('stopReadBtn').style.display='none';
+  document.getElementById('readTimer').innerText='0s';
+  document.getElementById('saveReadMsg').innerText='';
+  clearInterval(recTimer);
+};
 window.saveReadRecord=async function(){
-const lang=getLang(); const text=document.getElementById('curTxt').innerText; if(!readBlob){alert('Record first'); return;} const saveMsg=document.getElementById('saveReadMsg'); saveMsg.innerText='Saving - More Better Tonight...';
-try{const user=await getCurrentUser(); if(!user){location.pathname='/user/login'; return;} const {data:k}=await supabaseClient.from('api_keys').select('*').eq('email',user.email).order('credits_remaining',{ascending:false}).limit(1).single(); if(k&&(k.credits_remaining||0)<1){saveMsg.innerText='❌ No credit! Buy more - More Better!'; return;} if(k) await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-1,credits_used:(k.credits_used||0)+1}).eq('id',k.id); const fileName=`${user.id}/${Date.now()}_read_${lang}.webm`; await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm'}); const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id); await supabaseClient.from('recordings').insert([{user_id:user.id,file_name:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,admin_status:'pending'}]); saveMsg.innerText='✅ SAVED! Chairman approve = ₦50! More Better!'; document.getElementById('readAudioPreview').style.display='none'; document.getElementById('saveReadBtn').style.display='none'; document.getElementById('readBtn').style.display='none'; document.getElementById('curTxt').innerHTML='<b style="color:#00ff88">✅ Submitted! More Better! Approve = ₦50!</b>'; setTimeout(()=>location.reload(),2000);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
+const lang=getLang(); const text=document.getElementById('curTxt').innerText; if(!readBlob){alert('Record first'); return;} const saveMsg=document.getElementById('saveReadMsg'); saveMsg.innerText='Saving...';
+try{const user=await getCurrentUser(); if(!user){location.pathname='/user/login'; return;} const fileName=`${user.id}/${Date.now()}_read_${lang}.webm`; await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm'}); const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id); await supabaseClient.from('recordings').insert([{user_id:user.id,file_name:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,admin_status:'pending'}]); saveMsg.innerText='✅ Saved!'; document.getElementById('readAudioPreview').style.display='none'; document.getElementById('saveReadBtn').style.display='none'; const d=document.getElementById('deleteReadBtn'); if(d)d.style.display='none'; document.getElementById('curTxt').innerHTML='<b style="color:#00ff88">✅ Saved! Next...</b>'; setTimeout(()=>location.reload(),1200);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
 
 window.approveRecording=async function(id){if(!confirm('Approve + Pay ₦50?'))return; await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id); alert('✅ Approved! ₦50 paid! More Better!'); location.reload();};
 window.rejectRecording=async function(id){if(!confirm('Reject?'))return; await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id); location.reload();};
@@ -115,11 +125,9 @@ window.deleteRecording=async function(id,file){if(!confirm('DELETE?'))return; if
 window.deductCredit=async function(id,amt){const {data:k}=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-amt}).eq('id',id); location.reload();};
 window.addCredit=async function(id,amt){const {data:k}=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); await supabaseClient.from('api_keys').update({credits_remaining:(k.credits_remaining||0)+amt,credits_total:(k.credits_total||0)+amt}).eq('id',id); location.reload();};
 
-// ============ MORE BETTER BUY PAGE - FREE + PAID ============
 function renderBuyPage(){
 document.getElementById('app').innerHTML=`
 <div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">BUY API KEY - Email Only Tonight</h1><p style="color:#00ff88;font-weight:900">More Better - FREE + PAID - Tonight!</p></div>
-
 <div class="card" style="border:3px solid #00ff88;background:#001a00">
 <h2 style="color:#00ff88;text-align:center;margin:0">🆓 FREE - Email Only - 100</h2>
 <p style="text-align:center;font-size:11px;color:#00ff88">For Workers Earning ₦5,000 - More Better!</p>
@@ -132,7 +140,6 @@ document.getElementById('app').innerHTML=`
 <button onclick="copyLink(document.getElementById('buyFreeKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY BUTTON - More Better</button>
 </div>
 </div>
-
 <div class="card" style="border:3px solid gold">
 <h2 style="text-align:center;color:gold;margin:0">💳 PAID - Paystack - More Better!</h2>
 <p style="text-align:center;font-size:11px;color:gold">For API Customers - Sell Tonight - More Better!</p>
@@ -155,7 +162,6 @@ document.getElementById('app').innerHTML=`
 <p id="buy_paid_msg" style="font-weight:900"></p>
 </div>
 </div>`;
-
 window.buyPublic=function(packageId){
   const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'},'10k':{voices:10000,amount:45000,label:'10k Voices ₦45k'},'100k':{voices:100000,amount:350000,label:'100k Voices ₦350k'}};
   const pkg=PACKAGES[packageId]; if(!pkg){alert('Invalid'); return;} currentPackage={packageId:packageId,voices:pkg.voices,amount:pkg.amount};
@@ -202,20 +208,51 @@ async function renderAdminDashboard(){
     <div class="card"><h3>Recordings - More Better - Approve = ₦50</h3>${(allRecs||[]).slice(0,80).map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0"><button onclick="toggleRec('${r.id}')" style="width:100%;background:#222;color:#fff;padding:12px;border:none;border-radius:10px;text-align:left"><b>#${r.recording_number} ${r.admin_status.toUpperCase()} ${r.admin_status==='approved'?'💰 ₦50 - More Better':''}</b><br><small>${(r.pidgin_text||'').substring(0,70)}</small><br><small style="color:gold">▼ BUTTONS - More Better</small></button><div id="rec-${r.id}" style="display:none;margin-top:8px"><audio id="admin-audio-${i}" data-file="${r.file_name}" controls style="width:100%"></audio><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px"><button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">✅ APPROVE + ₦50 - More Better</button><button onclick="rejectRecording('${r.id}')" style="background:#ff3b3b;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:900">Reject</button><button onclick="copyVoiceId('${r.file_name}')" style="background:gold;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">ID CODE</button></div><button onclick="deleteRecording('${r.id}','${r.file_name}')" style="width:100%;background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:14px;border-radius:30px;margin-top:8px;font-weight:900">DELETE BUTTON</button></div></div>`).join('')||'No recordings - More Better Tonight!'}</div>`;
   window.togglePanel=function(id){const el=document.getElementById(id); el.style.display=el.style.display==='none'?'block':'none';}; window.toggleRec=function(id){const el=document.getElementById('rec-'+id); el.style.display=el.style.display==='none'?'block':'none';}; setTimeout(()=>loadAllSignedVoices(),800);
 }
+
+// ===== FIXED WORKERS DASHBOARD ONLY - RECORD ONLY - NO ADMIN CONNECT =====
 async function renderUserDashboardReal(){
-  const user=await getCurrentUser(); if(!user){location.pathname='/user/login'; return;} if(user.profile?.is_chairman){location.pathname='/admin/dashboard'; return;}
-  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',user.id).order('created_at',{ascending:false}); const {data:keys}=await supabaseClient.from('api_keys').select('*').eq('email',user.email).order('created_at',{ascending:false});
-  const records=recs||[]; const approved=records.filter(r=>String(r.admin_status||'').toLowerCase()==='approved').length; const perVoice=50; const earnings=approved*perVoice; const progress=Math.min((earnings/5000*100),100).toFixed(0);
-  const lang=getLang(); const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; const current=texts[records.length%texts.length]; const ann=await fetchAnn();
+  const user=await getCurrentUser(); 
+  if(!user){location.pathname='/user/login'; return;} 
+  if(user.profile?.is_chairman){location.pathname='/admin/dashboard'; return;}
+  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+  const records=recs||[];
+  const lang=getLang(); 
+  const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; 
+  const current=texts[records.length % texts.length];
+
   document.getElementById('app').innerHTML=`
-    ${ann?`<div class="announce">📢 ${ann.title}</div>`:`<div class="announce">💃 V7.9 MORE BETTER - FREE+PAID - Tonight!</div>`}
-    <div class="card" style="background:linear-gradient(135deg,#00ff88,#00aa55);color:#000;border:3px solid gold;padding:12px"><h2 style="margin:4px;text-align:center">💰 RECORD VOICE & RECEIVE ₦5,000 - More Better!</h2><div style="background:#000;color:#00ff88;padding:14px;border-radius:12px;margin:8px 0;text-align:center"><p style="margin:2px;font-size:12px">YOUR EARNINGS - ${user.email} - More Better</p><h1 style="margin:4px;font-size:38px;color:gold">₦${earnings.toLocaleString()}</h1><p>${approved} approved x ₦50 - More Better</p><div style="background:#333;height:14px;border-radius:20px;margin:10px 0;overflow:hidden"><div style="background:gold;height:100%;width:${progress}%"></div></div><p>${progress}% to ₦5,000 - More Better!</p></div></div>
-    <div class="card" style="border:2px solid #00ff88"><h3>WORKER - ${user.email} - More Better ✅</h3><p>Total: ${records.length} | Approved: ${approved} | Earnings: ₦${earnings} - More Better</p><button class="btn gray" onclick="localStorage.clear(); supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div>
-    <div class="card" style="border:2px solid gold"><h3>MY KEYS - More Better - ${user.email}</h3>${(keys||[]).map(k=>`<div style="background:#1a1500;padding:10px;border-radius:10px;margin:5px 0;display:flex;justify-content:space-between"><code>${k.key_prefix}...</code><span style="background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-weight:900">${k.credits_remaining} - More Better</span></div>`).join('')||'No key - More Better will auto create'}<button class="btn gold" onclick="location.pathname='/buy'">Buy More - More Better - FREE+PAID BUTTON</button></div>
-    <div class="card" style="border:3px solid #00ff88"><h3>READ - Earn ₦50 - More Better Tonight</h3><div class="textbox" id="curTxt">${current}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START RECORD - More Better</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>Recording <span id="readTimer">0s</span> - More Better</p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn gold" style="display:none" onclick="saveReadRecord()">💾 SAVE & HIDE - Earn ₦50 - More Better!</button><p id="saveReadMsg"></p></div></div>
-    <div class="card"><h3>My Recordings ${records.length} - More Better</h3>${records.slice(0,20).map((r,i)=>`<div style="background:#181818;padding:10px;border-radius:10px;margin:6px 0"><b>#${r.recording_number} ${r.admin_status.toUpperCase()} ${r.admin_status==='approved'?'💰 ₦50 - More Better':''}</b><br><small>${(r.pidgin_text||'').substring(0,80)}</small><br><audio id="user-audio-${i}" data-file="${r.file_name}" controls style="width:100%"></audio></div>`).join('')||'No recordings yet - More Better Tonight!'}</div>`;
-  setTimeout(()=>loadAllSignedVoices(),600);
+    <div style="background:#111; border:1px solid #00ff88; border-radius:30px; padding:6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+      <small style="color:#888; font-size:10px; padding-left:10px">Your Voice</small>
+      <span style="background:#00ff88; color:#000; padding:4px 14px; border-radius:20px; font-weight:900; font-size:13px">${records.length} / 1000</span>
+    </div>
+
+    <div style="text-align:center; margin-bottom:8px">
+      <small style="color:#00ff88; font-size:11px; background:#111; border:1px solid #333; padding:5px 12px; border-radius:20px">🎙️ Abeg use quiet place, no noise - make admin approve 👍</small>
+    </div>
+
+    <div class="card" style="border:2px solid #00ff88; padding:12px">
+      <div class="textbox" id="curTxt" style="font-size:18px">${current}</div>
+      <button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START RECORD</button>
+      <button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button>
+      
+      <div id="readStatus" style="display:none; background:#000; padding:12px; border-radius:12px; margin-top:12px; border:2px solid gold">
+        <p style="text-align:center; margin:5px; font-size:13px">🎧 Check am well - <span id="readTimer">0s</span></p>
+        <audio id="readAudioPreview" controls style="width:100%; display:none; margin:10px 0"></audio>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px">
+          <button id="deleteReadBtn" class="btn" style="background:#222; color:#ff3b3b; border:2px solid #ff3b3b; display:none" onclick="deleteReadRecord()">🗑️ DELETE & RECORD AGAIN</button>
+          <button id="saveReadBtn" class="btn gold" style="display:none" onclick="saveReadRecord()">💾 SAVE</button>
+        </div>
+        <p id="saveReadMsg" style="text-align:center; margin-top:8px; font-size:12px; font-weight:800"></p>
+      </div>
+    </div>
+    
+    <div style="text-align:center; margin-top:10px">
+      <small style="color:#555; font-size:10px">${user.email}</small><br>
+      <button class="btn gray" style="width:auto; padding:8px 16px; font-size:11px; border-radius:20px; margin-top:6px" onclick="localStorage.clear(); supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button>
+    </div>
+  `;
 }
+
 async function renderKeysPage(){
   const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;}
   const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
