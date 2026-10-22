@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Main Naija Pidgin - V6.8 - NO BLOCK COMPLETE</title>
+<title>Main Naija Pidgin - V7.8 - EMAIL ONLY - NO PASSWORD - ₦5,000 - TONIGHT</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
@@ -23,7 +23,7 @@ code{word-break:break-all}
 </style>
 </head>
 <body>
-<div id="app">Loading V6.8 NO BLOCK COMPLETE...</div>
+<div id="app">Loading V7.8 EMAIL ONLY - NO PASSWORD - TONIGHT...</div>
 <script>
 (function(){
 const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
@@ -31,7 +31,7 @@ const SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
 const PAYSTACK_PUBLIC_KEY="pk_live_ce90d591406c8d61ec3c8d3be6e0f5fe49c55d09"
 const supabaseClient=supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const API_ENDPOINT="https://main-naija-pidgin.vercel.app/api/v1/voice";
-const TEXTS_DATA={pidgin:["Abeg make we start today. I wan tell you say this work na important one.","Today na another beautiful day. How you dey?","Chairman, I don finish the work wey you give me.","Make we go market tomorrow morning.","This Naija Pidgin project na better project.","I dey learn how to speak Pidgin well.","My brother dey come from Lagos tomorrow."],hausa:["Don Allah mu fara aiki yau.","Yau rana ce mai kyau."],igbo:["Biko ka anyi malite oru taa.","Taa bu ubochi mara mma."],yoruba:["Jowo ka a bere ise loni.","Oni ni ojo ti o lẹwa."]};
+const TEXTS_DATA={pidgin:["Abeg make we start today. Chairman, I don finish work for my ₦5,000.","This Naija Pidgin project na better project wey dey pay ₦5,000 tonight.","My brother dey come from Lagos tomorrow to collect him ₦5,000.","Make we go market tomorrow morning after we collect ₦5,000."],hausa:["Don Allah mu fara aiki yau."],igbo:["Biko ka anyi malite oru taa."],yoruba:["Jowo ka a bere ise loni."]};
 function getLang(){return localStorage.getItem('selected_language')||'pidgin';}
 function setLang(l){localStorage.setItem('selected_language',l);}
 function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
@@ -39,194 +39,317 @@ async function hashKeyClient(t){const e=new TextEncoder(); const d=e.encode(t); 
 window.copyLink=function(t){navigator.clipboard.writeText(t).then(()=>alert('✅ Copied!')).catch(()=>prompt('Copy:',t));};
 window.copyVoiceId=function(f){navigator.clipboard.writeText(f).then(()=>alert('✅ Voice ID copied: '+f)).catch(()=>prompt('Copy ID:',f));};
 async function fetchAnn(){try{const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(1).single(); return data;}catch(e){return null;}}
-window.loadSignedVoice=async function(fileName,audioId){try{if(!fileName||fileName.length<5)return;const {data,error}=await supabaseClient.storage.from('voices').createSignedUrl(fileName,3600);if(error)return;if(data&&data.signedUrl){const el=document.getElementById(audioId);if(el){el.src=data.signedUrl;el.load();}}}catch(e){}};
-window.loadAllSignedVoices=function(){document.querySelectorAll('audio[data-file]').forEach(el=>{const file=el.getAttribute('data-file');if(file&&file.length>5)loadSignedVoice(file,el.id);});};
+window.loadSignedVoice=async function(fileName,audioId){try{if(!fileName||fileName.length<5)return; const {data}=await supabaseClient.storage.from('voices').createSignedUrl(fileName,3600); if(data?.signedUrl){const el=document.getElementById(audioId); if(el){el.src=data.signedUrl; el.load();}}}catch(e){}};
+window.loadAllSignedVoices=function(){document.querySelectorAll('audio[data-file]').forEach(el=>{const file=el.getAttribute('data-file'); if(file&&file.length>5)loadSignedVoice(file,el.id);});};
 let mediaRecorder=null,audioChunks=[],freeBlob=null,readBlob=null,recTimer=null,recSec=0;
 let currentPackage={packageId:'1k',voices:1000,amount:5000};
-const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'},'10k':{voices:10000,amount:45000,label:'10k Voices ₦45k'},'15k':{voices:15000,amount:65000,label:'15k Voices ₦65k'},'20k':{voices:20000,amount:80000,label:'20k Voices ₦80k'},'100k':{voices:100000,amount:350000,label:'100k Voices ₦350k'}};
-window.changeLanguage=function(l){setLang(l);location.reload();};
-window.toggleFreeTalk=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});mediaRecorder=new MediaRecorder(stream);audioChunks=[];recSec=0;freeBlob=null;mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};mediaRecorder.onstop=()=>{freeBlob=new Blob(audioChunks,{type:'audio/webm'});const url=URL.createObjectURL(freeBlob);const a=document.getElementById('freeAudioPreview');if(a){a.src=url;a.style.display='block';}const t=document.getElementById('freeTalkTranscribe');if(t)t.style.display='block';};mediaRecorder.start();document.getElementById('freeTalkStatus').style.display='block';document.getElementById('freeTalkBtn').style.display='none';document.getElementById('stopFreeTalkBtn').style.display='block';recTimer=setInterval(()=>{recSec++;const timer=document.getElementById('freeTimer');if(timer)timer.innerText=recSec+'s';if(recSec>=60)stopFreeTalk();},1000);}catch(e){alert('Allow mic: '+e.message);}};
-window.stopFreeTalk=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}clearInterval(recTimer);const s=document.getElementById('freeTalkBtn');const e=document.getElementById('stopFreeTalkBtn');if(s)s.style.display='block';if(e)e.style.display='none';};
-window.deleteFreeTalk=function(){freeBlob=null;const a=document.getElementById('freeAudioPreview');if(a){a.style.display='none';a.src='';}const t=document.getElementById('freeTalkTranscribe');if(t)t.style.display='none';const i=document.getElementById('freeTranscription');if(i)i.value='';const m=document.getElementById('saveFreeMsg');if(m)m.innerText='🗑️ Deleted - Record again';};
-window.saveFreeTalk=async function(){const trans=document.getElementById('freeTranscription').value.trim();const lang=getLang();const isWhats=document.getElementById('isWhatsAppCheck')?.checked||false;const msgEl=document.getElementById('saveFreeMsg');if(!trans){alert('Type wetin you talk');return;}if(!freeBlob){alert('Record first & PLAY to preview');return;}msgEl.innerText='Checking login...';try{const {data:{session}}=await supabaseClient.auth.getSession();if(!session){alert('Session don expire');location.pathname='/user/login';return;}msgEl.innerText='Uploading...';const fileName=`${session.user.id}/${Date.now()}_free_${lang}_${isWhats?'whatsapp_':''}.webm`;const {error:upErr}=await supabaseClient.storage.from('voices').upload(fileName, freeBlob, {contentType:'audio/webm', upsert:false});if(upErr)throw upErr;const {data:existing, error:countErr}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id);if(countErr)throw countErr;const {error:insErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:trans,word_count:countW(trans),language:lang,recording_number:(existing?.length||0)+1,is_free_talk:true,transcription:trans,quality_score:95,quality_status:'clear',admin_status:'pending',is_whatsapp_group:isWhats}]);if(insErr)throw insErr;msgEl.innerText='✅ SAVED!';setTimeout(()=>location.reload(),1000);}catch(e){msgEl.innerText='❌ '+e.message;}};
-window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});mediaRecorder=new MediaRecorder(stream);audioChunks=[];recSec=0;readBlob=null;mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'});const a=document.getElementById('readAudioPreview');if(a){a.src=URL.createObjectURL(readBlob);a.style.display='block';}const s=document.getElementById('saveReadBtn');if(s)s.style.display='block';const previewMsg=document.getElementById('readPreviewMsg');if(previewMsg)previewMsg.innerText='▶️ PLAY preview before saving';};mediaRecorder.start();document.getElementById('readStatus').style.display='block';document.getElementById('readBtn').style.display='none';document.getElementById('stopReadBtn').style.display='block';recTimer=setInterval(()=>{recSec++;const t=document.getElementById('readTimer');if(t)t.innerText=recSec+'s';},1000);}catch(e){alert('Allow mic: '+e.message);}};
-window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop();mediaRecorder.stream.getTracks().forEach(t=>t.stop());}clearInterval(recTimer);const s=document.getElementById('readBtn');const e=document.getElementById('stopReadBtn');if(s)s.style.display='block';if(e)e.style.display='none';};
-window.saveReadRecord=async function(){const lang=getLang();const text=document.getElementById('curTxt').innerText;if(!readBlob){alert('Record first & PLAY preview');return;}document.getElementById('saveReadMsg').innerText='Checking login...';try{const {data:{session}}=await supabaseClient.auth.getSession();if(!session){alert('Session expire');location.pathname='/user/login';return;}document.getElementById('saveReadMsg').innerText='Uploading...';const fileName=`${session.user.id}/${Date.now()}_read_${lang}.webm`;const {error:upErr}=await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm', upsert:false});if(upErr)throw upErr;const {data:existing, error:countErr}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id);if(countErr)throw countErr;const {error:insErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,is_free_talk:false,quality_score:90,quality_status:'clear',admin_status:'pending',duration_seconds:recSec}]);if(insErr)throw insErr;document.getElementById('saveReadMsg').innerText='✅ SAVED!';setTimeout(()=>location.reload(),1000);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
-async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN - V6.8</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN</button><p id="msg" style="background:#000;padding:10px;border-radius:8px"></p><p style="text-align:center"><a href="/user/login" style="color:#00ff88">Worker Login</a></p></div>`;}
-async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN - V6.8 🔓 NO BLOCK</h2><p style="background:#002b18;color:#00ff88;padding:8px;border-radius:8px;font-size:12px;text-align:center">✅ V6.8 - BLOCKING REMOVED - Everyone can login!</p><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Name for signup"><button class="btn green" onclick="doLogin('user')">LOGIN - NO BLOCK 🔓</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><button class="btn gray" onclick="forgotPassword()" style="background:#222;border:1px dashed #00ff88;">🔑 FORGOT PASSWORD?</button><p id="msg" style="background:#000;padding:10px;border-radius:8px;margin-top:10px;"></p></div>`;}
+const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'},'10k':{voices:10000,amount:45000,label:'10k Voices ₦45k'}};
+window.changeLanguage=function(l){setLang(l); location.reload();};
+window.toggleFreeTalk=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; freeBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{freeBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('freeAudioPreview'); if(a){a.src=URL.createObjectURL(freeBlob); a.style.display='block';} const t=document.getElementById('freeTalkTranscribe'); if(t)t.style.display='block';}; mediaRecorder.start(); document.getElementById('freeTalkStatus').style.display='block'; document.getElementById('freeTalkBtn').style.display='none'; document.getElementById('stopFreeTalkBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; document.getElementById('freeTimer').innerText=recSec+'s';},1000);}catch(e){alert('Allow mic: '+e.message);}};
+window.stopFreeTalk=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('freeTalkBtn').style.display='block'; document.getElementById('stopFreeTalkBtn').style.display='none';};
 
-async function doLogin(type){
-const e=document.getElementById('email').value.trim();
-const p=document.getElementById('pass').value;
-const msg=document.getElementById('msg');
-if(!e||!p){msg.innerText='Fill';return;}
-msg.innerText='V6.8 Checking... No Block!';
-const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
-if(error){msg.innerText=error.message;return;}
-const {data:{session}}=await supabaseClient.auth.getSession();
-let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-if(!prof){
-const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'active',is_chairman:false};
-const {error:insErr}=await supabaseClient.from('profiles').insert([newProf]);
-if(insErr){msg.innerText='Profile error: '+insErr.message;return;}
-prof=newProf;
-}else{
-try{await supabaseClient.from('profiles').update({status:'active',last_login_at:new Date().toISOString()}).eq('id',session.user.id);}catch(e){}
-}
-// ✅ V6.8 - NO MORE BLOCKED - REMOVED ALL BLOCKED LOGIC
-if(type==='admin'){
-if(!prof?.is_chairman){
-// FIXED: Instead of BLOCKED, redirect to user dashboard with message
-msg.innerText='⚠️ You be worker, not chairman. Redirecting to worker dashboard in 2 secs...';
-setTimeout(()=>{location.href='/user/dashboard';},2000);
-return;
-}
-location.href='/admin/dashboard';
-}else{
-// USER - EVERYONE ENTERS - NO CHECK
-location.href='/user/dashboard';
-}
+// ============ V7.8 - EMAIL ONLY LOGIN - NO PASSWORD ============
+async function renderLoginUser(){
+document.getElementById('app').innerHTML=`
+<div class="card" style="max-width:450px;margin:20px auto;border:3px solid #00ff88;text-align:center">
+  <h1 style="margin:4px">🎙️ MAIN NAIJA PIDGIN</h1>
+  <div style="background:linear-gradient(90deg,#00ff88,gold);color:#000;padding:12px;border-radius:12px;font-weight:900;margin:10px 0">
+    💰 RECORD VOICE & RECEIVE ₦5,000<br>
+    <small style="font-size:11px">Email Only - No Password - Easy for Launch Tonight!</small>
+  </div>
+  <input id="email" type="email" placeholder="Enter your email only - you@gmail.com" style="font-size:18px;padding:18px;text-align:center;border:3px solid #00ff88">
+  <button class="btn green" onclick="easyEmailOnlyLogin()" style="font-size:20px;padding:20px;margin-top:14px;background:linear-gradient(90deg,#00ff88,gold);color:#000">
+    🚀 LOGIN WITH EMAIL ONLY - 1 CLICK!
+  </button>
+  <p style="font-size:12px;color:#00ff88;margin:8px;font-weight:800">✅ No Password! Just Email! ✅</p>
+  <div style="background:#111;padding:12px;border-radius:12px;margin-top:12px;text-align:left">
+    <p style="font-size:12px;margin:3px">🔥 LAUNCH TONIGHT - EMAIL ONLY:</p>
+    <p style="font-size:11px;margin:3px">✅ Type email only</p>
+    <p style="font-size:11px;margin:3px">✅ Click 1 button</p>
+    <p style="font-size:11px;margin:3px">✅ Get 100 FREE credits instantly</p>
+    <p style="font-size:11px;margin:3px">✅ Start earning ₦5,000 in 5 seconds!</p>
+  </div>
+  <p id="msg" style="background:#000;color:gold;padding:12px;border-radius:8px;margin-top:12px;font-weight:900;display:none"></p>
+  <p style="margin-top:12px"><a href="/admin/login" style="color:gold;font-size:11px">Chairman Login (Password)</a></p>
+</div>`;
 }
 
-async function doSignup(){const e=document.getElementById('email').value.trim();const p=document.getElementById('pass').value;const n=document.getElementById('name').value||e.split('@')[0];const msg=document.getElementById('msg');if(!e||!p){msg.innerText='Fill';return;}msg.innerText='Creating...';const {data,error}=await supabaseClient.auth.signUp({email:e,password:p});if(error){msg.innerText=error.message;return;}if(!data.user){msg.innerText='Check email';return;}const {error:profileError}=await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'active',last_login_at:new Date().toISOString(),is_chairman:false}]);if(profileError){msg.innerText='Profile error: '+profileError.message;return;}msg.innerText='✅ Created! Login now';}
-window.doLogin=doLogin;window.doSignup=doSignup;
-async function forgotPassword(){const email=document.getElementById('email').value.trim();const msg=document.getElementById('msg');if(!email){msg.innerText='Enter email first';return;}msg.innerText='Sending...';try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:'https://main-naija-pidgin.vercel.app/user/login'});if(error){msg.innerText=error.message;return;}msg.innerText='✅ Check email for reset link';}catch(e){msg.innerText='Could not send';}}
-window.forgotPassword=forgotPassword;
-function renderResetPassword(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔑 SET NEW PASSWORD</h2><input id="newPass" type="password" placeholder="New Password"><input id="newPass2" type="password" placeholder="Confirm"><button class="btn gold" onclick="updatePassword()">UPDATE</button><p id="msg"></p></div>`;}
-async function updatePassword(){const p1=document.getElementById('newPass').value;const p2=document.getElementById('newPass2').value;const msg=document.getElementById('msg');if(!p1||p1.length<6){msg.innerText='Min 6 chars';return;}if(p1!==p2){msg.innerText='No match';return;}msg.innerText='Updating...';try{const {error}=await supabaseClient.auth.updateUser({password:p1});if(error){msg.innerText=error.message;return;}msg.innerText='✅ Updated! Redirecting...';setTimeout(()=>location.href='/user/login',1500);}catch(e){msg.innerText='❌ '+e.message;}}
-window.updatePassword=updatePassword;
-
-window.approveRecording=async function(id){if(!confirm('✅ Approve this recording?'))return;try{const {data,error}=await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id).select('id,admin_status');if(error)throw error;if(!data||data.length===0){alert('⚠️ No update - RLS check');return;}alert('✅ Approved!');location.reload();}catch(e){alert('❌ Approve failed: '+e.message);}};
-window.rejectRecording=async function(id){if(!confirm('❌ Reject this?'))return;try{const {data,error}=await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id).select('id,admin_status');if(error)throw error;if(!data||data.length===0){alert('⚠️ No update');return;}alert('✅ Rejected!');location.reload();}catch(e){alert('❌ Reject failed: '+e.message);}};
-window.deleteRecording=async function(id,fileName){if(!confirm('🗑️ CHAIRMAN DELETE: This will remove BOTH database record AND audio file from Storage.\n\nWorker recording will disappear too.\n\nAre you sure?'))return;if(!confirm('Final confirm: Delete '+fileName+' permanently?'))return;try{if(fileName&&fileName.length>5){const {error:storageError}=await supabaseClient.storage.from('voices').remove([fileName]);if(storageError){console.warn('Storage warning:', storageError.message);}}const {error:dbError}=await supabaseClient.from('recordings').delete().eq('id',id);if(dbError)throw dbError;alert('✅ DELETED: Audio file + DB record removed.');location.reload();}catch(e){alert('❌ Delete failed: '+e.message);}};
-window.deductCredit=async function(id,amt){if(!confirm(`Deduct ${amt}?`))return;try{const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();if(getErr)throw getErr;if((k.credits_remaining||0)<amt){alert('Only '+(k.credits_remaining||0)+' left');return;}const {data,error}=await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-amt,credits_used:(k.credits_used||0)+amt}).eq('id',id).gt('credits_remaining',amt-1).select();if(error)throw error;if(!data||data.length===0){alert('Atomic check failed');return;}alert('Deducted '+amt);location.reload();}catch(e){alert('❌ Deduct failed: '+e.message);}};
-window.addCredit=async function(id,amt){if(!confirm(`Add ${amt}?`))return;try{const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();if(getErr)throw getErr;const {error}=await supabaseClient.from('api_keys').update({credits_remaining:(k.credits_remaining||0)+amt,credits_total:(k.credits_total||0)+amt}).eq('id',id);if(error)throw error;alert('Added '+amt);location.reload();}catch(e){alert('❌ Add credit failed: '+e.message);}};
-window.approveKey=async function(id){if(!confirm('Approve this key?'))return;try{const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();if(getErr)throw getErr;const newName=String(k.name||'').replace('PENDING APPROVAL','APPROVED').replace('_PENDING','').replace('PENDING','APPROVED');const {data,error}=await supabaseClient.from('api_keys').update({is_active:true,name:newName,payment_ref:k.payment_ref}).eq('id',id).select();if(error)throw error;if(!data||data.length===0){alert('No key updated');return;}alert('✅ Key Approved!');location.reload();}catch(e){alert('❌ Approve key failed: '+e.message);}};
-window.resetTo100=async function(id){if(!confirm('🎯 SET THIS KEY TO 100 credits?'))return;try{const {data,error}=await supabaseClient.from('api_keys').update({credits_remaining:100,credits_total:100,credits_used:0}).eq('id',id).select();if(error)throw error;alert('✅ Now 100 credits!');location.reload();}catch(e){alert('❌ Reset failed: '+e.message);}};
-window.deleteKey=async function(id){if(!confirm('🗑️ DELETE this API key permanently?'))return;if(!confirm('Final confirm DELETE key?'))return;try{const {error}=await supabaseClient.from('api_keys').delete().eq('id',id);if(error)throw error;alert('✅ Key Deleted!');location.reload();}catch(e){alert('❌ Delete key failed: '+e.message);}};
-window.deleteAnnouncement=async function(id){if(!confirm('🗑️ DELETE this announcement permanently?'))return;try{const {error}=await supabaseClient.from('announcements').delete().eq('id',id);if(error)throw error;alert('✅ Announcement Deleted!');location.reload();}catch(e){alert('❌ Delete announcement failed: '+e.message);}};
-
-async function renderAdminDashboard(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  // ✅ V6.8 FIX - NO BLOCKED - REDIRECT INSTEAD
-  if(!profile?.is_chairman){
-    document.getElementById('app').innerHTML=`<div class="card" style="border:2px solid #00ff88;text-align:center"><h2>⚠️ You be worker, not chairman</h2><p>Redirecting to worker dashboard...</p><button class="btn green" onclick="location.pathname='/user/dashboard'">Go to Worker Dashboard</button></div>`;
-    setTimeout(()=>{location.href='/user/dashboard';},2000);
-    return;
+async function easyEmailOnlyLogin(){
+  const emailInput=document.getElementById('email');
+  const email=emailInput.value.trim().toLowerCase();
+  const msg=document.getElementById('msg');
+  msg.style.display='block';
+  if(!email||!email.includes('@')||!email.includes('.')){msg.innerText='❌ Enter valid email - e.g. you@gmail.com'; msg.style.background='#ff0000'; msg.style.color='#fff'; return;}
+  msg.style.background='#000'; msg.style.color='gold';
+  msg.innerText='⏳ Checking email... Creating your ₦5,000 account tonight...';
+  try{
+    // 1. Check if email exists in profiles
+    const {data:existingProfiles}=await supabaseClient.from('profiles').select('*').eq('email',email).limit(1);
+    let profile=existingProfiles&&existingProfiles[0];
+    let userId;
+    
+    if(profile){
+      userId=profile.id;
+      msg.innerText='✅ Welcome back! Logging you in with email only tonight...';
+    }else{
+      // Create new profile with random UUID - No auth needed for email-only launch
+      const newId=crypto.randomUUID();
+      userId=newId;
+      const displayName=email.split('@')[0];
+      const {error:profErr}=await supabaseClient.from('profiles').insert([{
+        id:newId,
+        email:email,
+        display_name:displayName,
+        total_words:0,
+        recordings_count:0,
+        status:'active',
+        is_chairman:false,
+        last_login_at:new Date().toISOString()
+      }]);
+      if(profErr){
+        // If RLS blocks, try with supabase auth signup with dummy password hidden from user
+        const dummyPass='EmailOnly_'+Math.random().toString(36).substring(2,12)+'Launch!';
+        const {data:authData,error:authErr}=await supabaseClient.auth.signUp({email:email,password:dummyPass});
+        if(authData?.user){
+          userId=authData.user.id;
+          await supabaseClient.from('profiles').insert([{id:userId,email:email,display_name:displayName,status:'active',is_chairman:false}]);
+        }else if(authErr&&authErr.message.includes('already registered')){
+          const {data:signInData}=await supabaseClient.auth.signInWithPassword({email:email,password:dummyPass});
+          if(signInData?.user){userId=signInData.user.id;}
+        }
+      }
+      msg.innerText='✅ New account created tonight!';
+    }
+    
+    // 2. Check / Create API Key - Automatic credit
+    const {data:existingKeys}=await supabaseClient.from('api_keys').select('*').eq('email',email).limit(1);
+    if(!existingKeys||existingKeys.length===0){
+      const fullKey='mnp_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,8);
+      const keyHash=await hashKeyClient(fullKey);
+      await supabaseClient.from('api_keys').insert([{
+        email:email,
+        name:email.split('@')[0],
+        api_key:fullKey,
+        key_hash:keyHash,
+        key_prefix:fullKey.substring(0,12),
+        credits_remaining:100,
+        credits_total:100,
+        credits_used:0,
+        is_active:true,
+        payment_ref:'EMAIL-ONLY-100-TONIGHT'
+      }]);
+      msg.innerText='✅ 100 FREE credits added! Redirecting to earn ₦5,000...';
+    }else{
+      msg.innerText=`✅ You have ${existingKeys[0].credits_remaining} credits! Redirecting...`;
+    }
+    
+    // 3. Save easy session - Email only - No password!
+    localStorage.setItem('easy_email',email);
+    localStorage.setItem('easy_user_id',userId);
+    localStorage.setItem('easy_login_time',new Date().toISOString());
+    localStorage.setItem('is_email_only_login','true');
+    
+    // 4. Try to also create Supabase session for storage upload (hidden from user)
+    try{
+      const dummyPass='EmailOnly_'+Math.random().toString(36).substring(2,12)+'Launch!';
+      await supabaseClient.auth.signInWithPassword({email:email,password:dummyPass}).catch(()=>{});
+    }catch(e){}
+    
+    setTimeout(()=>{location.pathname='/user/dashboard';},1200);
+    
+  }catch(e){
+    msg.innerText='❌ '+e.message;
+    msg.style.background='#ff0000';
+    msg.style.color='#fff';
+    console.error(e);
+    // Fallback: Even if error, allow easy login with local storage for launch
+    localStorage.setItem('easy_email',email);
+    localStorage.setItem('easy_user_id','temp_'+Date.now());
+    setTimeout(()=>{location.pathname='/user/dashboard';},1500);
   }
+}
+window.easyEmailOnlyLogin=easyEmailOnlyLogin;
+
+// Chairman login still with password - secure
+async function renderLoginAdmin(){
+document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN - Password (Secure)</h2><input id="email" placeholder="Chairman Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLoginAdmin()">LOGIN - Chairman Only</button><p id="msg"></p><p><a href="/user/login" style="color:#00ff88">Worker Email Only Login</a></p></div>`;
+}
+async function doLoginAdmin(){
+  const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const msg=document.getElementById('msg');
+  if(!e||!p){msg.innerText='Fill'; return;} msg.innerText='Checking...';
+  const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p});
+  if(error){msg.innerText=error.message; return;}
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  if(!prof?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Not Chairman</h1>'; return;}
+  location.href='/admin/dashboard';
+}
+window.doLoginAdmin=doLoginAdmin;
+
+async function getCurrentUser(){
+  // Try Supabase auth first
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(session?.user){
+    const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+    if(prof) return {id:session.user.id,email:prof.email,profile:prof,auth:true};
+  }
+  // Fallback to email-only easy login
+  const easyEmail=localStorage.getItem('easy_email');
+  const easyId=localStorage.getItem('easy_user_id');
+  if(easyEmail){
+    const {data:profiles}=await supabaseClient.from('profiles').select('*').eq('email',easyEmail).limit(1);
+    if(profiles&&profiles[0]){
+      return {id:profiles[0].id,email:easyEmail,profile:profiles[0],auth:false};
+    }
+    // Create temp profile object for launch
+    return {id:easyId||'temp',email:easyEmail,profile:{email:easyEmail,display_name:easyEmail.split('@')[0],is_chairman:false},auth:false};
+  }
+  return null;
+}
+
+window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; const t=document.getElementById('readTimer'); if(t)t.innerText=recSec+'s';},1000);}catch(e){alert('Allow mic: '+e.message);}};
+window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('readBtn').style.display='block'; document.getElementById('stopReadBtn').style.display='none';};
+window.saveReadRecord=async function(){
+const lang=getLang(); const text=document.getElementById('curTxt').innerText; 
+if(!readBlob){alert('Record first & PLAY preview'); return;} 
+const saveMsg=document.getElementById('saveReadMsg'); saveMsg.innerText='Saving for ₦5,000 tonight...';
+try{
+const user=await getCurrentUser(); if(!user){location.pathname='/user/login'; return;}
+const {data:k}=await supabaseClient.from('api_keys').select('*').eq('email',user.email).order('credits_remaining',{ascending:false}).limit(1).single();
+if(k&&(k.credits_remaining||0)<1){saveMsg.innerText='❌ No credit! Buy more'; return;}
+if(k) await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-1,credits_used:(k.credits_used||0)+1}).eq('id',k.id);
+saveMsg.innerText='Uploading - Towards ₦5,000 tonight...';
+const fileName=`${user.id}/${Date.now()}_read_${lang}.webm`;
+const {error:upErr}=await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm'});
+if(upErr) throw upErr;
+const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id);
+await supabaseClient.from('recordings').insert([{user_id:user.id,file_name:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,admin_status:'pending'}]);
+saveMsg.innerText='✅ SAVED & HIDE! Chairman approve = ₦50 towards ₦5,000 tonight!';
+document.getElementById('readAudioPreview').style.display='none'; document.getElementById('saveReadBtn').style.display='none'; document.getElementById('readBtn').style.display='none';
+document.getElementById('curTxt').innerHTML='<b style="color:#00ff88">✅ Submitted! Hide! Approve = ₦50! Record next for ₦5,000!</b>';
+setTimeout(()=>location.reload(),2000);
+}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
+
+window.saveFreeTalk=async function(){const trans=document.getElementById('freeTranscription').value.trim(); if(!trans){alert('Type'); return;} if(!freeBlob){alert('Record first'); return;} document.getElementById('saveFreeMsg').innerText='Saving...'; try{const user=await getCurrentUser(); const fileName=`${user.id}/${Date.now()}_free.webm`; await supabaseClient.storage.from('voices').upload(fileName, freeBlob, {contentType:'audio/webm'}); const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id); await supabaseClient.from('recordings').insert([{user_id:user.id,file_name:fileName,pidgin_text:trans,word_count:countW(trans),language:getLang(),recording_number:(existing?.length||0)+1,admin_status:'pending'}]); document.getElementById('saveFreeMsg').innerText='✅ SAVED for ₦5,000 tonight!'; setTimeout(()=>location.reload(),1500);}catch(e){document.getElementById('saveFreeMsg').innerText='❌ '+e.message;}};
+
+window.approveRecording=async function(id){if(!confirm('✅ Approve + Pay ₦50?'))return; await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id); alert('✅ Approved! Worker earn ₦50!'); location.reload();};
+window.rejectRecording=async function(id){if(!confirm('Reject?'))return; await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id); location.reload();};
+window.deleteRecording=async function(id,file){if(!confirm('DELETE?'))return; if(file)await supabaseClient.storage.from('voices').remove([file]); await supabaseClient.from('recordings').delete().eq('id',id); location.reload();};
+window.deductCredit=async function(id,amt){const {data:k}=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-amt}).eq('id',id); location.reload();};
+window.addCredit=async function(id,amt){const {data:k}=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); await supabaseClient.from('api_keys').update({credits_remaining:(k.credits_remaining||0)+amt,credits_total:(k.credits_total||0)+amt}).eq('id',id); location.reload();};
+window.approveKey=async function(id){const {data:k}=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); await supabaseClient.from('api_keys').update({is_active:true}).eq('id',id); location.reload();};
+
+async function renderAdminDashboard(){
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session){location.pathname='/admin/login'; return;}
+  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED</h1>'; return;}
   const {data:users}=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false});
   const {data:allRecs}=await supabaseClient.from('recordings').select('*').order('created_at',{ascending:false});
-  const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
-  const {data:announcements}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(5);
   const totalWorkers=users?.filter(u=>!u.is_chairman).length||0;
-  const usersWithRecordings=new Set((allRecs||[]).map(r=>r.user_id));
-  const peopleEntered=users?.filter(u=>!u.is_chairman && (u.status!=='not_started' || (u.recordings_count||0)>0 || usersWithRecordings.has(u.id) || u.last_login_at )).length || usersWithRecordings.size;
-  const fifteenMinsAgo=new Date(Date.now()-15*60*1000);
-  const workersOnline=new Set((allRecs||[]).filter(r=>new Date(r.created_at)>fifteenMinsAgo).map(r=>r.user_id)).size;
-  const totalRecordings=allRecs?.length||0;
   const pending=allRecs?.filter(r=>r.admin_status==='pending').length||0;
   const approved=allRecs?.filter(r=>r.admin_status==='approved').length||0;
-  const rejected=allRecs?.filter(r=>r.admin_status==='rejected').length||0;
   document.getElementById('app').innerHTML=`
-    <div class="card" style="border:3px solid gold"><h2>👑 CHAIRMAN DASHBOARD - V6.8 NO BLOCK</h2>
-      <div class="stat-grid">
-        <div class="stat-box"><b style="font-size:22px">${totalWorkers}</b><br>Total Workers</div>
-        <div class="stat-box gold-b"><b style="font-size:22px">${peopleEntered}</b><br>👥 People Entered</div>
-        <div class="stat-box" style="border-left-color:#00ff88;background:#002b18"><b style="font-size:22px">${workersOnline}</b><br>🟢 Online</div>
-        <div class="stat-box"><b style="font-size:22px">${totalRecordings}</b><br>Total Recs</div>
-        <div class="stat-box gold-b"><b style="font-size:22px">${pending}</b><br>⏳ Pending</div>
-        <div class="stat-box" style="border-left-color:#00ff88"><b style="font-size:22px">${approved}</b><br>✅ Approved</div>
-        <div class="stat-box red-b"><b style="font-size:22px">${rejected}</b><br>❌ Rejected</div>
-        <div class="stat-box"><b style="font-size:18px">₦${((approved*5)/1000*2500).toLocaleString()}</b><br>💰 Value</div>
+    <div class="card" style="border:3px solid gold">
+      <h2 style="text-align:center;color:gold">👑 CHAIRMAN V7.8 EMAIL ONLY - BUTTON BOARD</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button onclick="togglePanel('workersPanel')" style="background:#111;border:2px solid #00ff88;color:#fff;padding:16px;border-radius:14px;text-align:left"><b style="font-size:22px">${totalWorkers}</b><br>Workers - Email Only Login</button>
+        <button style="background:#111;border:2px solid gold;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${pending}</b><br>Pending - ₦50 each</button>
+        <button style="background:#002b18;border:2px solid #00ff88;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${approved}</b><br>Approved - Paid ₦${approved*50}</button>
+        <button style="background:#111;border:2px solid #333;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${allRecs?.length||0}</b><br>Total Recs</button>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px"><button class="btn gold" style="flex:1" onclick="location.pathname='/admin/keys'">Keys SET 100</button><button class="btn green" style="flex:1" onclick="location.pathname='/buy'">Buy</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div>
+      <div id="workersPanel" style="display:none;background:#1a1a1a;padding:12px;border-radius:12px;margin-top:10px;border:2px solid #00ff88">
+        ${(users||[]).filter(u=>!u.is_chairman).map(u=>`<div style="background:#222;padding:10px;margin:4px 0;border-radius:8px">👤 ${u.display_name} - ${u.email}</div>`).join('')||'No workers yet'}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px">
+        <button onclick="location.pathname='/admin/keys'" style="background:gold;color:#000;padding:16px;border:none;border-radius:50px;font-weight:900">Keys BUTTON</button>
+        <button onclick="location.pathname='/buy'" style="background:#00ff88;color:#000;padding:16px;border:none;border-radius:50px;font-weight:900">Buy</button>
+        <button onclick="supabaseClient.auth.signOut().then(()=>{localStorage.clear(); location.pathname='/admin/login'})" style="background:#333;color:#fff;padding:16px;border:none;border-radius:50px;font-weight:900">Logout</button>
+      </div>
     </div>
-    <div class="card" style="border:2px solid gold"><h3>📢 ANNOUNCEMENT BOARD - V6.8</h3>
-      <textarea id="annTitle" placeholder="Title"></textarea><textarea id="annMsg" placeholder="Message"></textarea><button class="btn gold" onclick="postAnnouncement()">📢 POST ANNOUNCEMENT</button>
-      ${(announcements||[]).map(a=>`<div style="background:#1a1500;padding:12px;border-radius:12px;margin:8px 0;border-left:4px solid gold"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>${a.title}</b><br><small>${a.message?.substring(0,200)}</small><br><small style="color:#888">${new Date(a.created_at).toLocaleString()}</small></div><button onclick="deleteAnnouncement('${a.id}')" style="background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:8px 12px;border-radius:20px;font-weight:900;margin-left:10px">🗑️ DELETE</button></div></div>`).join('')||'<p>No announcements yet</p>'}
-    </div>
-    <div class="card"><h3>🎙️ Recordings ${allRecs?.length||0}</h3>
-      ${(allRecs||[]).slice(0,80).map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0;border-left:4px solid ${r.admin_status==='pending'?'gold':r.admin_status==='approved'?'#00ff88':'#ff3b3b'}"><div style="display:flex;justify-content:space-between"><b>#${r.recording_number} ${r.language} - ${r.admin_status.toUpperCase()}</b><small>${r.user_id?.substring(0,6)}</small></div><small>${(r.transcription||r.pidgin_text||'').substring(0,150)}</small><br><audio id="admin-audio-${i}" data-file="${r.file_name}" controls preload="none" style="height:40px;width:100%;margin:8px 0;background:#000;border-radius:8px"></audio><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:6px"><button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:10px;border:none;border-radius:8px;font-weight:900">✅ APPROVE</button><button onclick="rejectRecording('${r.id}')" style="background:#ff3b3b;color:#fff;padding:10px;border:none;border-radius:8px">❌ Reject</button><button onclick="copyVoiceId('${r.file_name}')" style="background:gold;color:#000;padding:10px;border:none;border-radius:8px">ID CODE</button></div><div style="margin-top:8px"><button onclick="deleteRecording('${r.id}','${r.file_name}')" style="background:#000;color:#ff3b3b;padding:12px;border:none;border-radius:30px;border:2px solid #ff3b3b;width:100%;font-weight:900">🗑️ DELETE</button></div></div>`).join('')}
+    <div class="card"><h3>Recordings - Approve = Pay ₦50</h3>
+      ${(allRecs||[]).slice(0,80).map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0">
+        <button onclick="toggleRec('${r.id}')" style="width:100%;background:#222;color:#fff;padding:12px;border:none;border-radius:10px;text-align:left"><b>#${r.recording_number} ${r.admin_status.toUpperCase()} ${r.admin_status==='approved'?'💰 ₦50':''}</b><br><small>${(r.pidgin_text||'').substring(0,70)}</small><br><small style="color:gold">▼ BUTTONS</small></button>
+        <div id="rec-${r.id}" style="display:none;margin-top:8px">
+          <audio id="admin-audio-${i}" data-file="${r.file_name}" controls style="width:100%"></audio>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px">
+            <button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">✅ APPROVE + ₦50</button>
+            <button onclick="rejectRecording('${r.id}')" style="background:#ff3b3b;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:900">Reject</button>
+            <button onclick="copyVoiceId('${r.file_name}')" style="background:gold;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">ID CODE</button>
+          </div>
+          <button onclick="deleteRecording('${r.id}','${r.file_name}')" style="width:100%;background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:14px;border-radius:30px;margin-top:8px;font-weight:900">DELETE BUTTON</button>
+        </div>
+      </div>`).join('')||'No recordings'}
     </div>`;
-  window.postAnnouncement=async function(){const title=document.getElementById('annTitle').value.trim();const msg=document.getElementById('annMsg').value.trim();if(!title||!msg){alert('Fill title & message');return;}try{const {error}=await supabaseClient.from('announcements').insert([{title:title,message:msg}]);if(error)throw error;alert('✅ Announcement posted!');location.reload();}catch(e){alert('❌ Failed: '+e.message);}};
+  window.togglePanel=function(id){const el=document.getElementById(id); el.style.display=el.style.display==='none'?'block':'none';};
+  window.toggleRec=function(id){const el=document.getElementById('rec-'+id); el.style.display=el.style.display==='none'?'block':'none';};
   setTimeout(()=>loadAllSignedVoices(),800);
+}
+
+async function renderUserDashboardReal(){
+  const user=await getCurrentUser();
+  if(!user){location.pathname='/user/login'; return;}
+  if(user.profile?.is_chairman){location.pathname='/admin/dashboard'; return;}
+  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+  const {data:keys}=await supabaseClient.from('api_keys').select('*').eq('email',user.email).order('created_at',{ascending:false});
+  const records=recs||[];
+  const approved=records.filter(r=>String(r.admin_status||'').toLowerCase()==='approved').length;
+  const pending=records.filter(r=>String(r.admin_status||'').toLowerCase()==='pending').length;
+  const perVoice=50; const earnings=approved*perVoice; const progress=Math.min((earnings/5000*100),100).toFixed(0);
+  const lang=getLang(); const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; const current=texts[records.length%texts.length];
+  const ann=await fetchAnn();
+  document.getElementById('app').innerHTML=`
+    ${ann?`<div class="announce">📢 ${ann.title}</div>`:`<div class="announce">💃 MAIN NAIJA PIDGIN V7.8 EMAIL ONLY - TONIGHT</div>`}
+    <div class="card" style="background:linear-gradient(135deg,#00ff88,#00aa55);color:#000;border:3px solid gold;padding:12px">
+      <h2 style="margin:4px;text-align:center">💰 RECORD VOICE & RECEIVE ₦5,000</h2>
+      <div style="background:#000;color:#00ff88;padding:14px;border-radius:12px;margin:8px 0;text-align:center">
+        <p style="margin:2px;font-size:12px">YOUR EARNINGS - Email: ${user.email}</p>
+        <h1 style="margin:4px;font-size:38px;color:gold">₦${earnings.toLocaleString()}</h1>
+        <p>${approved} approved x ₦50</p>
+        <div style="background:#333;height:14px;border-radius:20px;margin:10px 0;overflow:hidden"><div style="background:gold;height:100%;width:${progress}%"></div></div>
+        <p>${progress}% to ₦5,000</p>
+      </div>
+    </div>
+    <div class="card" style="border:2px solid #00ff88"><h3>WORKER - ${user.email} - Email Only Login ✅</h3><p>Total: ${records.length} | Approved: ${approved} | Pending: ${pending}</p><button class="btn gray" onclick="localStorage.clear(); supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout - Email Only</button></div>
+    <div class="card" style="border:2px solid gold"><h3>MY KEYS - Email: ${user.email}</h3>${(keys||[]).map(k=>`<div style="background:#1a1500;padding:10px;border-radius:10px;margin:5px 0;display:flex;justify-content:space-between"><code>${k.key_prefix}...</code><span style="background:#00ff88;color:#000;padding:4px 10px;border-radius:20px;font-weight:900">${k.credits_remaining}</span></div>`).join('')||'No key - Will auto create'}<button class="btn gold" onclick="location.pathname='/buy'">Buy More</button></div>
+    <div class="card" style="border:3px solid #00ff88"><h3>READ - Earn ₦50 - Email Only Tonight</h3><div class="textbox" id="curTxt">${current}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START RECORD</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn gold" style="display:none" onclick="saveReadRecord()">💾 SAVE & HIDE - Earn ₦50</button><p id="saveReadMsg"></p></div></div>
+    <div class="card"><h3>My Recordings ${records.length}</h3>${records.slice(0,20).map((r,i)=>`<div style="background:#181818;padding:10px;border-radius:10px;margin:6px 0"><b>#${r.recording_number} ${r.admin_status.toUpperCase()} ${r.admin_status==='approved'?'💰 ₦50':''}</b><br><small>${(r.pidgin_text||'').substring(0,80)}</small><br><audio id="user-audio-${i}" data-file="${r.file_name}" controls style="width:100%"></audio></div>`).join('')||'No recordings yet'}</div>`;
+  setTimeout(()=>loadAllSignedVoices(),600);
 }
 
 async function renderKeysPage(){
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){location.pathname='/admin/login';return;}
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  // V6.8 - Allow even if not chairman to see keys? Or redirect - we allow viewing but with message
+  const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;}
   const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
-  document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h2>🔑 ADMIN KEYS - V6.8 NO BLOCK ✅</h2><p style="background:#002b18;padding:8px;border-radius:8px">🎯 SET 100 + DELETE KEY + Ann DELETE + NO BLOCK</p><div style="display:flex;gap:8px"><button class="btn gold" style="flex:1" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn green" style="flex:1" onclick="location.pathname='/user/dashboard'">Worker Dash</button></div></div><div class="card"><h3>All Keys ${keys?.length||0} - REAL DB</h3>${(keys||[]).map(k=>`<div style="background:#181818;padding:14px;border-radius:12px;margin:10px 0;border:2px solid #333"><div style="display:flex;justify-content:space-between"><div><b>${k.name||'Key'}</b><br><small>${k.email}</small><br><small>${k.key_prefix}... ${k.payment_ref||''}</small><br><code style="font-size:10px;background:#000;padding:4px;border-radius:4px">${k.api_key?.substring(0,30)}...</code></div><small style="background:#00ff88;color:#000;padding:6px 10px;border-radius:10px;font-weight:900;height:fit-content">${k.credits_remaining} left</small></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:12px"><button onclick="deductCredit('${k.id}',10)" style="background:#ff3b3b;color:#fff;padding:10px;border:none;border-radius:8px">➖10</button><button onclick="addCredit('${k.id}',100)" style="background:#00ff88;color:#000;padding:10px;border:none;border-radius:8px">➕100</button><button onclick="resetTo100('${k.id}')" style="background:gold;color:#000;padding:10px;border:none;border-radius:8px;font-weight:900">🎯 SET 100</button><button onclick="deleteKey('${k.id}')" style="background:#000;color:#ff3b3b;padding:10px;border:2px solid #ff3b3b;border-radius:8px">🗑️ DEL</button></div></div>`).join('')||'<p>No keys yet - Go to /buy to create FREE 100 key</p>'}</div>`;}
-  
-function renderBuyPage(){document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">🛒 BUY API KEY - V6.8</h1><p style="background:#002b18;padding:6px;border-radius:8px">✅ FREE mpj_live_100_ 100 credits - NO BLOCK</p></div><div class="card" style="border:3px solid #00ff88;background:#001a00"><h2 style="color:#00ff88;text-align:center;margin:0">🆓 FREE - REAL DB</h2><input id="buy_name_free" placeholder="Your Name"><input id="buy_email_free" placeholder="Email"><button class="btn green" onclick="doBuyFreeSecure()">🆓 COLLECT FREE 100 CREDITS - REAL</button><p id="buy_free_msg"></p><div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:16px;border-radius:12px;border:3px solid #00ff88"><b>✅ FREE Key - REAL SAVED TO DB</b><br><code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br><button onclick="copyLink(document.getElementById('buyFreeKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY</button><p style="color:green;font-size:12px">This key now appears in /admin/keys with 100 left!</p></div></div><div class="card" style="border:3px solid gold"><h2 style="text-align:center;color:gold;margin:0">💳 PAID - REAL PAYSTACK</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0"><div class="price-card" style="border-color:#00ff88"><b>Starter</b><br>1k<br><span style="color:#00ff88;font-weight:900">₦5,000</span><br><button class="btn green" onclick="buyPublic('1k')">Buy 1k</button></div><div class="price-card" style="border-color:gold;background:#1a1500"><b>Popular</b><br>5k<br><span style="color:gold;font-weight:900">₦22,000</span><br><button class="btn gold" onclick="buyPublic('5k')">Buy 5k</button></div></div><input id="buy_name_paid" placeholder="Name"><input id="buy_email_paid" placeholder="Email"><div id="buyPayBox" style="display:none;background:#000;padding:15px;border-radius:12px;border:3px dashed gold"><h3 id="buyPayTitle" style="color:gold">Ready</h3><button class="btn green" onclick="payPublicSecure()">💳 TAP TO PAY REAL PAYSTACK</button><div id="buyPaidBox" style="display:none;background:#00ff88;color:#000;padding:16px;border-radius:12px;margin-top:10px"><b>✅ PAID - Pending Chairman:</b><br><code id="buyPaidKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br><div id="buyPaidInfo" style="background:#000;color:#00ff88;padding:8px;border-radius:6px;margin-top:8px"></div><button onclick="copyLink(document.getElementById('buyPaidKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY</button></div><p id="buy_paid_msg"></p></div></div>`;
-window.buyPublic=function(packageId){currentPackage={packageId:packageId, ...PACKAGES[packageId]};document.getElementById('buyPayBox').style.display='block';document.getElementById('buyPayTitle').innerText=PACKAGES[packageId].label;};
-window.doBuyFreeSecure=async function(){const name=document.getElementById('buy_name_free').value.trim()||'BOMBA';const email=document.getElementById('buy_email_free').value.trim();const msg=document.getElementById('buy_free_msg');if(!email.includes('@')){msg.innerText='Enter email';return;}msg.innerText='Collecting REAL...';try{const fullKey='mpj_live_100_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10);const keyHash=await hashKeyClient(fullKey);const prefix=fullKey.substring(0,16);const {data:exists}=await supabaseClient.from('api_keys').select('id, api_key').eq('email',email).limit(1);if(exists&&exists.length>0){document.getElementById('buyFreeKeyText').innerText=exists[0].api_key;document.getElementById('buyFreeBox').style.display='block';msg.innerText='You already get key - Showing existing';return;}const {error}=await supabaseClient.from('api_keys').insert([{email:email,name:name,api_key:fullKey,key_hash:keyHash,key_prefix:prefix,credits_remaining:100,credits_total:100,credits_used:0,is_active:true,payment_ref:'FREE-100-V6.8'}]);if(error)throw error;document.getElementById('buyFreeKeyText').innerText=fullKey;document.getElementById('buyFreeBox').style.display='block';msg.innerText='✅ FREE 100 Collected REAL! Go to /admin/keys to see am with +100 button!';localStorage.setItem('api_key',fullKey);}catch(e){msg.innerText='❌ '+e.message;}};
-window.payPublicSecure=async function(){
-  const name=document.getElementById('buy_name_paid').value.trim();
-  const email=document.getElementById('buy_email_paid').value.trim();
-  if(!email.includes('@')){alert('Enter email');return;}
-  const handler=PaystackPop.setup({
-    key: PAYSTACK_PUBLIC_KEY,
-    email: email,
-    amount: currentPackage.amount*100,
-    ref: 'MPJ_'+Date.now(),
-    callback: async function(res){
-      const fullKey='mpj_live_'+currentPackage.voices+'_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10);
-      const keyHash=await hashKeyClient(fullKey);
-      await supabaseClient.from('api_keys').insert([{email:email,name:name,api_key:fullKey,key_hash:keyHash,key_prefix:fullKey.substring(0,16),credits_remaining:currentPackage.voices,credits_total:currentPackage.voices,credits_used:0,is_active:true,payment_ref:res.reference}]);
-      document.getElementById('buyPaidKeyText').innerText=fullKey;
-      document.getElementById('buyPaidInfo').innerText='Paid: '+res.reference+' - '+currentPackage.label;
-      document.getElementById('buyPaidBox').style.display='block';
-    },
-    onClose: function(){alert('You close payment');}
-  });
-  handler.openIframe();
-};
+  document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h2>KEYS - Email Only System Tonight</h2><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button></div><div class="card"><h3>All Keys ${keys?.length||0} - Email Only - Automatic</h3>${(keys||[]).map(k=>`<div style="background:#181818;padding:14px;border-radius:12px;margin:10px 0"><div style="display:flex;justify-content:space-between"><div><b>${k.name}</b><br><small>${k.email} - ${k.key_prefix}...</small></div><small style="background:${!k.is_active?'gold':'#00ff88'};color:#000;padding:4px 8px;border-radius:10px">${!k.is_active?'PENDING':'ACTIVE - '+k.credits_remaining}</small></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-top:10px"><button onclick="deductCredit('${k.id}',10)" style="background:#ff8c00;color:#fff;padding:10px;border:none;border-radius:8px">-10</button><button onclick="addCredit('${k.id}',100)" style="background:#00ff88;color:#000;padding:10px;border:none;border-radius:8px">+100</button><button onclick="resetTo100('${k.id}')" style="background:gold;color:#000;padding:10px;border:none;border-radius:8px">SET 100</button><button onclick="deleteKey('${k.id}')" style="background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:10px;border-radius:8px">DEL</button></div></div>`).join('')||'No keys'}</div>`;
+  window.resetTo100=async function(id){await supabaseClient.from('api_keys').update({credits_remaining:100,credits_total:100,credits_used:0}).eq('id',id); location.reload();};
+  window.deleteKey=async function(id){if(!confirm('DEL?'))return; await supabaseClient.from('api_keys').delete().eq('id',id); location.reload();};
 }
-
-async function renderUserDashboardReal(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  const {data:recordings}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
-  const totalWords=recordings?.reduce((a,b)=>a+(b.word_count||0),0)||0;
-  const ann=await fetchAnn();
-  document.getElementById('app').innerHTML=`
-    <div class="card" style="border:2px solid #00ff88"><h2>🎙️ WORKER DASHBOARD - V6.8 🔓 NO BLOCK</h2><p>Welcome ${profile?.display_name||profile?.email} - ${profile?.email}</p><p style="background:#002b18;color:#00ff88;padding:8px;border-radius:8px">✅ You are NOT blocked - V6.8 removed blocking!</p><p>Words: ${totalWords} | Recordings: ${recordings?.length||0}</p><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button><button class="btn green" onclick="location.pathname='/buy'" style="margin-top:8px">🛒 Buy API Key - FREE 100</button></div>
-    ${ann?`<div class="announce">📢 ${ann.title}: ${ann.message}</div>`:''}
-    <div class="card"><h3>Record Voice</h3><div id="curTxt" class="textbox">${TEXTS_DATA[getLang()]?.[Math.floor(Math.random()*TEXTS_DATA[getLang()].length)]||'Abeg make we start today'}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎤 START RECORD</button><button id="stopReadBtn" class="btn red" onclick="stopReadRecord()" style="display:none">⏹️ STOP</button><div id="readStatus" style="display:none"><p>Recording... <span id="readTimer">0s</span></p></div><audio id="readAudioPreview" controls style="display:none;width:100%;margin:10px 0"></audio><p id="readPreviewMsg"></p><button id="saveReadBtn" class="btn gold" onclick="saveReadRecord()" style="display:none">💾 SAVE RECORDING</button><p id="saveReadMsg"></p></div>
-    <div class="card"><h3>Your Recordings ${recordings?.length||0}</h3>${(recordings||[]).slice(0,20).map((r,i)=>`<div style="background:#181818;padding:10px;border-radius:8px;margin:8px 0"><small>${r.language} - ${r.admin_status} - ${r.word_count} words</small><br><small>${(r.transcription||r.pidgin_text||'').substring(0,100)}</small><br><audio id="user-audio-${i}" data-file="${r.file_name}" controls style="width:100%;height:35px;margin-top:5px"></audio></div>`).join('')||'<p>No recordings yet</p>'}</div>
-  `;
-  setTimeout(()=>loadAllSignedVoices(),800);
+function renderBuyPage(){
+document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold">BUY API KEY - Email Only Tonight</h1></div><div class="card" style="border:3px solid #00ff88"><h2 style="color:#00ff88;text-align:center">FREE - Email Only</h2><input id="buy_name_free" placeholder="Your Name"><input id="buy_email_free" placeholder="Your Email Only"><button class="btn green" onclick="doBuyFreeSecure()">COLLECT FREE 100 - Email Only BUTTON</button><p id="buy_free_msg"></p><div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:16px;border-radius:12px"><code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px"></code><button onclick="copyLink(document.getElementById('buyFreeKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY</button></div></div>`;
+window.doBuyFreeSecure=async function(){
+  const name=document.getElementById('buy_name_free').value.trim()||'EmailOnly User'; const email=document.getElementById('buy_email_free').value.trim(); const msg=document.getElementById('buy_free_msg');
+  if(!email||!email.includes('@')){msg.innerText='Valid email'; return;} msg.innerText='Collecting...';
+  const {data:exists}=await supabaseClient.from('api_keys').select('id, api_key').eq('email',email).limit(1);
+  if(exists&&exists.length>0){document.getElementById('buyFreeKeyText').innerText=exists[0].api_key; document.getElementById('buyFreeBox').style.display='block'; msg.innerText='You already get key'; return;}
+  const fullKey='mnp_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10); const keyHash=await hashKeyClient(fullKey);
+  await supabaseClient.from('api_keys').insert([{email:email,name:name,api_key:fullKey,key_hash:keyHash,key_prefix:fullKey.substring(0,12),credits_remaining:100,credits_total:100,credits_used:0,is_active:true,payment_ref:'EMAIL-ONLY-FREE'}]);
+  document.getElementById('buyFreeKeyText').innerText=fullKey; document.getElementById('buyFreeBox').style.display='block'; msg.innerText='✅ FREE 100 - Email Only Tonight!';
+};
 }
 
 async function router(){
 const path=location.pathname;
-if(path==='/admin/login'){renderLoginAdmin();return;}
-if(path==='/user/login'){renderLoginUser();return;}
-if(path==='/buy'||path==='/api-keys'||path==='/api/keys'){renderBuyPage();return;}
-if(path==='/admin/keys'){renderKeysPage();return;}
-if(path==='/admin/dashboard'){
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){location.pathname='/admin/login';return;}
-  renderAdminDashboard(session);
-  return;
-}
-if(path==='/user/dashboard'){
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){location.pathname='/user/login';return;}
-  renderUserDashboardReal(session);
-  return;
-}
-// Root
+if(path==='/user/login'){renderLoginUser(); return;}
+if(path==='/admin/login'){renderLoginAdmin(); return;}
+if(path==='/buy'){renderBuyPage(); return;}
+if(path==='/admin/keys'){renderKeysPage(); return;}
+if(path==='/admin/dashboard'){renderAdminDashboard(); return;}
+if(path==='/user/dashboard'){renderUserDashboardReal(); return;}
+// Auto redirect if already logged in with email only
+const easyEmail=localStorage.getItem('easy_email');
+if(easyEmail){location.pathname='/user/dashboard'; return;}
 const {data:{session}}=await supabaseClient.auth.getSession();
-if(session){
-  const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(prof?.is_chairman){location.pathname='/admin/dashboard';}
-  else{location.pathname='/user/dashboard';}
-}else{
-  renderLoginUser();
-}
+if(session){const {data:prof}=await supabaseClient.from('profiles').select('is_chairman').eq('id',session.user.id).single(); if(prof?.is_chairman){location.pathname='/admin/dashboard';}else{location.pathname='/user/dashboard';}} else {renderLoginUser();}
 }
 router();
 })();
