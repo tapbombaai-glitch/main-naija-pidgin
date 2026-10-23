@@ -1,82 +1,267 @@
-// api/v1/voice.js - REAL CODE - Reviewed 12:14/12:22/12:31 PM videos
-// - Preserves old customers (key_hash, sha256, api_key)
-// - Mock returns audio_url:null, NO deduction
-// - Real path disabled until TTS provider connected
-// - Uses verified param p_api_key_id uuid
+// api/my-voice.js
+// Main Naija Pidgin — Secure Voice Playback API
+// V5: Authentication + Chairman Allowlist + Ownership + Lock Enforcement
 
-import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-function hashKey(k){ return crypto.createHash('sha256').update(k).digest('hex'); }
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SERVICE_KEY;
 
-export default async function handler(req,res){
-  res.setHeader('Content-Type','application/json');
-  res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Methods','POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization, x-api-key');
-  if(req.method==='OPTIONS') return res.status(200).end();
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Missing server-side Supabase environment variables');
+}
 
-  let apiKey = (req.headers.authorization||'').replace(/^Bearer\s+/i,'').trim() || (req.headers['x-api-key']||'').trim();
-  if(!apiKey) return res.status(401).json({error:'Bearer required', code:'NO_BEARER', mock:true, audio_url:null});
+const supabaseAdmin = createClient(
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
-  let body = req.body; if(typeof body==='string'){ try{body=JSON.parse(body)}catch{body={}} }
-  const text = (body?.text || req.query?.text || '').toString().trim();
-  if(!text) return res.status(400).json({error:'Text required', mock:true, audio_url:null});
+// Configure in Vercel:
+// CHAIRMAN_EMAILS=tapbomba.ai@gmail.com
+const CHAIRMAN_ALLOWLIST = (
+  process.env.CHAIRMAN_EMAILS || 'tapbomba.ai@gmail.com'
+)
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean);
 
-  try{
-    // --- 4-STEP AUTH - Preserve existing customers ---
-    let keyData=null;
-    const {data: rawData, error: rawErr} = await supabaseAdmin.from('api_keys').select('*').eq('key_hash', apiKey).maybeSingle();
-    if(rawErr) return res.status(500).json({error:'DB error raw', code:'DB_ERROR_RAW', detail:rawErr.message, mock:true, audio_url:null});
-    if(rawData) keyData=rawData;
-    else{
-      const hashed = hashKey(apiKey);
-      const {data: shaData, error: shaErr} = await supabaseAdmin.from('api_keys').select('*').eq('key_hash_sha256', hashed).maybeSingle();
-      if(shaErr) return res.status(500).json({error:'DB error hash', code:'DB_ERROR_HASH_SHA', detail:shaErr.message, mock:true, audio_url:null});
-      if(shaData) keyData=shaData;
-      else{
-        const {data: fbData, error: fbErr} = await supabaseAdmin.from('api_keys').select('*').eq('key_hash', hashed).maybeSingle();
-        if(fbErr) return res.status(500).json({error:'DB error fallback', code:'DB_ERROR_FALLBACK', detail:fbErr.message, mock:true, audio_url:null});
-        keyData=fbData;
-        if(!keyData){
-          const {data: legacyApiData, error: legacyErr} = await supabaseAdmin.from('api_keys').select('*').eq('api_key', apiKey).maybeSingle();
-          if(legacyErr) return res.status(500).json({error:'DB error api_key', code:'DB_ERROR_APIKEY', detail:legacyErr.message, mock:true, audio_url:null});
-          keyData=legacyApiData;
-        }
+// Signed playback URL lifetime: 60 seconds.
+const SIGNED_URL_TTL_SECONDS = 60;
+
+// Worker policy:
+// - Workers can access only their own recordings.
+// - Workers cannot play locked recordings.
+// - Workers can play pending or approved recordings.
+// - Chairman can access recordings of any status.
+const WORKER_ALLOWED_STATUSES = new Set([
+  'pending',
+  'approved'
+]);
+
+function sendError(res, status, error) {
+  return res.status(status).json({ error });
+}
+
+export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+
+  // Only allow GET requests.
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return sendError(res, 405, 'Method not allowed');
+  }
+
+  // Validate query parameter.
+  const fileName = req.query?.file;
+
+  if (
+    typeof fileName !== 'string' ||
+    !fileName.trim() ||
+    fileName.length > 500
+  ) {
+    return sendError(res, 400, 'Invalid file');
+  }
+
+  try {
+    // 1. Authenticate the Supabase user.
+    const authHeader = req.headers.authorization || '';
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match?.[1]?.trim();
+
+    if (!token) {
+      return sendError(res, 401, 'Login required');
+    }
+
+    const {
+      data: userData,
+      error: authError
+    } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError || !userData?.user) {
+      return sendError(res, 401, 'Session expired');
+    }
+
+    const user = userData.user;
+
+    // 2. Find the recording by its exact database path.
+    const {
+      data: byFileName,
+      error: fileNameError
+    } = await supabaseAdmin
+      .from('recordings')
+      .select(
+        'id,user_id,file_name,audio_path,admin_status,locked_for_worker,api_number'
+      )
+      .eq('file_name', fileName)
+      .maybeSingle();
+
+    if (fileNameError) {
+      console.error('Recording lookup error:', fileNameError.message);
+      return sendError(res, 500, 'Cannot process request');
+    }
+
+    let rec = byFileName;
+
+    // Try audio_path only if file_name did not match.
+    if (!rec) {
+      const {
+        data: byAudioPath,
+        error: audioPathError
+      } = await supabaseAdmin
+        .from('recordings')
+        .select(
+          'id,user_id,file_name,audio_path,admin_status,locked_for_worker,api_number'
+        )
+        .eq('audio_path', fileName)
+        .maybeSingle();
+
+      if (audioPathError) {
+        console.error(
+          'Audio path lookup error:',
+          audioPathError.message
+        );
+        return sendError(res, 500, 'Cannot process request');
+      }
+
+      rec = byAudioPath;
+    }
+
+    if (!rec) {
+      return sendError(res, 404, 'Recording not found');
+    }
+
+    // 3. Resolve and validate the actual Storage object path.
+    const storagePath = rec.audio_path || rec.file_name;
+
+    if (
+      typeof storagePath !== 'string' ||
+      !storagePath.trim() ||
+      storagePath.length > 500 ||
+      storagePath.startsWith('/') ||
+      storagePath.includes('..') ||
+      storagePath.includes('//') ||
+      storagePath.includes('\\')
+    ) {
+      console.error('Invalid stored audio path for recording:', rec.id);
+      return sendError(res, 400, 'Invalid storage path');
+    }
+
+    // The requested path must exactly match a stored path.
+    if (
+      fileName !== rec.file_name &&
+      fileName !== rec.audio_path
+    ) {
+      return sendError(res, 403, 'Invalid file path');
+    }
+
+    // 4. Determine chairman access using trusted server-side config.
+    // A matching email alone grants no privileges unless it is allowlisted.
+    const authenticatedEmail = (
+      user.email || ''
+    ).trim().toLowerCase();
+
+    const emailIsAllowlisted =
+      Boolean(authenticatedEmail) &&
+      CHAIRMAN_ALLOWLIST.includes(authenticatedEmail);
+
+    let isChairman = false;
+
+    if (emailIsAllowlisted) {
+      const {
+        data: profile,
+        error: profileError
+      } = await supabaseAdmin
+        .from('profiles')
+        .select('is_chairman')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error(
+          'Chairman profile lookup error:',
+          profileError.message
+        );
+        return sendError(res, 500, 'Cannot process request');
+      }
+
+      // Require both the allowlisted authenticated account
+      // and its server-maintained chairman flag.
+      isChairman = profile?.is_chairman === true;
+    }
+
+    // 5. Enforce authorization before creating a signed URL.
+    if (!isChairman) {
+      // Workers may access only their own recordings.
+      if (rec.user_id !== user.id) {
+        return sendError(res, 403, 'Not your recording');
+      }
+
+      // Workers cannot play rejected or other disallowed statuses.
+      if (!WORKER_ALLOWED_STATUSES.has(rec.admin_status)) {
+        return sendError(
+          res,
+          403,
+          'This recording is not available for playback'
+        );
+      }
+
+      // Workers cannot replay locked recordings.
+      if (rec.locked_for_worker === true) {
+        return sendError(
+          res,
+          403,
+          'Recording locked after submission'
+        );
       }
     }
 
-    if(!keyData) return res.status(401).json({error:'Invalid key', code:'INVALID_KEY', mock:true, audio_url:null});
-    if(!keyData.is_active) return res.status(403).json({error:'Pending Chairman approval', code:'PENDING_APPROVAL', mock:true, audio_url:null});
+    // 6. Create a short-lived signed URL only after authorization.
+    const {
+      data: signed,
+      error: signError
+    } = await supabaseAdmin
+      .storage
+      .from('voices')
+      .createSignedUrl(
+        storagePath,
+        SIGNED_URL_TTL_SECONDS
+      );
 
-    const remaining = keyData.credits_remaining ?? ((keyData.credits_total ?? keyData.max_words ?? 0) - (keyData.credits_used ?? keyData.words_used ?? 0));
-    if(remaining <= 0) return res.status(402).json({error:'No credits', code:'NO_CREDITS', remaining, mock:true, audio_url:null});
-
-    // --- REAL TTS DISABLED - MOCK PATH - NO DEDUCTION ---
-    const isRealTtsConnected = false; // Keep false until real Naija Pidgin provider connected
-    if(!isRealTtsConnected){
-      return res.status(200).json({
-        success: true,
-        mock: true,
-        audio_url: null,
-        message: 'MOCK VOICE - Real Naija Pidgin TTS not connected yet - NO CREDIT DEDUCTED',
-        text,
-        credits_remaining: remaining,
-        credits: remaining,
-        email: keyData.email
-      });
+    if (signError || !signed?.signedUrl) {
+      console.error(
+        'Signed URL creation failed:',
+        signError?.message || 'No signed URL returned'
+      );
+      return sendError(res, 500, 'Cannot create playback URL');
     }
 
-    // --- REAL PATH - Only runs when isRealTtsConnected = true + provider connected ---
-    // Step 1: Deduct atomically with verified param
-    const {data: deductData, error: deductErr} = await supabaseAdmin.rpc('deduct_api_credit_atomic', { p_api_key_id: keyData.id });
-    if(deductErr) return res.status(500).json({error:'Deduct failed', detail:deductErr.message, mock:false, audio_url:null});
+    // 7. Return the authorized playback URL.
+    return res.status(200).json({
+      success: true,
+      signedUrl: signed.signedUrl,
+      status: rec.admin_status,
+      locked: rec.locked_for_worker === true,
+      pid: rec.api_number || null,
+      expiresIn: SIGNED_URL_TTL_SECONDS
+    });
 
-    const newRemaining = deductData?.[0]?.remaining ?? deductData?.[0]?.credits_remaining ?? (remaining - 1);
+  } catch (error) {
+    console.error(
+      'Unexpected my-voice API error:',
+      error?.message || 'Unknown error'
+    );
 
-    // Step 2: TODO - Connect real provider here (ElevenLabs / Play.ht etc)
-    // Example: const audioUrl = await generate
+    return sendError(res, 500, 'Cannot process request');
+  }
+}
