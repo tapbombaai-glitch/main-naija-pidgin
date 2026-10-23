@@ -3,35 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Main Naija Pidgin - FULL COMPLETE - Agreed Prices</title>
+<title>Main Naija Pidgin - FULL - Worker + Chairman + API</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px;padding-bottom:80px}
+*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px;padding-bottom:90px}
 .card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:12px 0}
-.btn{width:100%;padding:16px;border:none;border-radius:40px;font-weight:800;font-size:14px;margin:6px 0;cursor:pointer}
+.btn{width:100%;padding:14px;border:none;border-radius:40px;font-weight:800;font-size:14px;margin:6px 0;cursor:pointer}
 .green{background:#00ff88;color:#000}.gold{background:gold;color:#000}.gray{background:#333;color:#fff}.blue{background:#00aaff;color:#fff}.red{background:#ff3b3b;color:#fff}
-input{width:100%;padding:14px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:6px 0;font-size:16px}
+.header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;background:#0a0a0a;position:sticky;top:8px;z-index:10}
+.progress{height:12px;background:#222;border-radius:10px;overflow:hidden;margin-top:8px}.fill{height:100%;background:#00ff88;transition:0.4s}
+input,select,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:6px 0;font-size:16px}
+.textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:14px;border-radius:12px;font-size:16px;min-height:80px}
+.announce{background:linear-gradient(90deg,#00ff88,#ffcc00);color:#000;border:3px solid #fff;border-radius:16px;padding:12px;margin:10px 0;font-weight:800}
 </style>
 </head>
 <body>
-<div id="app">Loading... Please wait - If still Loading after 3 seconds, check console</div>
+<div id="app">Loading complete dashboards...</div>
 <script>
 (function(){
-console.log('FULL CODE STARTING');
 var SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
 var SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
 var PAYSTACK_PUBLIC_KEY="pk_test_3bd0892e4059268380e4bfb68b93c0d7229eee31";
 var CHAIRMAN_EMAIL="tapbomba.ai@gmail.com";
 var API_ENDPOINT="https://main-naija-pidgin.vercel.app/api/v1/voice";
 var supabaseClient;
-try{
-  supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-  console.log('Supabase OK');
-}catch(e){
-  document.getElementById('app').innerHTML='<div class="card"><h3>❌ Supabase CDN failed</h3><p>'+e.message+'</p></div>';
-  return;
-}
+try{ supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); }catch(e){ document.getElementById('app').innerHTML='<div class="card"><h3>Supabase fail '+e.message+'</h3></div>'; return; }
 var PACKAGES={
   'free':{voices:100,amount:0,label:'Free 100 Credits ₦0'},
   '1k':{voices:1000,amount:5000,label:'Starter 1k Credits ₦5k'},
@@ -39,161 +36,233 @@ var PACKAGES={
   '5k':{voices:5000,amount:25000,label:'Popular 5k Credits ₦25k'},
   '10k':{voices:10000,amount:50000,label:'10k Credits ₦50k'}
 };
+var TEXTS_DATA={pidgin:["Abeg make we start today. I wan tell you say this work na important one. Today na another beautiful day.","Chairman, I don finish the work you give me. E clear and e dey approved.","How you dey? This na Naija Pidgin voice recording for our dataset."],hausa:["Don Allah mu fara aiki yau. Wannan aiki yana da mahimmanci."],igbo:["Biko ka anyi malite oru taa. Oru a di oke mkpa."],yoruba:["Jowo ka a bere ise loni. Ise yi se pataki pupo."]};
 var currentPackage={packageId:'1k',voices:1000,amount:5000};
+var mediaRecorder=null,audioChunks=[],freeBlob=null,readBlob=null,recTimer=null,recSec=0;
+
+function getLang(){ return localStorage.getItem('selected_language')||'pidgin'; }
+function setLang(l){ localStorage.setItem('selected_language',l); }
+function countW(t){ return t.trim().split(/\s+/).filter(Boolean).length; }
+window.copyLink=function(t){ navigator.clipboard.writeText(t).then(function(){ alert('✅ Copied!'); }); };
+window.copyApiLink=function(){ var txt='Endpoint: '+API_ENDPOINT+'\nHeader: x-api-key: YOUR_KEY'; navigator.clipboard.writeText(txt).then(function(){ alert('✅ API Link Copied!'); }); };
+window.copyVoiceId=function(f){ navigator.clipboard.writeText(f).then(function(){ alert('✅ Voice ID: '+f); }); };
+async function fetchAnn(){ try{ var r=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(1).single(); return r.data; }catch(e){ return null; } }
+window.loadSignedVoice=async function(fileName,audioId){ try{ var res=await fetch('/api/my-voice?file='+encodeURIComponent(fileName)); var data=await res.json(); if(data.signedUrl){ var el=document.getElementById(audioId); if(el) el.src=data.signedUrl; } }catch(e){} };
+window.loadAllSignedVoices=function(){ document.querySelectorAll('audio[data-file]').forEach(function(el){ var file=el.getAttribute('data-file'); if(file) loadSignedVoice(file,el.id); }); };
+window.changeLanguage=function(l){ setLang(l); location.reload(); };
+
+// Recording functions - complete
+window.toggleFreeTalk=async function(){
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; freeBlob=null;
+    mediaRecorder.ondataavailable=function(e){ if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop=function(){ freeBlob=new Blob(audioChunks,{type:'audio/webm'}); var url=URL.createObjectURL(freeBlob); var a=document.getElementById('freeAudioPreview'); if(a){ a.src=url; a.style.display='block'; } var t=document.getElementById('freeTalkTranscribe'); if(t) t.style.display='block'; };
+    mediaRecorder.start(); document.getElementById('freeTalkStatus').style.display='block'; document.getElementById('freeTalkBtn').style.display='none'; document.getElementById('stopFreeTalkBtn').style.display='block';
+    recTimer=setInterval(function(){ recSec++; var tm=document.getElementById('freeTimer'); if(tm) tm.innerText=recSec+'s'; if(recSec>=60) stopFreeTalk(); },1000);
+  }catch(e){ alert('Allow mic: '+e.message); }
+};
+window.stopFreeTalk=function(){ if(mediaRecorder&&mediaRecorder.state==='recording'){ mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(function(t){ t.stop(); }); } clearInterval(recTimer); var s=document.getElementById('freeTalkBtn'); var e=document.getElementById('stopFreeTalkBtn'); if(s) s.style.display='block'; if(e) e.style.display='none'; };
+window.deleteFreeTalk=function(){ freeBlob=null; var a=document.getElementById('freeAudioPreview'); if(a){ a.style.display='none'; a.src=''; } var t=document.getElementById('freeTalkTranscribe'); if(t) t.style.display='none'; var i=document.getElementById('freeTranscription'); if(i) i.value=''; };
+window.saveFreeTalk=async function(){
+  var trans=document.getElementById('freeTranscription').value.trim(); var lang=getLang(); var isWhats=document.getElementById('isWhatsAppCheck')&&document.getElementById('isWhatsAppCheck').checked; var msgEl=document.getElementById('saveFreeMsg');
+  if(!trans){ alert('Type wetin you talk'); return; } if(!freeBlob){ alert('Record first'); return; }
+  msgEl.innerText='Checking login...';
+  try{
+    var sess=await supabaseClient.auth.getSession(); if(!sess.data.session){ alert('Session expire'); location.pathname='/user/login'; return; }
+    msgEl.innerText='Uploading...'; var fileName=sess.data.session.user.id+'/'+Date.now()+'_free_'+lang+(isWhats?'_whatsapp':'')+'.webm';
+    var up=await supabaseClient.storage.from('voices').upload(fileName,freeBlob,{contentType:'audio/webm'}); if(up.error) throw up.error;
+    var existing=await supabaseClient.from('recordings').select('id').eq('user_id',sess.data.session.user.id);
+    var ins=await supabaseClient.from('recordings').insert([{user_id:sess.data.session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:trans,word_count:countW(trans),language:lang,recording_number:(existing.data?existing.data.length:0)+1,is_free_talk:true,transcription:trans,quality_score:95,quality_status:'clear',admin_status:'pending',is_whatsapp_group:isWhats}]);
+    if(ins.error) throw ins.error; msgEl.innerText='✅ SAVED!'; setTimeout(function(){ location.reload(); },1000);
+  }catch(e){ msgEl.innerText='❌ '+e.message; }
+};
+window.startReadRecord=async function(){
+  try{
+    var stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null;
+    mediaRecorder.ondataavailable=function(e){ if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop=function(){ readBlob=new Blob(audioChunks,{type:'audio/webm'}); var a=document.getElementById('readAudioPreview'); if(a){ a.src=URL.createObjectURL(readBlob); a.style.display='block'; } var s=document.getElementById('saveReadBtn'); if(s) s.style.display='block'; };
+    mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block';
+    recTimer=setInterval(function(){ recSec++; var t=document.getElementById('readTimer'); if(t) t.innerText=recSec+'s'; },1000);
+  }catch(e){ alert('Allow mic: '+e.message); }
+};
+window.stopReadRecord=function(){ if(mediaRecorder&&mediaRecorder.state==='recording'){ mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(function(t){ t.stop(); }); } clearInterval(recTimer); var s=document.getElementById('readBtn'); var e=document.getElementById('stopReadBtn'); if(s) s.style.display='block'; if(e) e.style.display='none'; };
+window.saveReadRecord=async function(){
+  var lang=getLang(); var text=document.getElementById('curTxt').innerText; if(!readBlob){ alert('Record first'); return; }
+  document.getElementById('saveReadMsg').innerText='Checking login...';
+  try{
+    var sess=await supabaseClient.auth.getSession(); if(!sess.data.session){ alert('Session expire'); location.pathname='/user/login'; return; }
+    document.getElementById('saveReadMsg').innerText='Uploading...'; var fileName=sess.data.session.user.id+'/'+Date.now()+'_read_'+lang+'.webm';
+    var up=await supabaseClient.storage.from('voices').upload(fileName,readBlob,{contentType:'audio/webm'}); if(up.error) throw up.error;
+    var existing=await supabaseClient.from('recordings').select('id').eq('user_id',sess.data.session.user.id);
+    var ins=await supabaseClient.from('recordings').insert([{user_id:sess.data.session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing.data?existing.data.length:0)+1,is_free_talk:false,quality_score:90,quality_status:'clear',admin_status:'pending',duration_seconds:recSec}]);
+    if(ins.error) throw ins.error; document.getElementById('saveReadMsg').innerText='✅ SAVED!'; setTimeout(function(){ location.reload(); },1000);
+  }catch(e){ document.getElementById('saveReadMsg').innerText='❌ '+e.message; }
+};
+
+// Admin actions - complete - no STRIPPED
+window.approveRecording=async function(id){ if(!confirm('Approve this recording?')) return; try{ var r=await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id).select('id'); if(r.error) throw r.error; if(!r.data||r.data.length===0){ alert('⚠️ No update - RLS blocked or not chairman'); return; } alert('✅ Approved!'); location.reload(); }catch(e){ alert('❌ Approve failed: '+e.message); } };
+window.rejectRecording=async function(id){ if(!confirm('Reject this recording?')) return; try{ var r=await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id).select('id'); if(r.error) throw r.error; if(!r.data||r.data.length===0){ alert('⚠️ RLS blocked'); return; } alert('✅ Rejected!'); location.reload(); }catch(e){ alert('❌ Reject failed: '+e.message); } };
+window.approveKey=async function(id){ if(!confirm('Approve this API key?')) return; try{ var g=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); if(g.error) throw g.error; var k=g.data; var newName=String(k.name||'').replace('PENDING APPROVAL','APPROVED').replace('PENDING','APPROVED'); var upd=await supabaseClient.from('api_keys').update({is_active:true,name:newName}).eq('id',id).select('id'); if(upd.error) throw upd.error; if(!upd.data||upd.data.length===0){ alert('No update - RLS?'); return; } alert('✅ Key Approved!'); location.reload(); }catch(e){ alert('❌ Approve key failed: '+e.message); } };
+window.deductCredit=async function(id,amt){ if(!confirm('Deduct '+amt+' credits?')) return; try{ var g=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); if(g.error) throw g.error; var k=g.data; if((k.credits_remaining||0)<amt){ alert('Only '+k.credits_remaining+' left'); return; } var upd=await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-amt,credits_used:(k.credits_used||0)+amt}).eq('id',id).gt('credits_remaining',amt-1).select('id'); if(upd.error) throw upd.error; if(!upd.data||upd.data.length===0){ alert('Atomic check failed'); return; } alert('Deducted '+amt); location.reload(); }catch(e){ alert('❌ Deduct failed: '+e.message); } };
+window.addCredit=async function(id,amt){ if(!confirm('Add '+amt+' credits?')) return; try{ var g=await supabaseClient.from('api_keys').select('*').eq('id',id).single(); if(g.error) throw g.error; var k=g.data; var upd=await supabaseClient.from('api_keys').update({credits_remaining:(k.credits_remaining||0)+amt,credits_total:(k.credits_total||0)+amt}).eq('id',id).select('id'); if(upd.error) throw upd.error; alert('Added '+amt); location.reload(); }catch(e){ alert('❌ Add credit failed: '+e.message); } };
+
+function renderLoginAdmin(){ document.getElementById('app').innerHTML='<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN</h2><p>Only '+CHAIRMAN_EMAIL+'</p><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin(\'admin\')">LOGIN AS CHAIRMAN</button><p id="msg"></p></div>'; }
+function renderLoginUser(){ document.getElementById('app').innerHTML='<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><p>General for everybody</p><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn green" onclick="doLogin(\'user\')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><p id="msg" style="background:#000;padding:10px;border-radius:8px;margin-top:8px"></p><a href="/buy" style="color:gold">Go /buy - Agreed Prices</a></div>'; }
+function renderApiKeyLogin(){ document.getElementById('app').innerHTML='<div class="card" style="max-width:500px;margin:20px auto;border:2px solid #00ff88"><h2>🔑 API LOGIN</h2><input id="apiKeyInput" placeholder="mnp_..."><button class="btn green" onclick="doApiKeyLogin()">LOGIN</button><p id="apiLoginMsg" style="background:#000;padding:10px;border-radius:8px;margin-top:8px;min-height:30px"></p><a href="/buy">Go /buy - Free 100 credits</a></div>'; }
+async function doLogin(type){
+  var eEl=document.getElementById('email'); var pEl=document.getElementById('pass'); var e=eEl?eEl.value.trim():''; var p=pEl?pEl.value:''; var msg=document.getElementById('msg');
+  if(!e||!p){ msg.innerText='Fill email and password'; return; } msg.innerText='Checking...';
+  try{
+    var res=await supabaseClient.auth.signInWithPassword({email:e,password:p}); if(res.error){ msg.innerText=res.error.message; return; }
+    var sess=await supabaseClient.auth.getSession(); var profRes=await supabaseClient.from('profiles').select('*').eq('id',sess.data.session.user.id).single(); var prof=profRes.data;
+    if(!prof){ var np={id:sess.data.session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:false}; var ins=await supabaseClient.from('profiles').insert([np]); if(ins.error){ msg.innerText='Profile error: '+ins.error.message; return; } prof=np; }
+    if(type==='admin'){ if(prof.email!==CHAIRMAN_EMAIL||!prof.is_chairman){ document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Only '+CHAIRMAN_EMAIL+' na chairman</h1>'; return; } location.href='/admin/dashboard'; }else{ location.href='/user/dashboard'; }
+  }catch(err){ msg.innerText='❌ '+err.message; }
+}
+async function doSignup(){ var eEl=document.getElementById('email'); var pEl=document.getElementById('pass'); var e=eEl?eEl.value.trim():''; var p=pEl?pEl.value:''; var msg=document.getElementById('msg'); if(!e||!p){ msg.innerText='Fill'; return; } msg.innerText='Creating...'; var res=await supabaseClient.auth.signUp({email:e,password:p}); if(res.error){ msg.innerText=res.error.message; return; } if(!res.data.user){ msg.innerText='Check email'; return; } var ins=await supabaseClient.from('profiles').insert([{id:res.data.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:false}]); if(ins.error){ msg.innerText='Profile error: '+ins.error.message; return; } msg.innerText='✅ Created! Login now'; }
+window.doLogin=doLogin; window.doSignup=doSignup;
+async function doApiKeyLogin(){
+  var rawEl=document.getElementById('apiKeyInput'); var raw=rawEl?rawEl.value.trim():''; var msg=document.getElementById('apiLoginMsg');
+  if(!raw){ msg.innerText='Enter key'; return; } msg.innerText='Checking via /api/api-key/login ...';
+  try{
+    var res=await fetch('/api/api-key/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:raw})});
+    var text=await res.text(); var data; try{ data=JSON.parse(text); }catch(e){ msg.innerText='❌ Backend returned HTML not JSON - File api/api-key/login.js not deployed. Preview: '+text.substring(0,120); return; }
+    if(!res.ok||!data.success){ msg.innerText='❌ '+(data.error||'Invalid'); return; }
+    localStorage.setItem('api_key',raw); localStorage.setItem('api_key_prefix',raw.substring(0,18));
+    msg.innerText='✅ '+data.message+' Credits:'+data.credits_remaining+' Going dashboard...'; setTimeout(function(){ location.pathname='/api/dashboard'; },800);
+  }catch(e){ msg.innerText='❌ '+e.message; }
+}
+window.doApiKeyLogin=doApiKeyLogin;
 
 function renderBuyPage(){
   document.getElementById('app').innerHTML=
-  '<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">🛒 BUY API KEY</h1><p style="font-size:12px;color:#aaa">Agreed Prices - Free 100 ₦0 | 1k ₦5k | 2k ₦10k | Popular 5k ₦25k | 10k ₦50k</p><p style="font-size:11px;color:#0f8">Popular 5k fixed from ₦22k to ₦25k - Server validates in kobo</p></div>'+
-  '<div class="card" style="border:3px solid #00ff88"><h3>🆓 FREE - 100 credits ₦0</h3><input id="buy_name_free" placeholder="Name"><input id="buy_email_free" placeholder="Email"><button class="btn green" onclick="doBuyFree()">🆓 Collect Free 100 Credits</button><p id="buy_free_msg"></p><div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:12px;border-radius:12px"><code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#0f8;padding:8px;display:block;border-radius:6px"></code></div></div>'+
-  '<div class="card" style="border:3px solid gold"><h3>💳 PAID - Agreed Prices</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div style="background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #0f8">Starter<br>1,000<br>₦5,000<br><button class="btn green" onclick="buyPublic(\'1k\')">Buy 1k</button></div><div style="background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #fff">2,000<br>2,000<br>₦10,000<br><button class="btn gray" onclick="buyPublic(\'2k\')">Buy 2k</button></div><div style="background:#1a1500;padding:10px;border-radius:10px;text-align:center;border:2px solid gold">Popular<br>5,000<br>₦25,000<br><button class="btn gold" onclick="buyPublic(\'5k\')">Buy 5k Popular</button></div><div style="background:#001a33;padding:10px;border-radius:10px;text-align:center;border:1px solid #0af">10,000<br>10,000<br>₦50,000<br><button class="btn blue" onclick="buyPublic(\'10k\')">Buy 10k</button></div></div><input id="buy_name_paid" placeholder="Name" style="margin-top:10px"><input id="buy_email_paid" placeholder="Email"><div id="buyPayBox" style="display:none;background:#000;padding:12px;border-radius:12px;border:2px dashed gold;margin-top:10px"><h3 id="buyPayTitle">Ready</h3><button class="btn green" onclick="payPublic()">💳 Pay with Paystack</button><p id="buy_paid_msg"></p><div id="buyPaidBox" style="display:none;background:#0f8;color:#000;padding:12px;border-radius:12px"><code id="buyPaidKeyText" style="word-break:break-all;background:#000;color:#0f8;padding:8px;display:block;border-radius:6px"></code><div id="buyPaidInfo" style="background:#000;color:#0f8;padding:8px;border-radius:6px;margin-top:6px"></div></div></div></div>'+
-  '<div class="card"><a class="btn gold" href="/api/login">Go API Login</a><a class="btn gray" href="/user/login">Worker Login</a><a class="btn gray" href="/admin/login">Chairman Login - tapbomba.ai@gmail.com</a></div>';
+  '<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">🛒 BUY API KEY - Agreed Prices</h1><p style="font-size:11px;color:#aaa">Free 100 ₦0 | Starter 1k ₦5k | 2k ₦10k | Popular 5k ₦25k | 10k ₦50k</p></div>'+
+  '<div class="card" style="border:3px solid #00ff88"><h3>🆓 FREE - 100 credits ₦0</h3><input id="buy_name_free" placeholder="Name"><input id="buy_email_free" placeholder="Email"><button class="btn green" onclick="doBuyFree()">🆓 Collect Free 100</button><p id="buy_free_msg"></p><div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:12px;border-radius:12px"><code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#0f8;padding:8px;display:block;border-radius:6px"></code></div></div>'+
+  '<div class="card" style="border:3px solid gold"><h3>💳 PAID - Popular 5k = ₦25k (fixed from ₦22k)</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div style="background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #0f8">Starter<br>1k<br>₦5,000<br><button class="btn green" onclick="buyPublic(\'1k\')">Buy 1k</button></div><div style="background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #fff">2k<br>2k<br>₦10,000<br><button class="btn gray" onclick="buyPublic(\'2k\')">Buy 2k</button></div><div style="background:#1a1500;padding:10px;border-radius:10px;text-align:center;border:2px solid gold">Popular<br>5k<br>₦25,000<br><button class="btn gold" onclick="buyPublic(\'5k\')">Buy 5k Popular</button></div><div style="background:#001a33;padding:10px;border-radius:10px;text-align:center;border:1px solid #0af">10k<br>10k<br>₦50,000<br><button class="btn blue" onclick="buyPublic(\'10k\')">Buy 10k</button></div></div><input id="buy_name_paid" placeholder="Name" style="margin-top:10px"><input id="buy_email_paid" placeholder="Email"><div id="buyPayBox" style="display:none;background:#000;padding:12px;border-radius:12px;border:2px dashed gold;margin-top:10px"><h3 id="buyPayTitle">Ready</h3><button class="btn green" onclick="payPublic()">💳 Pay with Paystack</button><p id="buy_paid_msg"></p><div id="buyPaidBox" style="display:none;background:#0f8;color:#000;padding:12px;border-radius:12px"><code id="buyPaidKeyText" style="word-break:break-all"></code><div id="buyPaidInfo"></div></div></div></div>';
+  window.buyPublic=function(pid){
+    var pkg=PACKAGES[pid]; if(!pkg||pkg.amount===0){ alert('Use free'); return; }
+    currentPackage={packageId:pid,voices:pkg.voices,amount:pkg.amount};
+    document.getElementById('buyPayBox').style.display='block'; document.getElementById('buyPayTitle').innerText=pkg.label+' - Pay ₦'+pkg.amount.toLocaleString();
+  };
+  window.doBuyFree=async function(){
+    var name=document.getElementById('buy_name_free').value.trim()||'Free User'; var email=document.getElementById('buy_email_free').value.trim()||''; var msg=document.getElementById('buy_free_msg'); msg.innerText='Collecting...';
+    try{
+      var res=await fetch('/api/free/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email})});
+      var text=await res.text(); var data; try{ data=JSON.parse(text); }catch(e){ msg.innerText='❌ Backend returned HTML not JSON - File api/free/collect.js not deployed'; return; }
+      if(!res.ok) throw new Error(data.error||'Failed'); document.getElementById('buyFreeKeyText').innerText=data.full_key; document.getElementById('buyFreeBox').style.display='block'; msg.innerText='✅ 100 credits created!';
+    }catch(e){ msg.innerText='❌ '+e.message; }
+  };
+  window.payPublic=function(){
+    var email=document.getElementById('buy_email_paid').value.trim(); if(!email||email.indexOf('@')===-1){ email=prompt('Enter email:')||''; } if(!email||email.indexOf('@')===-1){ alert('Valid email'); return; }
+    var pkg=PACKAGES[currentPackage.packageId]; if(!pkg){ alert('Select package'); return; }
+    var msg=document.getElementById('buy_paid_msg'); msg.innerText='Opening Paystack ₦'+pkg.amount+'...';
+    try{
+      var handler=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email:email,amount:pkg.amount*100,currency:'NGN',ref:'SECURE_'+currentPackage.packageId+'_'+Date.now(),callback:function(res){
+        msg.innerText='Payment OK! Verifying...';
+        fetch('/api/paystack/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reference:res.reference,email:email,name:document.getElementById('buy_name_paid').value.trim()||'User',packageId:currentPackage.packageId})}).then(function(r){ return r.text().then(function(t){ var d; try{ d=JSON.parse(t); }catch(e){ throw new Error('Backend HTML not JSON - File api/paystack/verify.js not deployed'); } if(!r.ok) throw new Error(d.error||'Fail'); return d; }); }).then(function(vd){ document.getElementById('buyPaidKeyText').innerText=vd.full_key; document.getElementById('buyPaidInfo').innerText=vd.package+' - '+vd.credits+' credits - ₦'+vd.amount_naira; document.getElementById('buyPaidBox').style.display='block'; msg.innerText='✅ Verified! Pending Chairman'; }).catch(function(e){ msg.innerText='❌ '+e.message; });
+      },onClose:function(){ msg.innerText='Paystack closed'; }}); handler.openIframe();
+    }catch(e){ msg.innerText='❌ '+e.message; }
+  };
 }
-function renderApiKeyLogin(){
-  document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #0f8"><h2>🔑 API LOGIN</h2><input id="apiKeyInput" placeholder="mnp_..."><button class="btn green" onclick="doApiKeyLogin()">LOGIN</button><p id="apiLoginMsg" style="background:#000;padding:10px;border-radius:8px;margin-top:8px;min-height:30px"></p><a class="btn gold" href="/buy">Go /buy - Get Key</a></div>';
+
+// COMPLETE WORKER DASHBOARD - Full features - Not basic message
+async function renderUserDashboardReal(session){
+  var profRes=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  var profile=profRes.data;
+  var chairmanNotice='';
+  if(profile&&profile.email===CHAIRMAN_EMAIL&&profile.is_chairman){
+    chairmanNotice='<div class="card" style="border:3px solid gold;background:#1a1500;text-align:center"><b>👑 You be Chairman ('+CHAIRMAN_EMAIL+')</b><br><button class="btn gold" onclick="location.pathname=\'/admin/dashboard\'">Go to Chairman Dashboard</button></div>';
+  }
+  var recsRes=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
+  var records=recsRes.data||[];
+  var totalRecordings=records.length;
+  var approved=records.filter(function(r){ return String(r.admin_status||'').toLowerCase()==='approved'; }).length;
+  var pending=records.filter(function(r){ return String(r.admin_status||'').toLowerCase()==='pending'; }).length;
+  var rejected=records.filter(function(r){ return String(r.admin_status||'').toLowerCase()==='rejected'; }).length;
+  var totalWords=records.reduce(function(sum,r){ return sum+(Number(r.word_count)||0); },0);
+  var today=new Date(); var todayYear=today.getFullYear(); var todayMonth=today.getMonth(); var todayDate=today.getDate();
+  var todayRecordings=records.filter(function(r){ if(!r.created_at) return false; var d=new Date(r.created_at); return d.getFullYear()===todayYear&&d.getMonth()===todayMonth&&d.getDate()===todayDate; }).length;
+  var wordValue=(totalWords/1000)*2500;
+  var accountNumber=profile&&profile.account_number?profile.account_number:('MNP-'+String(session.user.id).replace(/-/g,'').substring(0,8).toUpperCase());
+  var lang=getLang(); var texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; var current=texts[records.length%texts.length]; var pct=Math.min(100,(totalWords/1000)*100);
+  var ann=await fetchAnn();
+  document.getElementById('app').innerHTML=
+    (ann?'<div class="announce">📢 '+(ann.title||'ANNOUNCEMENT')+'<br><small>'+String(ann.message||'').substring(0,180)+'</small></div>':'<div class="announce">💃 MAIN NAIJA PIDGIN - WORKER DASHBOARD - COMPLETE</div>')+
+    chairmanNotice+
+    '<div class="header"><div style="font-size:18px;font-weight:900">WELCOME, '+(profile&&profile.display_name?profile.display_name.toUpperCase():'WORKER')+'</div><div style="background:#00ff88;color:#000;padding:10px;border-radius:12px;margin:10px 0;font-weight:900;">👤 ACCOUNT NUMBER<br><span style="font-size:20px">'+accountNumber+'</span></div><select id="langSelect" onchange="changeLanguage(this.value)" style="background:gold;color:black;font-weight:900;padding:10px;margin-top:8px"><option value="pidgin" '+(lang==='pidgin'?'selected':'')+'>Pidgin</option><option value="hausa" '+(lang==='hausa'?'selected':'')+'>Hausa</option><option value="igbo" '+(lang==='igbo'?'selected':'')+'>Igbo</option><option value="yoruba" '+(lang==='yoruba'?'selected':'')+'>Yoruba</option></select><div style="margin-top:10px">'+totalWords+' / 1000 WORDS</div><div class="progress"><div class="fill" style="width:'+pct+'%"></div></div></div>'+
+    '<div class="card" style="border:2px solid #00ff88"><h3 style="margin-top:0">📊 MY WORK - COMPLETE</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"><div style="background:#222;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:22px">'+totalRecordings+'</b><br>🎙️ TOTAL</div><div style="background:#222;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:22px">'+todayRecordings+'</b><br>📅 TODAY</div><div style="background:#002b18;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:22px">'+approved+'</b><br>✅ APPROVED</div><div style="background:#332900;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:22px">'+pending+'</b><br>⏳ PENDING</div><div style="background:#300000;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:22px">'+rejected+'</b><br>❌ REJECTED</div><div style="background:#1a1a1a;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:18px">'+totalWords+'</b><br>📝 WORDS</div></div><div style="margin-top:10px;background:gold;color:#000;padding:12px;border-radius:12px;text-align:center;font-weight:900;">💰 WORD VALUE: ₦'+wordValue.toLocaleString('en-NG')+'<br><small>1,000 WORDS = ₦2,500</small></div></div>'+
+    '<div class="card" style="border:3px solid #00ff88"><h3>📖 READ - COMPLETE</h3><div class="textbox" id="curTxt">'+current+'</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START READ</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>🔴 Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn blue" style="display:none" onclick="saveReadRecord()">💾 SAVE READ</button><p id="saveReadMsg"></p></div></div>'+
+    '<div class="card" style="border:3px solid gold;background:#1a1a00"><h3>🎤 FREE TALK - COMPLETE</h3><label style="display:flex;gap:8px;align-items:center;background:#000;padding:8px;border-radius:8px"><input type="checkbox" id="isWhatsAppCheck" style="width:20px"> 📱 WhatsApp Group?</label><button id="freeTalkBtn" class="btn gold" onclick="toggleFreeTalk()">🎙️ START FREE TALK</button><button id="stopFreeTalkBtn" class="btn red" style="display:none" onclick="stopFreeTalk()">⏹️ STOP FREE TALK</button><div id="freeTalkStatus" style="display:none;background:black;padding:12px;border-radius:10px"><p>🔴 Recording <span id="freeTimer">0s</span></p><audio id="freeAudioPreview" controls style="width:100%;display:none"></audio><button onclick="deleteFreeTalk()" style="background:#ff3b3b;color:#fff;padding:8px 12px;border:none;border-radius:20px;margin-top:8px">🗑️ Delete & Re-record</button></div><div id="freeTalkTranscribe" style="display:none;margin-top:12px;background:#111;padding:12px;border-radius:10px;border:2px solid #00ff88"><textarea id="freeTranscription" placeholder="Type wetin you talk..." rows="3"></textarea><button class="btn green" onclick="saveFreeTalk()">💾 SAVE FREE TALK</button><p id="saveFreeMsg"></p></div></div>'+
+    '<div class="card" style="border:2px solid #00ff88"><h3>🎧 MY RECORDINGS - COMPLETE - '+totalRecordings+'</h3>'+records.map(function(r,i){ return '<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0;border-left:4px solid '+(r.admin_status==='approved'?'#00ff88':r.admin_status==='rejected'?'#ff3b3b':'gold')+'"><b>#'+r.recording_number+' '+r.language+' - '+r.admin_status+' '+(r.is_whatsapp_group?'📱':'')+'</b><br><small>'+(r.transcription||r.pidgin_text||'').substring(0,120)+'</small><br><audio id="user-audio-'+i+'" data-file="'+r.file_name+'" controls style="height:32px;width:100%;margin:6px 0"></audio></div>'; }).join('')+'</div>';
+  setTimeout(function(){ loadAllSignedVoices(); },600);
 }
-function renderLoginUser(){
-  document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #0f8"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn green" onclick="doLogin(\'user\')">LOGIN</button><p id="msg"></p><a class="btn gold" href="/buy">Go /buy</a></div>';
+
+// COMPLETE CHAIRMAN DASHBOARD
+async function renderAdminDashboard(session){
+  var profRes=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  var profile=profRes.data;
+  if(!profile||profile.email!==CHAIRMAN_EMAIL||!profile.is_chairman){
+    document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Only '+CHAIRMAN_EMAIL+' na chairman</h1><p>Frontend + Backend RLS must enforce this</p>'; return;
+  }
+  var usersRes=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false});
+  var users=usersRes.data||[];
+  var recsRes=await supabaseClient.from('recordings').select('*').order('created_at',{ascending:false});
+  var allRecs=recsRes.data||[];
+  document.getElementById('app').innerHTML=
+    '<div class="card" style="border:3px solid gold"><h2>👑 CHAIRMAN '+CHAIRMAN_EMAIL+' - COMPLETE DASHBOARD</h2><p>'+users.length+' Users - '+allRecs.length+' Recordings</p><div style="display:flex;gap:8px"><button class="btn gold" style="flex:1" onclick="location.pathname=\'/admin/keys\'">Keys + Approve</button><button class="btn green" style="flex:1" onclick="location.pathname=\'/buy\'">Public Buy - Agreed Prices</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(function(){ location.pathname=\'/admin/login\'; })">Logout</button></div><small>Chairman enforced by frontend + Supabase RLS</small></div>'+
+    '<div class="card"><h3>Recordings - COMPLETE - '+allRecs.length+'</h3>'+
+    allRecs.slice(0,50).map(function(r,i){ return '<div style="background:#181818;padding:10px;border-radius:10px;margin:8px 0;border-left:4px solid '+(r.admin_status==='pending'?'gold':r.admin_status==='approved'?'#00ff88':'#ff3b3b')+'"><b>#'+r.recording_number+' '+r.language+' - '+r.admin_status+'</b> '+(r.is_whatsapp_group?'📱':'')+'<br><small>'+(r.transcription||r.pidgin_text||'').substring(0,100)+'</small><br><audio id="admin-audio-'+i+'" data-file="'+r.file_name+'" controls style="height:30px;width:65%"></audio><button onclick="approveRecording(\''+r.id+'\')" style="background:#00ff88;color:#000;padding:6px 10px;border:none;border-radius:12px;font-weight:900">✅ Approve</button><button onclick="rejectRecording(\''+r.id+'\')" style="background:#ff3b3b;color:#fff;padding:6px 10px;border:none;border-radius:12px">❌ Reject</button><button onclick="copyVoiceId(\''+r.file_name+'\')" style="background:gold;color:#000;padding:6px 10px;border:none;border-radius:12px">ID</button></div>'; }).join('')+
+    '</div>';
+  setTimeout(function(){ loadAllSignedVoices(); },500);
 }
-function renderLoginAdmin(){
-  document.getElementById('app').innerHTML='<div class="card" style="border:2px solid gold"><h2>👑 CHAIRMAN LOGIN - '+CHAIRMAN_EMAIL+'</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin(\'admin\')">LOGIN AS CHAIRMAN</button><p id="msg"></p></div>';
+async function renderKeysPage(){
+  var sess=await supabaseClient.auth.getSession(); if(!sess.data.session){ location.pathname='/admin/login'; return; }
+  var prof=await supabaseClient.from('profiles').select('*').eq('id',sess.data.session.user.id).single(); if(!prof.data||prof.data.email!==CHAIRMAN_EMAIL||!prof.data.is_chairman){ document.getElementById('app').innerHTML='<h1>🚫 Not Chairman</h1>'; return; }
+  var keysRes=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false}); var keys=keysRes.data||[];
+  document.getElementById('app').innerHTML='<div class="card" style="border:3px solid gold"><h2>🔑 ADMIN KEYS - '+CHAIRMAN_EMAIL+' - COMPLETE</h2><button class="btn gold" onclick="location.pathname=\'/admin/dashboard\'">Dashboard</button><button class="btn green" onclick="location.pathname=\'/buy\'">Go /buy - Agreed Prices</button></div><div class="card"><h3>All Keys '+keys.length+'</h3>'+keys.map(function(k){ return '<div style="background:#181818;padding:14px;border-radius:12px;margin:10px 0;border:2px solid '+(k.is_active?'#333':'gold')+'"><div style="display:flex;justify-content:space-between"><div><b>'+(k.name||'API Key')+'</b><br><small>'+(k.key_prefix||'')+'... '+(k.payment_ref||'')+'</small></div><small style="background:'+(k.is_active?'#00ff88':'gold')+';color:#000;padding:4px 8px;border-radius:10px">'+(k.is_active?'ACTIVE - '+k.credits_remaining+' left':'PENDING APPROVAL')+'</small></div>'+(k.is_active?'':'<div style="background:gold;color:#000;padding:10px;border-radius:8px;margin-top:10px;text-align:center;font-weight:900">🔴 NEW PAYMENT '+k.credits_remaining+' credits<br><button onclick="approveKey(\''+k.id+'\')" style="background:#00ff88;color:#000;padding:12px;border:none;border-radius:30px;font-weight:900;width:100%;margin-top:8px">✅ APPROVE KEY - FINAL</button></div>')+'</div>'; }).join('')+'</div>';
 }
-window.buyPublic=function(pid){
-  var pkg=PACKAGES[pid];
-  if(!pkg||pkg.amount===0){alert('Use free button');return;}
-  currentPackage={packageId:pid,voices:pkg.voices,amount:pkg.amount};
-  document.getElementById('buyPayBox').style.display='block';
-  document.getElementById('buyPayTitle').innerText=pkg.label+' - Pay ₦'+pkg.amount.toLocaleString();
-  document.getElementById('buyPayBox').scrollIntoView({behavior:'smooth'});
-};
-window.doBuyFree=async function(){
-  var nameEl=document.getElementById('buy_name_free');
-  var emailEl=document.getElementById('buy_email_free');
-  var name=nameEl? nameEl.value.trim() : 'Free User';
-  var email=emailEl? emailEl.value.trim() : '';
-  var msg=document.getElementById('buy_free_msg');
-  msg.innerText='Collecting Free 100...';
-  try{
-    var res=await fetch('/api/free/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email})});
-    var text=await res.text();
-    var data;
-    try{ data=JSON.parse(text); }catch(e){ msg.innerText='❌ Backend returned HTML not JSON - File api/free/collect.js not deployed. Got: '+text.substring(0,120); return; }
-    if(!res.ok) throw new Error(data.error||'Failed');
-    document.getElementById('buyFreeKeyText').innerText=data.full_key;
-    document.getElementById('buyFreeBox').style.display='block';
-    msg.innerText='✅ 100 credits created!';
-  }catch(e){ msg.innerText='❌ '+e.message; }
-};
-window.payPublic=function(){
-  var emailEl=document.getElementById('buy_email_paid');
-  var email=emailEl? emailEl.value.trim() : '';
-  if(!email||email.indexOf('@')===-1){ email=prompt('Enter email:')||''; }
-  if(!email||email.indexOf('@')===-1){ alert('Valid email required'); return; }
-  var pkg=PACKAGES[currentPackage.packageId];
-  if(!pkg){ alert('Select package first'); return; }
-  var msg=document.getElementById('buy_paid_msg');
-  msg.innerText='Opening Paystack ₦'+pkg.amount+'...';
-  try{
-    var handler=PaystackPop.setup({
-      key:PAYSTACK_PUBLIC_KEY,email:email,amount:pkg.amount*100,currency:'NGN',
-      ref:'SECURE_'+currentPackage.packageId+'_'+Date.now(),
-      callback:function(res){
-        msg.innerText='Payment OK! Verifying backend validates ₦'+pkg.amount+' in kobo...';
-        fetch('/api/paystack/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reference:res.reference,email:email,name:document.getElementById('buy_name_paid').value.trim()||'Paid User',packageId:currentPackage.packageId})})
-        .then(function(r){ return r.text().then(function(t){ var d; try{ d=JSON.parse(t); }catch(e){ throw new Error('Backend returned HTML not JSON - File api/paystack/verify.js not deployed'); } if(!r.ok) throw new Error(d.error||'Verify failed'); return d; }); })
-        .then(function(vd){
-          document.getElementById('buyPaidKeyText').innerText=vd.full_key;
-          document.getElementById('buyPaidInfo').innerText=vd.package+' - '+vd.credits+' credits - ₦'+vd.amount_naira;
-          document.getElementById('buyPaidBox').style.display='block';
-          msg.innerText='✅ Verified! Pending Chairman '+CHAIRMAN_EMAIL;
-        }).catch(function(e){ msg.innerText='❌ Verify fail: '+e.message; });
-      },
-      onClose:function(){ msg.innerText='Paystack closed'; }
-    });
-    handler.openIframe();
-  }catch(e){ msg.innerText='❌ '+e.message; }
-};
-window.doApiKeyLogin=async function(){
-  var rawEl=document.getElementById('apiKeyInput');
-  var raw=rawEl? rawEl.value.trim() : '';
-  var msg=document.getElementById('apiLoginMsg');
-  if(!raw){ msg.innerText='Enter key'; return; }
-  msg.innerText='Checking via /api/api-key/login ...';
-  try{
-    var res=await fetch('/api/api-key/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:raw})});
-    var text=await res.text();
-    var data;
-    try{ data=JSON.parse(text); }catch(e){ msg.innerText='❌ Backend returned HTML not JSON - File api/api-key/login.js not deployed. Preview: '+text.substring(0,150); return; }
-    if(!res.ok||!data.success){ msg.innerText='❌ '+(data.error||'Invalid'); return; }
-    localStorage.setItem('api_key',raw);
-    localStorage.setItem('api_key_prefix',raw.substring(0,18));
-    msg.innerText='✅ '+data.message+' Credits:'+data.credits_remaining+' Going dashboard...';
-    setTimeout(function(){ location.pathname='/api/dashboard'; },800);
-  }catch(e){ msg.innerText='❌ '+e.message; }
-};
-window.doLogin=async function(type){
-  var eEl=document.getElementById('email');
-  var pEl=document.getElementById('pass');
-  var e=eEl? eEl.value.trim() : '';
-  var p=pEl? pEl.value : '';
-  var msg=document.getElementById('msg');
-  if(!e||!p){ msg.innerText='Fill email and password'; return; }
-  msg.innerText='Checking...';
-  try{
-    var result=await supabaseClient.auth.signInWithPassword({email:e,password:p});
-    if(result.error){ msg.innerText=result.error.message; return; }
-    var sess=await supabaseClient.auth.getSession();
-    var session=sess.data.session;
-    if(!session){ msg.innerText='No session'; return; }
-    var profRes=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-    var prof=profRes.data;
-    if(!prof){
-      var np={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:false};
-      var ins=await supabaseClient.from('profiles').insert([np]);
-      if(ins.error){ msg.innerText='Profile error: '+ins.error.message; return; }
-      prof=np;
-    }
-    if(type==='admin'){
-      if(prof.email!==CHAIRMAN_EMAIL||!prof.is_chairman){ document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Only '+CHAIRMAN_EMAIL+'</h1>'; return; }
-      location.href='/admin/dashboard';
-    }else{
-      location.href='/user/dashboard';
-    }
-  }catch(err){ msg.innerText='❌ '+err.message; }
-};
 async function renderApiDashboard(){
   var rawKey=localStorage.getItem('api_key')||'';
-  if(!rawKey){ document.getElementById('app').innerHTML='<div class="card"><h3>No key - Go /buy</h3><a class="btn gold" href="/buy">Go Buy</a></div>'; return; }
-  document.getElementById('app').innerHTML='<div class="card"><h3>Checking backend...</h3><p>Key: '+rawKey.substring(0,18)+'...</p><p id="apiCheckMsg">Loading...</p></div>';
+  if(!rawKey){ document.getElementById('app').innerHTML='<div class="card"><h3>No key - Go /buy</h3><a class="btn gold" href="/buy">Go Buy - Agreed Prices</a></div>'; return; }
+  document.getElementById('app').innerHTML='<div class="card"><h3>Checking '+rawKey.substring(0,12)+'... via backend</h3><p>Loading...</p></div>';
   try{
     var res=await fetch('/api/api-key/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({apiKey:rawKey})});
-    var text=await res.text();
-    var result;
-    try{ result=JSON.parse(text); }catch(e){ document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #f33"><h3>❌ Backend returned HTML not JSON</h3><p>File api/api-key/login.js not deployed or vercel.json still exists</p><p style="font-size:10px;background:#000;padding:8px;word-break:break-all">'+text.substring(0,300)+'</p><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear & Login Again</button></div>'; return; }
-    if(!res.ok||!result.success){ document.getElementById('app').innerHTML='<div class="card"><h3>❌ '+(result.error||'Key not found')+'</h3><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear & Login Again</button></div>'; return; }
-    var key=result.key;
-    if(!key.is_active){ document.getElementById('app').innerHTML='<div class="card" style="border:2px solid gold"><h3>⏳ PENDING APPROVAL - Chairman '+CHAIRMAN_EMAIL+' must approve</h3><p>'+key.name+' - '+key.credits_remaining+' credits</p><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Logout</button></div>'; return; }
-    document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #0f8"><h2>🔑 DASHBOARD - '+key.credits_remaining+' LEFT</h2><p>'+key.name+' - '+key.key_prefix+'</p><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div style="background:#0f8;color:#000;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_remaining+'</b><br>LEFT</div><div style="background:#222;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_used+'</b><br>USED</div><div style="background:gold;color:#000;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_total+'</b><br>TOTAL</div></div><p>API: '+API_ENDPOINT+'</p><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/buy\'">Logout</button></div>';
-  }catch(e){ document.getElementById('app').innerHTML='<div class="card"><h3>❌ '+e.message+'</h3><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear & Login Again</button></div>'; }
+    var text=await res.text(); var result; try{ result=JSON.parse(text); }catch(e){ document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #f33"><h3>❌ Backend returned HTML not JSON</h3><p>File api/api-key/login.js not deployed</p><p style="font-size:10px;background:#000;padding:8px">'+text.substring(0,300)+'</p><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear & Login Again</button></div>'; return; }
+    if(!res.ok||!result.success){ document.getElementById('app').innerHTML='<div class="card"><h3>❌ '+(result.error||'Key not found')+'</h3><button class="btn gold" onclick="location.pathname=\'/buy\'">Buy New</button><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear</button></div>'; return; }
+    var key=result.key; if(!key.is_active){ document.getElementById('app').innerHTML='<div class="card" style="border:3px solid gold"><h3>⏳ PENDING APPROVAL</h3><p>Chairman must approve - '+CHAIRMAN_EMAIL+'</p><p>'+key.key_prefix+'... - '+key.name+'</p><p>Credits: '+key.credits_remaining+'</p><button class="btn gold" onclick="location.pathname=\'/buy\'">Go Buy</button><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Logout</button></div>'; return; }
+    if((key.credits_remaining||0)<=0){ document.getElementById('app').innerHTML='<div class="card" style="border:3px solid #f33"><h3>⚠️ No credits left</h3><p>'+key.credits_remaining+' left</p><button class="btn gold" onclick="location.pathname=\'/buy\'">Buy More - Agreed Prices</button></div>'; return; }
+    document.getElementById('app').innerHTML='<div class="card" style="border:3px solid #00ff88"><h2>🔑 API DASHBOARD - COMPLETE - '+key.credits_remaining+' LEFT</h2><b>'+key.name+'</b><br><small>'+key.key_prefix+'...</small><div style="background:#000;padding:10px;border-radius:10px;margin:10px 0;border:2px dashed gold"><b>🔗 YOUR API LINK</b><br><code>'+API_ENDPOINT+'</code><br><small>Header: x-api-key: YOUR_KEY</small><br><button onclick="copyApiLink()" style="background:gold;color:#000;padding:8px 12px;border:none;border-radius:20px;font-weight:900;margin-top:6px">Copy API Link</button><button onclick="copyLink(\''+rawKey+'\')" style="background:#00ff88;color:#000;padding:8px 12px;border:none;border-radius:20px;font-weight:900">Copy Key</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div style="background:#00ff88;color:#000;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_remaining+'</b><br>LEFT</div><div style="background:#222;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_used+'</b><br>USED</div><div style="background:gold;color:#000;padding:12px;border-radius:10px;text-align:center"><b>'+key.credits_total+'</b><br>TOTAL</div></div><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/buy\'">Logout</button></div><div class="card"><h3>🎙️ Secure API Test - Uses 1 credit</h3><button class="btn green" onclick="testSecureApi()">TEST /api/v1/voice (uses 1 credit)</button><p id="secureApiResult" style="background:#000;padding:10px;border-radius:10px"></p></div>';
+    window.testSecureApi=async function(){
+      if(!confirm('Test uses 1 credit - Continue?')) return;
+      var el=document.getElementById('secureApiResult'); el.innerText='Calling /api/v1/voice...';
+      try{ var r=await fetch('/api/v1/voice',{headers:{'x-api-key':rawKey}}); var t=await r.text(); var d; try{ d=JSON.parse(t); }catch(e){ el.innerText='❌ Backend returned HTML not JSON - File api/v1/voice.js not deployed. Preview: '+t.substring(0,200); return; } if(!r.ok) throw new Error(d.error||'Fail'); el.innerText='✅ Success! Remaining: '+d.credits_remaining+' - Voice: '+(d.voice&&d.voice.text?d.voice.text.substring(0,100):'OK'); }catch(e){ el.innerText='❌ '+e.message; }
+    };
+  }catch(e){ document.getElementById('app').innerHTML='<div class="card"><h3>❌ '+e.message+'</h3><button class="btn gray" onclick="localStorage.clear();location.pathname=\'/api/login\'">Clear</button></div>'; }
 }
 async function router(){
   try{
     var path=location.pathname;
-    console.log('Router path:',path);
+    if(path.indexOf('/admin/login')!==-1){ renderLoginAdmin(); return; }
+    if(path.indexOf('/user/login')!==-1){ renderLoginUser(); return; }
     if(path.indexOf('/buy')!==-1||path==='/'||path===''){ renderBuyPage(); return; }
+    if(path.indexOf('/admin/keys')!==-1){ await renderKeysPage(); return; }
     if(path.indexOf('/api/login')!==-1){ renderApiKeyLogin(); return; }
     if(path.indexOf('/api/dashboard')!==-1){ await renderApiDashboard(); return; }
-    if(path.indexOf('/user/login')!==-1){ renderLoginUser(); return; }
-    if(path.indexOf('/admin/login')!==-1){ renderLoginAdmin(); return; }
-    if(path.indexOf('/admin/dashboard')!==-1||path.indexOf('/user/dashboard')!==-1){
-      var sessCheck=await supabaseClient.auth.getSession();
-      if(!sessCheck.data.session){ location.pathname='/user/login'; return; }
-      document.getElementById('app').innerHTML='<div class="card"><h3>Dashboard - Session OK for '+sessCheck.data.session.user.email+'</h3><p>Go <a href="/buy" style="color:gold">/buy</a> | <a href="/api/login" style="color:#0f8">/api/login</a></p></div>';
-      return;
+    if(path.indexOf('/admin/dashboard')!==-1){
+      var sess=await supabaseClient.auth.getSession(); if(!sess.data.session){ location.pathname='/admin/login'; return; } await renderAdminDashboard(sess.data.session); return;
     }
-    renderBuyPage();
+    if(path.indexOf('/user/dashboard')!==-1){
+      var sess2=await supabaseClient.auth.getSession(); if(!sess2.data.session){ location.pathname='/user/login'; return; } await renderUserDashboardReal(sess2.data.session); return;
+    }
+    var sessCheck=await supabaseClient.auth.getSession();
+    if(sessCheck.data.session){
+      var profCheck=await supabaseClient.from('profiles').select('email,is_chairman').eq('id',sessCheck.data.session.user.id).single();
+      if(profCheck.data&&profCheck.data.email===CHAIRMAN_EMAIL&&profCheck.data.is_chairman){ location.pathname='/admin/dashboard'; }else{ location.pathname='/user/dashboard'; }
+    }else{ renderLoginUser(); }
   }catch(err){
-    console.error('Router error',err);
-    document.getElementById('app').innerHTML='<div class="card" style="border:2px solid #f33"><h3>❌ Router error - '+err.message+'</h3><p>Check console</p><a class="btn gold" href="/buy">Go /buy</a></div>';
+    document.getElementById('app').innerHTML='<div class="card"><h3>❌ Router error '+err.message+'</h3><a class="btn gold" href="/buy">Go /buy</a></div>';
   }
 }
 router();
