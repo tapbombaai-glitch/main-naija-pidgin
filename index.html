@@ -6,6 +6,7 @@
 <title>Main Naija Pidgin - FINAL SECURE LAUNCH</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px;padding-bottom:100px}
@@ -26,179 +27,3600 @@ input,select,textarea{width:100%;padding:14px;border-radius:12px;border:1px soli
 code{word-break:break-all}
 </style>
 </head>
+
 <body>
-<div id="app">Loading...</div>
+<div id="app">Loading FINAL SECURE LAUNCH...</div>
+
 <script>
 (function(){
+
 const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
 const SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
 const PAYSTACK_PUBLIC_KEY="pk_test_3bd0892e4059268380e4bfb68b93c0d7229eee31";
-const supabaseClient=supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const supabaseClient=supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
 const API_ENDPOINT="https://main-naija-pidgin.vercel.app/api/v1/voice";
-const TEXTS_DATA={pidgin:["Abeg make we start today. I wan tell you say this work na important one.","Today na another beautiful day.","Chairman, I don finish the work."],hausa:["Don Allah mu fara aiki yau."],igbo:["Biko ka anyi malite oru taa."],yoruba:["Jowo ka a bere ise loni."]};
-function getLang(){return localStorage.getItem('selected_language')||'pidgin';}
-function setLang(l){localStorage.setItem('selected_language',l);}
-function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
-async function hashKeyClient(t){const e=new TextEncoder(); const d=e.encode(t); const h=await crypto.subtle.digest('SHA-256',d); return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
-window.copyLink=function(t){navigator.clipboard.writeText(t).then(()=>alert('✅ Copied!')).catch(()=>alert('Copy failed'));};
-window.copyApiLink=function(){const txt=`API Endpoint: ${API_ENDPOINT}\nHeader: x-api-key: YOUR_KEY`; navigator.clipboard.writeText(txt).then(()=>alert('✅ Copied!')).catch(()=>alert('Copy failed'));};
-window.copyVoiceId=function(f){navigator.clipboard.writeText(f).then(()=>alert('✅ Voice ID: '+f)).catch(()=>alert('Copy failed'));};
-async function fetchAnn(){try{const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(1).single(); return data;}catch(e){return null;}}
-window.loadSignedVoice=async function(fileName,audioId){try{const res=await fetch(`/api/my-voice?file=${encodeURIComponent(fileName)}`); const data=await res.json(); if(!res.ok)return; if(data.signedUrl){const el=document.getElementById(audioId); if(el)el.src=data.signedUrl;}}catch(e){}};
-window.loadAllSignedVoices=function(){document.querySelectorAll('audio[data-file]').forEach(el=>{const file=el.getAttribute('data-file'); if(file)loadSignedVoice(file,el.id);});};
-let mediaRecorder=null, audioChunks=[], freeBlob=null, readBlob=null, recTimer=null, recSec=0;
-let currentPackage={packageId:'1k',voices:1000,amount:5000};
-const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'},'10k':{voices:10000,amount:45000,label:'10k Voices ₦45k'},'15k':{voices:15000,amount:65000,label:'15k Voices ₦65k'},'20k':{voices:20000,amount:80000,label:'20k Voices ₦80k'},'100k':{voices:100000,amount:350000,label:'100k Voices ₦350k'}};
-window.changeLanguage=function(l){setLang(l); location.reload();};
-window.toggleFreeTalk=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; freeBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{freeBlob=new Blob(audioChunks,{type:'audio/webm'}); const url=URL.createObjectURL(freeBlob); const a=document.getElementById('freeAudioPreview'); if(a){a.src=url; a.style.display='block';} const t=document.getElementById('freeTalkTranscribe'); if(t)t.style.display='block';}; mediaRecorder.start(); document.getElementById('freeTalkStatus').style.display='block'; document.getElementById('freeTalkBtn').style.display='none'; document.getElementById('stopFreeTalkBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; const timer=document.getElementById('freeTimer'); if(timer)timer.innerText=recSec+'s'; if(recSec>=60)stopFreeTalk();},1000);}catch(e){alert('Allow mic: '+e.message);}};
-window.stopFreeTalk=function(){if(mediaRecorder && mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); const s=document.getElementById('freeTalkBtn'); const e=document.getElementById('stopFreeTalkBtn'); if(s)s.style.display='block'; if(e)e.style.display='none';};
-window.deleteFreeTalk=function(){freeBlob=null; const a=document.getElementById('freeAudioPreview'); if(a){a.style.display='none'; a.src='';} const t=document.getElementById('freeTalkTranscribe'); if(t)t.style.display='none'; const i=document.getElementById('freeTranscription'); if(i)i.value=''; const m=document.getElementById('saveFreeMsg'); if(m)m.innerText='🗑️ Deleted - Record again';};
-window.saveFreeTalk=async function(){const trans=document.getElementById('freeTranscription').value.trim(); const lang=getLang(); const isWhats=document.getElementById('isWhatsAppCheck')?.checked||false; const msgEl=document.getElementById('saveFreeMsg'); if(!trans){alert('Type wetin you talk'); return;} if(!freeBlob){alert('Record first'); return;} msgEl.innerText='Checking login...'; try{const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){alert('Session don expire'); location.pathname='/user/login'; return;} msgEl.innerText='Uploading...'; const fileName=`${session.user.id}/${Date.now()}_free_${lang}_${isWhats?'whatsapp_':''}.webm`; const {error:upErr}=await supabaseClient.storage.from('voices').upload(fileName, freeBlob, {contentType:'audio/webm', upsert:false}); if(upErr)throw upErr; const {data:existing, error:countErr}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id); if(countErr)throw countErr; const {error:insErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:trans,word_count:countW(trans),language:lang,recording_number:(existing?.length||0)+1,is_free_talk:true,transcription:trans,quality_score:95,quality_status:'clear',admin_status:'pending',is_whatsapp_group:isWhats}]); if(insErr)throw insErr; msgEl.innerText='✅ SAVED!'; setTimeout(()=>location.reload(),1000);}catch(e){msgEl.innerText='❌ '+e.message;}};
-window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; const t=document.getElementById('readTimer'); if(t)t.innerText=recSec+'s';},1000);}catch(e){alert('Allow mic: '+e.message);}};
-window.stopReadRecord=function(){if(mediaRecorder && mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); const s=document.getElementById('readBtn'); const e=document.getElementById('stopReadBtn'); if(s)s.style.display='block'; if(e)e.style.display='none';};
-window.saveReadRecord=async function(){const lang=getLang(); const text=document.getElementById('curTxt').innerText; if(!readBlob){alert('Record first'); return;} document.getElementById('saveReadMsg').innerText='Checking login...'; try{const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){alert('Session expire'); location.pathname='/user/login'; return;} document.getElementById('saveReadMsg').innerText='Uploading...'; const fileName=`${session.user.id}/${Date.now()}_read_${lang}.webm`; const {error:upErr}=await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm', upsert:false}); if(upErr)throw upErr; const {data:existing, error:countErr}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id); if(countErr)throw countErr; const {error:insErr}=await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,audio_path:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,is_free_talk:false,quality_score:90,quality_status:'clear',admin_status:'pending',duration_seconds:recSec}]); if(insErr)throw insErr; document.getElementById('saveReadMsg').innerText='✅ SAVED!'; setTimeout(()=>location.reload(),1000);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
 
-/* LOGIN + FORGOT PASSWORD */
-async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN</button><p id="msg"></p></div>`;}
-async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Name for signup"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><button class="btn gray" onclick="forgotPassword()" style="background:#222;border:1px dashed #00ff88;">🔑 FORGOT PASSWORD?</button><p id="msg" style="background:#000;padding:10px;border-radius:8px;margin-top:10px;"></p></div>`;}
-async function doLogin(type){const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const msg=document.getElementById('msg'); if(!e||!p){msg.innerText='Fill'; return;} msg.innerText='Checking...'; const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p}); if(error){msg.innerText=error.message; return;} const {data:{session}}=await supabaseClient.auth.getSession(); let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(!prof){const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:false}; const {error:insErr}=await supabaseClient.from('profiles').insert([newProf]); if(insErr){msg.innerText='Profile error: '+insErr.message; return;} prof=newProf;} if(type==='admin'){if(!prof?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED</h1>'; return;} location.href='/admin/dashboard';}else{if(prof?.is_chairman){location.href='/admin/dashboard';}else{location.href='/user/dashboard';}}}
-async function doSignup(){const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const n=document.getElementById('name').value||e.split('@')[0]; const msg=document.getElementById('msg'); if(!e||!p){msg.innerText='Fill'; return;} msg.innerText='Creating...'; const {data,error}=await supabaseClient.auth.signUp({email:e,password:p}); if(error){msg.innerText=error.message; return;} if(!data.user){msg.innerText='Check email'; return;} const {error:profileError}=await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'not_started',is_chairman:false}]); if(profileError){msg.innerText='Profile error: '+profileError.message; return;} msg.innerText='✅ Created! Login now';}
-window.doLogin=doLogin; window.doSignup=doSignup;
-async function forgotPassword(){const email=document.getElementById('email').value.trim(); const msg=document.getElementById('msg'); if(!email){msg.innerText='Enter email first'; return;} msg.innerText='Sending...'; try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:'https://main-naija-pidgin.vercel.app/user/login'}); if(error){msg.innerText=error.message; return;} msg.innerText='✅ Check email for reset link';}catch(e){msg.innerText='Could not send';}}
-window.forgotPassword=forgotPassword;
-function renderResetPassword(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>🔑 SET NEW PASSWORD</h2><input id="newPass" type="password" placeholder="New Password"><input id="newPass2" type="password" placeholder="Confirm"><button class="btn gold" onclick="updatePassword()">UPDATE</button><p id="msg"></p></div>`;}
-async function updatePassword(){const p1=document.getElementById('newPass').value; const p2=document.getElementById('newPass2').value; const msg=document.getElementById('msg'); if(!p1||p1.length<6){msg.innerText='Min 6 chars'; return;} if(p1!==p2){msg.innerText='No match'; return;} msg.innerText='Updating...'; try{const {error}=await supabaseClient.auth.updateUser({password:p1}); if(error){msg.innerText=error.message; return;} msg.innerText='✅ Updated! Redirecting...'; setTimeout(()=>location.href='/user/login',1500);}catch(e){msg.innerText='❌ '+e.message;}}
-window.updatePassword=updatePassword;
+const TEXTS_DATA={
+  pidgin:[
+    "Abeg make we start today. I wan tell you say this work na important one.",
+    "Today na another beautiful day for this country. Sun dey shine.",
+    "Chairman, I don finish the work wey you give me yesterday."
+  ],
+  hausa:[
+    "Don Allah mu fara aiki yau."
+  ],
+  igbo:[
+    "Biko ka anyi malite oru taa."
+  ],
+  yoruba:[
+    "Jowo ka a bere ise loni."
+  ]
+};
 
-/* CHAIRMAN CONTROLS - CORRECTED NO STRIPPED */
-window.approveRecording=async function(id){if(!confirm('Approve?'))return; try{const {data,error}=await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id).select('id,admin_status'); if(error)throw error; if(!data||data.length===0){alert('⚠️ No update - RLS check'); return;} alert('✅ Approved!'); location.reload();}catch(e){alert('❌ Approve failed: '+e.message);}};
-window.rejectRecording=async function(id){if(!confirm('Reject?'))return; try{const {data,error}=await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id).select('id,admin_status'); if(error)throw error; if(!data||data.length===0){alert('⚠️ No update'); return;} alert('✅ Rejected!'); location.reload();}catch(e){alert('❌ Reject failed: '+e.message);}};
+function getLang(){
+  return localStorage.getItem('selected_language')||'pidgin';
+}
+
+function setLang(l){
+  localStorage.setItem('selected_language',l);
+}
+
+function countW(t){
+  return t.trim().split(/\s+/).filter(Boolean).length;
+}
+
+async function hashKeyClient(t){
+  const e=new TextEncoder();
+  const d=e.encode(t);
+  const h=await crypto.subtle.digest('SHA-256',d);
+  return Array.from(new Uint8Array(h))
+    .map(b=>b.toString(16).padStart(2,'0'))
+    .join('');
+}
+
+window.copyLink=function(t){
+  navigator.clipboard.writeText(t)
+    .then(()=>alert('✅ Copied!'))
+    .catch(()=>alert('Copy failed'));
+};
+
+window.copyApiLink=function(){
+  const txt=
+`API Endpoint: ${API_ENDPOINT}
+Header: x-api-key: YOUR_KEY
+Example: curl -H "x-api-key: YOUR_KEY" ${API_ENDPOINT}`;
+
+  navigator.clipboard.writeText(txt)
+    .then(()=>alert('✅ API Link Copied!\n\n'+txt))
+    .catch(()=>alert('Copy failed'));
+};
+
+window.copyVoiceId=function(f){
+  navigator.clipboard.writeText(f)
+    .then(()=>alert('✅ Voice ID copied: '+f))
+    .catch(()=>alert('Copy failed'));
+};
+
+async function fetchAnn(){
+  try{
+    const {data}=await supabaseClient
+      .from('announcements')
+      .select('*')
+      .order('created_at',{ascending:false})
+      .limit(1)
+      .single();
+
+    return data;
+  }catch(e){
+    return null;
+  }
+}
+
+/*
+  PRIVATE STORAGE:
+  The voices bucket must remain PRIVATE.
+  Browser must NEVER use /object/public/voices/...
+  Audio playback therefore asks the server for a signed URL.
+*/
+window.loadSignedVoice=async function(fileName,audioId){
+  try{
+    const res=await fetch(
+      `/api/my-voice?file=${encodeURIComponent(fileName)}`
+    );
+
+    const data=await res.json();
+
+    if(!res.ok){
+      console.log('Signed voice failed:',data.error||'unknown error');
+      return;
+    }
+
+    if(data.signedUrl){
+      const el=document.getElementById(audioId);
+
+      if(el){
+        el.src=data.signedUrl;
+      }
+    }
+  }catch(e){
+    console.log('signed url error',e.message);
+  }
+};
+
+window.loadAllSignedVoices=function(){
+  document.querySelectorAll('audio[data-file]').forEach(el=>{
+    const file=el.getAttribute('data-file');
+
+    if(file){
+      loadSignedVoice(file,el.id);
+    }
+  });
+};
+
+let mediaRecorder=null;
+let audioChunks=[];
+let freeBlob=null;
+let readBlob=null;
+let recTimer=null;
+let recSec=0;
+
+let currentPackage={
+  packageId:'1k',
+  voices:1000,
+  amount:5000
+};
+
+/*
+  These package values are for the payment interface only.
+  IMPORTANT:
+  The server must independently maintain the same package table
+  and MUST NOT trust voices/amount sent by the browser.
+*/
+const PACKAGES={
+  '1k':{
+    voices:1000,
+    amount:5000,
+    label:'Starter 1k Voices ₦5k'
+  },
+
+  '5k':{
+    voices:5000,
+    amount:22000,
+    label:'Popular 5k Voices ₦22k'
+  },
+
+  '10k':{
+    voices:10000,
+    amount:45000,
+    label:'10k Voices ₦45k'
+  },
+
+  '15k':{
+    voices:15000,
+    amount:65000,
+    label:'15k Voices ₦65k'
+  },
+
+  '20k':{
+    voices:20000,
+    amount:80000,
+    label:'20k Voices ₦80k'
+  },
+
+  '100k':{
+    voices:100000,
+    amount:350000,
+    label:'100k Voices ₦350k'
+  }
+};
+
+window.changeLanguage=function(l){
+  setLang(l);
+  location.reload();
+};
+
+
+/* =========================
+   FREE TALK RECORDING
+========================= */
+
+window.toggleFreeTalk=async function(){
+
+  try{
+
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:true
+    });
+
+    mediaRecorder=new MediaRecorder(stream);
+
+    audioChunks=[];
+    recSec=0;
+    freeBlob=null;
+
+    mediaRecorder.ondataavailable=e=>{
+      if(e.data.size>0){
+        audioChunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop=()=>{
+
+      freeBlob=new Blob(
+        audioChunks,
+        {type:'audio/webm'}
+      );
+
+      const url=URL.createObjectURL(freeBlob);
+
+      const audio=document.getElementById('freeAudioPreview');
+
+      if(audio){
+        audio.src=url;
+        audio.style.display='block';
+      }
+
+      const trans=document.getElementById('freeTalkTranscribe');
+
+      if(trans){
+        trans.style.display='block';
+      }
+    };
+
+    mediaRecorder.start();
+
+    document.getElementById('freeTalkStatus').style.display='block';
+    document.getElementById('freeTalkBtn').style.display='none';
+    document.getElementById('stopFreeTalkBtn').style.display='block';
+
+    recTimer=setInterval(()=>{
+
+      recSec++;
+
+      const timer=document.getElementById('freeTimer');
+
+      if(timer){
+        timer.innerText=recSec+'s';
+      }
+
+      if(recSec>=60){
+        stopFreeTalk();
+      }
+
+    },1000);
+
+  }catch(e){
+
+    alert('Allow mic: '+e.message);
+
+  }
+};
+
+window.stopFreeTalk=function(){
+
+  if(
+    mediaRecorder &&
+    mediaRecorder.state==='recording'
+  ){
+
+    mediaRecorder.stop();
+
+    mediaRecorder.stream
+      .getTracks()
+      .forEach(t=>t.stop());
+  }
+
+  clearInterval(recTimer);
+
+  const start=document.getElementById('freeTalkBtn');
+  const stop=document.getElementById('stopFreeTalkBtn');
+
+  if(start)start.style.display='block';
+  if(stop)stop.style.display='none';
+};
+
+window.deleteFreeTalk=function(){
+
+  freeBlob=null;
+
+  const audio=document.getElementById('freeAudioPreview');
+
+  if(audio){
+    audio.style.display='none';
+    audio.src='';
+  }
+
+  const trans=document.getElementById('freeTalkTranscribe');
+
+  if(trans){
+    trans.style.display='none';
+  }
+
+  const input=document.getElementById('freeTranscription');
+
+  if(input){
+    input.value='';
+  }
+
+  const msg=document.getElementById('saveFreeMsg');
+
+  if(msg){
+    msg.innerText='🗑️ Deleted - Record again';
+  }
+};
+
+
+/* =========================
+   SAVE FREE TALK
+========================= */
+
+window.saveFreeTalk=async function(){
+
+  const trans=
+    document.getElementById('freeTranscription')
+      .value.trim();
+
+  const lang=getLang();
+
+  const isWhats=
+    document.getElementById('isWhatsAppCheck')?.checked||false;
+
+  const msgEl=
+    document.getElementById('saveFreeMsg');
+
+  if(!trans){
+    alert('Type wetin you talk');
+    return;
+  }
+
+  if(!freeBlob){
+    alert('Record first');
+    return;
+  }
+
+  msgEl.innerText='Checking login...';
+
+  try{
+
+    const {
+      data:{session}
+    }=await supabaseClient.auth.getSession();
+
+    if(!session){
+
+      alert('Session don expire - Login again');
+
+      location.pathname='/user/login';
+
+      return;
+    }
+
+    msgEl.innerText='Uploading to private bucket...';
+
+    /*
+      IMPORTANT:
+      File path starts with auth.uid().
+      This matches the intended private Storage policy.
+    */
+    const fileName=
+      `${session.user.id}/${Date.now()}_free_${lang}_${isWhats?'whatsapp_':''}.webm`;
+
+    const {
+      error:upErr
+    }=await supabaseClient
+      .storage
+      .from('voices')
+      .upload(
+        fileName,
+        freeBlob,
+        {
+          contentType:'audio/webm',
+          upsert:false
+        }
+      );
+
+    if(upErr)throw upErr;
+
+    const {
+      data:existing,
+      error:countErr
+    }=await supabaseClient
+      .from('recordings')
+      .select('id')
+      .eq('user_id',session.user.id);
+
+    if(countErr)throw countErr;
+
+    const {
+      error:insErr
+    }=await supabaseClient
+      .from('recordings')
+      .insert([{
+
+        user_id:session.user.id,
+
+        file_name:fileName,
+
+        audio_path:fileName,
+
+        pidgin_text:trans,
+
+        word_count:countW(trans),
+
+        language:lang,
+
+        recording_number:
+          (existing?.length||0)+1,
+
+        is_free_talk:true,
+
+        transcription:trans,
+
+        quality_score:95,
+
+        quality_status:'clear',
+
+        admin_status:'pending',
+
+        is_whatsapp_group:isWhats
+
+      }]);
+
+    if(insErr)throw insErr;
+
+    msgEl.innerText='✅ SAVED to private bucket!';
+
+    setTimeout(()=>{
+      location.reload();
+    },1000);
+
+  }catch(e){
+
+    msgEl.innerText='❌ '+e.message;
+
+  }
+};
+
+
+/* =========================
+   READ RECORDING
+========================= */
+
+window.startReadRecord=async function(){
+
+  try{
+
+    const stream=
+      await navigator.mediaDevices.getUserMedia({
+        audio:true
+      });
+
+    mediaRecorder=new MediaRecorder(stream);
+
+    audioChunks=[];
+    recSec=0;
+    readBlob=null;
+
+    mediaRecorder.ondataavailable=e=>{
+      if(e.data.size>0){
+        audioChunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop=()=>{
+
+      readBlob=new Blob(
+        audioChunks,
+        {type:'audio/webm'}
+      );
+
+      const audio=
+        document.getElementById('readAudioPreview');
+
+      if(audio){
+
+        audio.src=
+          URL.createObjectURL(readBlob);
+
+        audio.style.display='block';
+      }
+
+      const save=
+        document.getElementById('saveReadBtn');
+
+      if(save){
+        save.style.display='block';
+      }
+
+    };
+
+    mediaRecorder.start();
+
+    document.getElementById('readStatus').style.display='block';
+    document.getElementById('readBtn').style.display='none';
+    document.getElementById('stopReadBtn').style.display='block';
+
+    recTimer=setInterval(()=>{
+
+      recSec++;
+
+      const timer=
+        document.getElementById('readTimer');
+
+      if(timer){
+        timer.innerText=recSec+'s';
+      }
+
+    },1000);
+
+  }catch(e){
+
+    alert('Allow mic: '+e.message);
+
+  }
+};
+
+window.stopReadRecord=function(){
+
+  if(
+    mediaRecorder &&
+    mediaRecorder.state==='recording'
+  ){
+
+    mediaRecorder.stop();
+
+    mediaRecorder.stream
+      .getTracks()
+      .forEach(t=>t.stop());
+  }
+
+  clearInterval(recTimer);
+
+  const start=document.getElementById('readBtn');
+  const stop=document.getElementById('stopReadBtn');
+
+  if(start)start.style.display='block';
+  if(stop)stop.style.display='none';
+};
+
+
+/* =========================
+   SAVE READ RECORDING
+========================= */
+
+window.saveReadRecord=async function(){
+
+  const lang=getLang();
+
+  const text=
+    document.getElementById('curTxt')
+      .innerText;
+
+  if(!readBlob){
+
+    alert('Record first');
+
+    return;
+  }
+
+  document.getElementById('saveReadMsg')
+    .innerText='Checking login...';
+
+  try{
+
+    const {
+      data:{session}
+    }=await supabaseClient.auth.getSession();
+
+    if(!session){
+
+      alert('Session expire - login again');
+
+      location.pathname='/user/login';
+
+      return;
+    }
+
+    document.getElementById('saveReadMsg')
+      .innerText='Uploading to private bucket...';
+
+    const fileName=
+      `${session.user.id}/${Date.now()}_read_${lang}.webm`;
+
+    const {
+      error:upErr
+    }=await supabaseClient
+      .storage
+      .from('voices')
+      .upload(
+        fileName,
+        readBlob,
+        {
+          contentType:'audio/webm',
+          upsert:false
+        }
+      );
+
+    if(upErr)throw upErr;
+
+    const {
+      data:existing,
+      error:countErr
+    }=await supabaseClient
+      .from('recordings')
+      .select('id')
+      .eq('user_id',session.user.id);
+
+    if(countErr)throw countErr;
+
+    const {
+      error:insErr
+    }=await supabaseClient
+      .from('recordings')
+      .insert([{
+
+        user_id:session.user.id,
+
+        file_name:fileName,
+
+        audio_path:fileName,
+
+        pidgin_text:text,
+
+        word_count:countW(text),
+
+        language:lang,
+
+        recording_number:
+          (existing?.length||0)+1,
+
+        is_free_talk:false,
+
+        quality_score:90,
+
+        quality_status:'clear',
+
+        admin_status:'pending',
+
+        duration_seconds:recSec
+
+      }]);
+
+    if(insErr)throw insErr;
+
+    document.getElementById('saveReadMsg')
+      .innerText='✅ SAVED!';
+
+    setTimeout(()=>{
+      location.reload();
+    },1000);
+
+  }catch(e){
+
+    document.getElementById('saveReadMsg')
+      .innerText='❌ '+e.message;
+
+  }
+};
+
+
+/* =========================
+   LOGIN
+========================= */
+
+async function renderLoginAdmin(){
+
+  document.getElementById('app').innerHTML=`
+
+    <div class="card"
+      style="max-width:450px;margin:30px auto;border:2px solid gold">
+
+      <h2>👑 CHAIRMAN LOGIN</h2>
+
+      <input
+        id="email"
+        placeholder="Email"
+        value="tapbomba.ai@gmail.com">
+
+      <input
+        id="pass"
+        type="password"
+        placeholder="Password">
+
+      <button
+        class="btn gold"
+        onclick="doLogin('admin')">
+        LOGIN
+      </button>
+
+      <p id="msg"></p>
+
+    </div>
+  `;
+}
+
+async function renderLoginUser(){
+
+  document.getElementById('app').innerHTML=`
+
+    <div class="card"
+      style="max-width:450px;margin:30px auto;border:2px solid #00ff88">
+
+      <h2>🎙️ WORKER LOGIN</h2>
+
+      <input id="email" placeholder="Email">
+
+      <input
+        id="pass"
+        type="password"
+        placeholder="Password">
+
+      <input
+        id="name"
+        placeholder="Name for signup">
+
+      <button
+        class="btn green"
+        onclick="doLogin('user')">
+        LOGIN
+      </button>
+
+      <button
+        class="btn gray"
+        onclick="doSignup()">
+        SIGNUP
+      </button>
+
+      <p id="msg"></p>
+
+    </div>
+  `;
+}
+
+async function doLogin(type){
+
+  const e=
+    document.getElementById('email')
+      .value.trim();
+
+  const p=
+    document.getElementById('pass')
+      .value;
+
+  const msg=
+    document.getElementById('msg');
+
+  if(!e||!p){
+
+    msg.innerText='Fill';
+
+    return;
+  }
+
+  msg.innerText='Checking...';
+
+  const {error}=
+    await supabaseClient.auth.signInWithPassword({
+      email:e,
+      password:p
+    });
+
+  if(error){
+
+    msg.innerText=error.message;
+
+    return;
+  }
+
+  const {
+    data:{session}
+  }=await supabaseClient.auth.getSession();
+
+  let {
+    data:prof
+  }=await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id',session.user.id)
+    .single();
+
+  if(!prof){
+
+    const newProf={
+
+      id:session.user.id,
+
+      email:e,
+
+      display_name:
+        e.split('@')[0],
+
+      total_words:0,
+
+      recordings_count:0,
+
+      status:'not_started',
+
+      is_chairman:false
+
+    };
+
+    const {
+      error:insErr
+    }=await supabaseClient
+      .from('profiles')
+      .insert([newProf]);
+
+    if(insErr){
+
+      msg.innerText=
+        'Profile error: '+insErr.message;
+
+      return;
+    }
+
+    prof=newProf;
+  }
+
+  if(type==='admin'){
+
+    if(!prof?.is_chairman){
+
+      document.getElementById('app').innerHTML=
+        '<h1>🚫 BLOCKED - Not Chairman.</h1>';
+
+      return;
+    }
+
+    location.href='/admin/dashboard';
+
+  }else{
+
+    if(prof?.is_chairman){
+
+      location.href='/admin/dashboard';
+
+    }else{
+
+      location.href='/user/dashboard';
+
+    }
+  }
+}
+
+async function doSignup(){
+
+  const e=
+    document.getElementById('email')
+      .value.trim();
+
+  const p=
+    document.getElementById('pass')
+      .value;
+
+  const n=
+    document.getElementById('name')
+      .value||
+    e.split('@')[0];
+
+  const msg=
+    document.getElementById('msg');
+
+  if(!e||!p){
+
+    msg.innerText='Fill';
+
+    return;
+  }
+
+  msg.innerText='Creating...';
+
+  const {
+    data,
+    error
+  }=await supabaseClient.auth.signUp({
+    email:e,
+    password:p
+  });
+
+  if(error){
+
+    msg.innerText=error.message;
+
+    return;
+  }
+
+  if(!data.user){
+
+    msg.innerText='Check email';
+
+    return;
+  }
+
+  const {
+    error:profileError
+  }=await supabaseClient
+    .from('profiles')
+    .insert([{
+
+      id:data.user.id,
+
+      email:e,
+
+      display_name:n,
+
+      total_words:0,
+
+      recordings_count:0,
+
+      status:'not_started',
+
+      is_chairman:false
+
+    }]);
+
+  if(profileError){
+
+    msg.innerText=
+      'Profile error: '+profileError.message;
+
+    return;
+  }
+
+  msg.innerText='✅ Created! Login now';
+}
+
+window.doLogin=doLogin;
+window.doSignup=doSignup;
+
+
+/* =========================
+   CHAIRMAN RECORDING CONTROL
+========================= */
+
+window.approveRecording=async function(id){
+
+  if(!confirm('Approve this recording?'))return;
+
+  try{
+
+    const {
+      data,
+      error
+    }=await supabaseClient
+      .from('recordings')
+      .update({
+        admin_status:'approved'
+      })
+      .eq('id',id)
+      .select('id,admin_status');
+
+    if(error)throw error;
+
+    if(!data||data.length===0){
+
+      alert(
+        '⚠️ No update. Chairman RLS policy may need checking.'
+      );
+
+      return;
+    }
+
+    alert('✅ Recording approved!');
+
+    location.reload();
+
+  }catch(e){
+
+    alert(
+      '❌ Approve failed: '+e.message
+    );
+
+  }
+};
+
+window.rejectRecording=async function(id){
+
+  if(!confirm('Reject this recording?'))return;
+
+  try{
+
+    const {
+      data,
+      error
+    }=await supabaseClient
+      .from('recordings')
+      .update({
+        admin_status:'rejected'
+      })
+      .eq('id',id)
+      .select('id,admin_status');
+
+    if(error)throw error;
+
+    if(!data||data.length===0){
+
+      alert('⚠️ No update');
+
+      return;
+    }
+
+    alert('✅ Rejected!');
+
+    location.reload();
+
+  }catch(e){
+
+    alert(
+      '❌ Reject failed: '+e.message
+    );
+
+  }
+};
+
+
+/* =========================
+   CHAIRMAN MANUAL CREDIT
+========================= */
 
 window.deductCredit=async function(id,amt){
+
   if(!confirm(`Deduct ${amt}?`))return;
+
   try{
-    const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();
+
+    const {
+      data:k,
+      error:getErr
+    }=await supabaseClient
+      .from('api_keys')
+      .select('*')
+      .eq('id',id)
+      .single();
+
     if(getErr)throw getErr;
-    if((k.credits_remaining||0)<amt){alert('Only '+(k.credits_remaining||0)+' left'); return;}
-    const {data,error}=await supabaseClient.from('api_keys').update({credits_remaining:k.credits_remaining-amt,credits_used:(k.credits_used||0)+amt}).eq('id',id).gt('credits_remaining',amt-1).select();
-    if(error)throw error; if(!data||data.length===0){alert('Atomic check failed'); return;}
-    alert('Deducted '+amt); location.reload();
-  }catch(e){alert('❌ Deduct failed: '+e.message);}
+
+    if((k.credits_remaining||0)<amt){
+
+      alert(
+        'Only '+(k.credits_remaining||0)+' left'
+      );
+
+      return;
+    }
+
+    const {
+      data,
+      error
+    }=await supabaseClient
+      .from('api_keys')
+      .update({
+
+        credits_remaining:
+          k.credits_remaining-amt,
+
+        credits_used:
+          (k.credits_used||0)+amt
+
+      })
+      .eq('id',id)
+      .gt('credits_remaining',amt-1)
+      .select();
+
+    if(error)throw error;
+
+    if(!data||data.length===0){
+
+      alert(
+        'Atomic check failed - already low'
+      );
+
+      return;
+    }
+
+    alert('Deducted '+amt);
+
+    location.reload();
+
+  }catch(e){
+
+    alert(
+      '❌ Deduct failed: '+e.message
+    );
+
+  }
 };
 
 window.addCredit=async function(id,amt){
+
   if(!confirm(`Add ${amt}?`))return;
+
   try{
-    const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();
+
+    const {
+      data:k,
+      error:getErr
+    }=await supabaseClient
+      .from('api_keys')
+      .select('*')
+      .eq('id',id)
+      .single();
+
     if(getErr)throw getErr;
-    const {error}=await supabaseClient.from('api_keys').update({credits_remaining:(k.credits_remaining||0)+amt,credits_total:(k.credits_total||0)+amt}).eq('id',id);
-    if(error)throw error; alert('Added '+amt); location.reload();
-  }catch(e){alert('❌ Add credit failed: '+e.message);}
+
+    const {
+      error
+    }=await supabaseClient
+      .from('api_keys')
+      .update({
+
+        credits_remaining:
+          (k.credits_remaining||0)+amt,
+
+        credits_total:
+          (k.credits_total||0)+amt
+
+      })
+      .eq('id',id);
+
+    if(error)throw error;
+
+    alert('Added '+amt);
+
+    location.reload();
+
+  }catch(e){
+
+    alert(
+      '❌ Add credit failed: '+e.message
+    );
+
+  }
 };
+
+
+/* =========================
+   APPROVE PAID API KEY
+========================= */
 
 window.approveKey=async function(id){
+
   if(!confirm('Approve this key?'))return;
+
   try{
-    const {data:k,error:getErr}=await supabaseClient.from('api_keys').select('*').eq('id',id).single();
+
+    const {
+      data:k,
+      error:getErr
+    }=await supabaseClient
+      .from('api_keys')
+      .select('*')
+      .eq('id',id)
+      .single();
+
     if(getErr)throw getErr;
-    const newName=String(k.name||'').replace('PENDING APPROVAL','APPROVED').replace('_PENDING','').replace('PENDING','APPROVED');
-    const {data,error}=await supabaseClient.from('api_keys').update({is_active:true,name:newName,payment_ref:k.payment_ref}).eq('id',id).select();
-    if(error)throw error; if(!data||data.length===0){alert('No key updated'); return;}
-    alert('✅ Key Approved!'); location.reload();
-  }catch(e){alert('❌ Approve key failed: '+e.message);}
+
+    const newName=
+      String(k.name||'')
+        .replace('PENDING APPROVAL','APPROVED')
+        .replace('_PENDING','')
+        .replace('PENDING','APPROVED');
+
+    const {
+      data,
+      error
+    }=await supabaseClient
+      .from('api_keys')
+      .update({
+
+        is_active:true,
+
+        name:newName,
+
+        payment_ref:k.payment_ref
+
+      })
+      .eq('id',id)
+      .select();
+
+    if(error)throw error;
+
+    if(!data||data.length===0){
+
+      alert('No key updated');
+
+      return;
+    }
+
+    alert('✅ Key Approved!');
+
+    location.reload();
+
+  }catch(e){
+
+    alert(
+      '❌ Approve key failed: '+e.message
+    );
+
+  }
 };
 
+
+/* =========================
+   ADMIN DASHBOARD
+========================= */
+
 async function renderAdminDashboard(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED</h1>'; return;}
-  const {data:users}=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false});
-  const {data:allRecs}=await supabaseClient.from('recordings').select('*').order('created_at',{ascending:false});
-  const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
+
+  const {
+    data:profile
+  }=await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id',session.user.id)
+    .single();
+
+  if(!profile?.is_chairman){
+
+    document.getElementById('app')
+      .innerHTML='<h1>🚫 BLOCKED</h1>';
+
+    return;
+  }
+
+  const {
+    data:users
+  }=await supabaseClient
+    .from('profiles')
+    .select('*')
+    .order('created_at',{ascending:false});
+
+  const {
+    data:allRecs
+  }=await supabaseClient
+    .from('recordings')
+    .select('*')
+    .order('created_at',{ascending:false});
+
+  const {
+    data:keys
+  }=await supabaseClient
+    .from('api_keys')
+    .select('*')
+    .order('created_at',{ascending:false});
+
   document.getElementById('app').innerHTML=`
-    <div class="card" style="border:3px solid gold"><h2>👑 CHAIRMAN - ${users?.length||0} Users - ${allRecs?.length||0} Recs</h2><div style="display:flex;gap:8px"><button class="btn gold" style="flex:1" onclick="location.pathname='/admin/keys'">Keys + Approve</button><button class="btn green" style="flex:1" onclick="location.pathname='/buy'">Public Buy</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div>
-    <div class="card"><h3>Recordings ${allRecs?.length||0} - ID CODE only for Chairman</h3>
-      ${(allRecs||[]).slice(0,50).map((r,i)=>`<div style="background:#181818;padding:10px;border-radius:10px;margin:8px 0;border-left:4px solid ${r.admin_status==='pending'?'gold':r.admin_status==='approved'?'#00ff88':'#ff3b3b'}"><b>#${r.recording_number} ${r.language} - ${r.admin_status}</b> ${r.is_whatsapp_group?'📱':''}<br><small>${(r.transcription||r.pidgin_text||'').substring(0,120)}</small><br><audio id="admin-audio-${i}" data-file="${r.file_name}" controls style="height:30px;width:65%"></audio><button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:6px 10px;border:none;border-radius:12px;font-weight:900">✅ Approve</button><button onclick="rejectRecording('${r.id}')" style="background:#ff3b3b;color:#fff;padding:6px 10px;border:none;border-radius:12px">❌ Reject</button><button onclick="copyVoiceId('${r.file_name}')" style="background:gold;color:#000;padding:6px 10px;border:none;border-radius:12px">ID CODE</button></div>`).join('')}
-    </div>`;
-  setTimeout(()=>loadAllSignedVoices(),500);
+
+    <div class="card"
+      style="border:3px solid gold">
+
+      <h2>
+        👑 CHAIRMAN FINAL -
+        ${users?.length||0} Users -
+        ${allRecs?.length||0} Recs -
+        ${keys?.length||0} Keys -
+        PRIVATE BUCKET
+      </h2>
+
+      <div style="display:flex;gap:8px">
+
+        <button
+          class="btn gold"
+          style="flex:1"
+          onclick="location.pathname='/admin/keys'">
+          Keys + Approve
+        </button>
+
+        <button
+          class="btn green"
+          style="flex:1"
+          onclick="location.pathname='/buy'">
+          Public Buy
+        </button>
+
+        <button
+          class="btn gray"
+          onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">
+          Logout
+        </button>
+
+      </div>
+
+    </div>
+
+    <div class="card">
+
+      <h3>
+        Recordings ${allRecs?.length||0}
+        - Private Signed URLs
+      </h3>
+
+      ${
+        (allRecs||[])
+        .slice(0,50)
+        .map((r,i)=>`
+
+          <div
+            style="
+              background:#181818;
+              padding:10px;
+              border-radius:10px;
+              margin:8px 0;
+              border-left:4px solid ${
+                r.admin_status==='pending'
+                ?'gold'
+                :r.admin_status==='approved'
+                ?'#00ff88'
+                :'#ff3b3b'
+              }">
+
+            <b>
+              #${r.recording_number}
+              ${r.language}
+              -
+              ${r.admin_status}
+            </b>
+
+            ${r.is_whatsapp_group?'📱':''}
+
+            <br>
+
+            <small>
+              ${(r.transcription||r.pidgin_text||'')
+                .substring(0,120)}
+            </small>
+
+            <br>
+
+            <audio
+              id="admin-audio-${i}"
+              data-file="${r.file_name}"
+              controls
+              style="height:30px;width:65%">
+            </audio>
+
+            <button
+              onclick="approveRecording('${r.id}')"
+              style="
+                background:#00ff88;
+                color:#000;
+                padding:6px 10px;
+                border:none;
+                border-radius:12px;
+                font-weight:900">
+              ✅ Approve
+            </button>
+
+            <button
+              onclick="rejectRecording('${r.id}')"
+              style="
+                background:#ff3b3b;
+                color:#fff;
+                padding:6px 10px;
+                border:none;
+                border-radius:12px">
+              ❌ Reject
+            </button>
+
+            <button
+              onclick="copyVoiceId('${r.file_name}')"
+              style="
+                background:gold;
+                color:#000;
+                padding:6px 10px;
+                border:none;
+                border-radius:12px">
+              ID
+            </button>
+
+          </div>
+
+        `)
+        .join('')
+      }
+
+    </div>
+  `;
+
+  setTimeout(
+    ()=>loadAllSignedVoices(),
+    500
+  );
 }
-async function renderKeysPage(){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;} const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 Not Chairman</h1>'; return;} const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false}); document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h2>🔑 ADMIN KEYS</h2><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button><button class="btn green" onclick="location.pathname='/buy'">Go /buy</button></div><div class="card"><h3>All Keys ${keys?.length||0}</h3>${(keys||[]).map(k=>`<div style="background:#181818;padding:14px;border-radius:12px;margin:10px 0;border:2px solid ${!k.is_active?'gold':'#333'}"><div style="display:flex;justify-content:space-between"><div><b>${k.name||'API Key'}</b><br><small>${k.key_prefix||''}... ${k.payment_ref||''}</small></div><small style="background:${!k.is_active?'gold':'#00ff88'};color:#000;padding:4px 8px;border-radius:10px">${!k.is_active?'PENDING APPROVAL':'ACTIVE - '+k.credits_remaining+' left'}</small></div>${!k.is_active?`<div style="background:gold;color:#000;padding:10px;border-radius:8px;margin-top:10px;text-align:center;font-weight:900">🔴 NEW PAYMENT<br><button onclick="approveKey('${k.id}')" style="background:#00ff88;color:#000;padding:12px;border:none;border-radius:30px;font-weight:900;width:100%;margin-top:8px">✅ APPROVE KEY - FINAL</button></div>`:`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:5px;margin-top:10px"><button onclick="deductCredit('${k.id}',1)" style="background:#ff3b3b;color:#fff;padding:8px;border:none;border-radius:6px;font-size:11px">➖1</button><button onclick="deductCredit('${k.id}',10)" style="background:#ff8c00;padding:8px;border:none;border-radius:6px;font-size:11px">➖10</button><button onclick="addCredit('${k.id}',100)" style="background:#00ff88;padding:8px;border:none;border-radius:6px;font-size:11px">➕100</button><button onclick="addCredit('${k.id}',1000)" style="background:gold;padding:8px;border:none;border-radius:6px;font-size:11px">➕1k</button></div>`}</div>`).join('')||'No keys'}</div>`;}
-function renderBuyPage(){document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">🛒 BUY API KEY</h1></div><div class="card" style="border:3px solid #00ff88;background:#001a00"><h2 style="color:#00ff88;text-align:center;margin:0">🆓 FREE</h2><input id="buy_name_free" placeholder="Your Name"><input id="buy_email_free" placeholder="Email optional"><button class="btn green" onclick="doBuyFreeSecure()">🆓 COLLECT FREE 100 CREDITS</button><p id="buy_free_msg"></p><div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:16px;border-radius:12px;border:3px solid #00ff88"><b>✅ FREE Key</b><br><code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br><button onclick="copyLink(document.getElementById('buyFreeKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY</button></div></div><div class="card" style="border:3px solid gold"><h2 style="text-align:center;color:gold;margin:0">💳 PAID</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0"><div class="price-card" style="border-color:#00ff88"><b>Starter</b><br>1k<br><span style="color:#00ff88;font-weight:900">₦5,000</span><br><button class="btn green" onclick="buyPublic('1k')">Buy 1k</button></div><div class="price-card" style="border-color:gold;background:#1a1500"><b>Popular</b><br>5k<br><span style="color:gold;font-weight:900">₦22,000</span><br><button class="btn gold" onclick="buyPublic('5k')">Buy 5k</button></div></div><input id="buy_name_paid" placeholder="Name"><input id="buy_email_paid" placeholder="Email"><div id="buyPayBox" style="display:none;background:#000;padding:15px;border-radius:12px;border:3px dashed gold"><h3 id="buyPayTitle" style="color:gold">Ready</h3><button class="btn green" onclick="payPublicSecure()">💳 TAP TO PAY</button><div id="buyPaidBox" style="display:none;background:#00ff88;color:#000;padding:16px;border-radius:12px;margin-top:10px"><b>✅ PAID - Pending Chairman:</b><br><code id="buyPaidKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br><div id="buyPaidInfo" style="background:#000;color:#00ff88;padding:8px;border-radius:6px;margin-top:8px"></div><button onclick="copyLink(document.getElementById('buyPaidKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY</button></div><p id="buy_paid_msg"></p></div></div>`; window.buyPublic=function(packageId){const pkg=PACKAGES[packageId]; if(!pkg){alert('Invalid package'); return;} currentPackage={packageId:packageId,voices:pkg.voices,amount:pkg.amount}; document.getElementById('buyPayBox').style.display='block'; document.getElementById('buyPayTitle').innerText=`${pkg.label} - Pay ₦${pkg.amount.toLocaleString()}`; document.getElementById('buyPayBox').scrollIntoView({behavior:'smooth'});}; window.doBuyFreeSecure=async function(){const name=document.getElementById('buy_name_free').value.trim()||'Free User'; const email=document.getElementById('buy_email_free').value.trim(); document.getElementById('buy_free_msg').innerText='Collecting...'; try{const res=await fetch('/api/free/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email})}); const data=await res.json(); if(!res.ok)throw new Error(data.error||'Failed'); document.getElementById('buyFreeKeyText').innerText=data.full_key; document.getElementById('buyFreeBox').style.display='block'; document.getElementById('buy_free_msg').innerText='✅ Server created!';}catch(e){document.getElementById('buy_free_msg').innerText='❌ '+e.message;}}; window.payPublicSecure=function(){let email=document.getElementById('buy_email_paid').value.trim(); if(!email||!email.includes('@')){email=prompt('Enter email:')||'';} if(!email||!email.includes('@')){alert('Valid email required'); return;} const msg=document.getElementById('buy_paid_msg'); const pkg=PACKAGES[currentPackage.packageId]; if(!pkg){alert('Select package first'); return;} msg.innerText='Opening Paystack...'; try{const handler=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email:email,amount:pkg.amount*100,currency:'NGN',ref:'SECURE_'+currentPackage.packageId+'_'+Date.now(),callback:async function(res){msg.innerText='Payment OK! Verifying...'; try{const verifyRes=await fetch('/api/paystack/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reference:res.reference,email:email,name:document.getElementById('buy_name_paid').value.trim()||'Paid User',packageId:currentPackage.packageId})}); const verifyData=await verifyRes.json(); if(!verifyRes.ok)throw new Error(verifyData.error||'Verification failed'); document.getElementById('buyPaidKeyText').innerText=verifyData.full_key; document.getElementById('buyPaidInfo').innerText=`${verifyData.package} - ${verifyData.credits} credits - Ref ${res.reference}`; document.getElementById('buyPaidBox').style.display='block'; msg.innerText=`✅ ${verifyData.package} Verified! PENDING Chairman.`;}catch(e){msg.innerText='❌ Verification failed: '+e.message;}},onClose:function(){msg.innerText='Paystack closed';}}); handler.openIframe();}catch(e){msg.innerText='❌ '+e.message;}};}
 
-/* ========================= WORKER DASHBOARD - CLEAN CORRECTED - NO ID CODE ========================= */
+
+/* =========================
+   ADMIN KEYS PAGE
+========================= */
+
+async function renderKeysPage(){
+
+  const {
+    data:{session}
+  }=await supabaseClient.auth.getSession();
+
+  if(!session){
+
+    location.pathname='/admin/login';
+
+    return;
+  }
+
+  const {
+    data:profile
+  }=await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id',session.user.id)
+    .single();
+
+  if(!profile?.is_chairman){
+
+    document.getElementById('app')
+      .innerHTML='<h1>🚫 Not Chairman</h1>';
+
+    return;
+  }
+
+  const {
+    data:keys
+  }=await supabaseClient
+    .from('api_keys')
+    .select('*')
+    .order('created_at',{ascending:false});
+
+  document.getElementById('app').innerHTML=`
+
+    <div class="card"
+      style="border:3px solid gold">
+
+      <h2>
+        🔑 ADMIN KEYS -
+        FINAL SECURE -
+        Credits separate from is_active
+      </h2>
+
+      <button
+        class="btn gold"
+        onclick="location.pathname='/admin/dashboard'">
+        Dashboard
+      </button>
+
+      <button
+        class="btn green"
+        onclick="location.pathname='/buy'">
+        Go /buy
+      </button>
+
+    </div>
+
+    <div class="card">
+
+      <h3>
+        All Keys ${keys?.length||0}
+      </h3>
+
+      ${
+        (keys||[])
+        .map(k=>`
+
+          <div
+            style="
+              background:#181818;
+              padding:14px;
+              border-radius:12px;
+              margin:10px 0;
+              border:2px solid ${
+                !k.is_active?'gold':'#333'
+              }">
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between">
+
+              <div>
+
+                <b>${k.name||'API Key'}</b>
+
+                <br>
+
+                <small>
+                  ${k.key_prefix||''}...
+                  ${k.payment_ref||''}
+                </small>
+
+              </div>
+
+              <small
+                style="
+                  background:${
+                    !k.is_active
+                    ?'gold'
+                    :'#00ff88'
+                  };
+                  color:#000;
+                  padding:4px 8px;
+                  border-radius:10px">
+
+                ${
+                  !k.is_active
+                  ?'PENDING APPROVAL'
+                  :k.credits_remaining<=0
+                  ?'NO CREDIT BUT ACTIVE'
+                  :'ACTIVE - '+k.credits_remaining+' left'
+                }
+
+              </small>
+
+            </div>
+
+            <div style="margin-top:8px">
+
+              <span
+                style="
+                  background:#00ff88;
+                  color:#000;
+                  padding:4px 10px;
+                  border-radius:12px;
+                  font-size:12px">
+
+                ${k.credits_remaining||0} left
+
+              </span>
+
+              <span
+                style="
+                  background:#222;
+                  padding:4px 8px;
+                  border-radius:10px;
+                  font-size:11px">
+
+                ${k.credits_used||0}/
+                ${k.credits_total||0}
+
+              </span>
+
+              <button
+                onclick="copyLink('${k.key_prefix||''}')"
+                style="
+                  background:#333;
+                  color:#fff;
+                  padding:4px 8px;
+                  border:none;
+                  border-radius:8px;
+                  font-size:11px">
+
+                Copy Prefix
+
+              </button>
+
+              <button
+                onclick="copyApiLink()"
+                style="
+                  background:gold;
+                  color:#000;
+                  padding:4px 8px;
+                  border:none;
+                  border-radius:8px;
+                  font-size:11px">
+
+                Copy API Link
+
+              </button>
+
+            </div>
+
+            ${
+              !k.is_active
+              ?`
+
+                <div
+                  style="
+                    background:gold;
+                    color:#000;
+                    padding:10px;
+                    border-radius:8px;
+                    margin-top:10px;
+                    text-align:center;
+                    font-weight:900">
+
+                  🔴 NEW PAYMENT -
+                  VERIFIED BY SERVER!
+
+                  <br>
+
+                  <button
+                    onclick="approveKey('${k.id}')"
+                    style="
+                      background:#00ff88;
+                      color:#000;
+                      padding:12px;
+                      border:none;
+                      border-radius:30px;
+                      font-weight:900;
+                      width:100%;
+                      margin-top:8px">
+
+                    ✅ APPROVE KEY - FINAL
+
+                  </button>
+
+                </div>
+
+              `
+              :`
+
+                <div
+                  style="
+                    display:grid;
+                    grid-template-columns:
+                      1fr 1fr 1fr 1fr;
+                    gap:5px;
+                    margin-top:10px">
+
+                  <button
+                    onclick="deductCredit('${k.id}',1)"
+                    style="
+                      background:#ff3b3b;
+                      color:#fff;
+                      padding:8px;
+                      border:none;
+                      border-radius:6px;
+                      font-size:11px">
+
+                    ➖1
+
+                  </button>
+
+                  <button
+                    onclick="deductCredit('${k.id}',10)"
+                    style="
+                      background:#ff8c00;
+                      padding:8px;
+                      border:none;
+                      border-radius:6px;
+                      font-size:11px">
+
+                    ➖10
+
+                  </button>
+
+                  <button
+                    onclick="addCredit('${k.id}',100)"
+                    style="
+                      background:#00ff88;
+                      padding:8px;
+                      border:none;
+                      border-radius:6px;
+                      font-size:11px">
+
+                    ➕100
+
+                  </button>
+
+                  <button
+                    onclick="addCredit('${k.id}',1000)"
+                    style="
+                      background:gold;
+                      padding:8px;
+                      border:none;
+                      border-radius:6px;
+                      font-size:11px">
+
+                    ➕1k
+
+                  </button>
+
+                </div>
+
+              `
+            }
+
+          </div>
+
+        `)
+        .join('')
+        ||
+        'No keys'
+      }
+
+    </div>
+  `;
+}
+
+
+/* =========================
+   BUY PAGE
+========================= */
+
+function renderBuyPage(){
+
+  document.getElementById('app').innerHTML=`
+
+    <div
+      class="card"
+      style="
+        border:3px solid gold;
+        text-align:center">
+
+      <h1
+        style="
+          color:gold;
+          margin:0">
+
+        🛒 BUY API KEY -
+        FINAL SECURE
+
+      </h1>
+
+      <p
+        style="
+          font-size:11px;
+          color:#aaa">
+
+        Server decides package +
+        verifies payment +
+        prevents duplicate payment +
+        private signed audio URLs
+
+      </p>
+
+    </div>
+
+
+    <!-- FREE -->
+
+    <div
+      class="card"
+      style="
+        border:3px solid #00ff88;
+        background:#001a00">
+
+      <h2
+        style="
+          color:#00ff88;
+          text-align:center;
+          margin:0">
+
+        🆓 FREE - Server Creates
+
+      </h2>
+
+      <input
+        id="buy_name_free"
+        placeholder="Your Name">
+
+      <input
+        id="buy_email_free"
+        placeholder="Email optional">
+
+      <button
+        class="btn green"
+        onclick="doBuyFreeSecure()">
+
+        🆓 TAP TO COLLECT FREE
+        100 CREDITS - SERVER
+
+      </button>
+
+      <p id="buy_free_msg"></p>
+
+      <div
+        id="buyFreeBox"
+        style="
+          display:none;
+          background:#fff;
+          color:#000;
+          padding:16px;
+          border-radius:12px;
+          border:3px solid #00ff88">
+
+        <b>
+          ✅ FREE Key
+          (Active - Server created):
+        </b>
+
+        <br>
+
+        <code
+          id="buyFreeKeyText"
+          style="
+            word-break:break-all;
+            background:#000;
+            color:#00ff88;
+            padding:8px;
+            display:block;
+            border-radius:6px;
+            margin-top:8px">
+        </code>
+
+        <br>
+
+        <button
+          onclick="
+            copyLink(
+              document.getElementById(
+                'buyFreeKeyText'
+              ).innerText
+            )"
+          style="
+            padding:12px;
+            background:#000;
+            color:#00ff88;
+            border:none;
+            border-radius:30px;
+            width:100%;
+            font-weight:900">
+
+          COPY KEY
+
+        </button>
+
+        <button
+          onclick="copyApiLink()"
+          style="
+            padding:12px;
+            background:gold;
+            color:#000;
+            border:none;
+            border-radius:30px;
+            width:100%;
+            font-weight:900;
+            margin-top:8px">
+
+          🔗 COPY API LINK -
+          x-api-key
+
+        </button>
+
+        <button
+          onclick="
+            localStorage.setItem(
+              'api_key',
+              document.getElementById(
+                'buyFreeKeyText'
+              ).innerText
+            );
+
+            localStorage.setItem(
+              'api_key_prefix',
+              document.getElementById(
+                'buyFreeKeyText'
+              ).innerText.substring(0,18)
+            );
+
+            location.pathname='/api/dashboard'
+          "
+          style="
+            padding:14px;
+            background:gold;
+            color:#000;
+            border:none;
+            border-radius:30px;
+            width:100%;
+            font-weight:900;
+            margin-top:8px">
+
+          🚀 USE & OPEN DASHBOARD →
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- PAID -->
+
+    <div
+      class="card"
+      style="border:3px solid gold">
+
+      <h2
+        style="
+          text-align:center;
+          color:gold;
+          margin:0">
+
+        💳 PAID -
+        Server Verifies +
+        PENDING → Chairman
+
+      </h2>
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:10px;
+          margin:15px 0">
+
+        <div
+          class="price-card"
+          style="border-color:#00ff88">
+
+          <b>Starter</b>
+          <br>
+          1k Voices
+          <br>
+
+          <span
+            style="
+              color:#00ff88;
+              font-weight:900">
+
+            ₦5,000
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn green"
+            onclick="buyPublic('1k')">
+
+            Buy 1k
+
+          </button>
+
+        </div>
+
+
+        <div
+          class="price-card"
+          style="
+            border-color:gold;
+            background:#1a1500">
+
+          <b>Popular</b>
+          <br>
+          5k Voices
+          <br>
+
+          <span
+            style="
+              color:gold;
+              font-weight:900">
+
+            ₦22,000
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn gold"
+            onclick="buyPublic('5k')">
+
+            Buy 5k
+
+          </button>
+
+        </div>
+
+
+        <div class="price-card">
+
+          <b>10k</b>
+          <br>
+
+          <span
+            style="
+              color:gold;
+              font-weight:900">
+
+            ₦45k
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn gold"
+            onclick="buyPublic('10k')">
+
+            Buy 10k
+
+          </button>
+
+        </div>
+
+
+        <div class="price-card">
+
+          <b>15k</b>
+          <br>
+
+          <span
+            style="
+              color:#ffcc00;
+              font-weight:900">
+
+            ₦65k
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn"
+            style="
+              background:#ffcc00;
+              color:#000"
+            onclick="buyPublic('15k')">
+
+            Buy 15k
+
+          </button>
+
+        </div>
+
+
+        <div class="price-card">
+
+          <b>20k</b>
+          <br>
+
+          <span
+            style="
+              color:#00aaff;
+              font-weight:900">
+
+            ₦80k
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn blue"
+            onclick="buyPublic('20k')">
+
+            Buy 20k
+
+          </button>
+
+        </div>
+
+
+        <div
+          class="price-card"
+          style="grid-column:1/-1">
+
+          <b>100k</b>
+          <br>
+
+          <span
+            style="
+              color:gold;
+              font-weight:900;
+              font-size:20px">
+
+            ₦350k
+
+          </span>
+
+          <br>
+
+          <button
+            class="btn gold"
+            onclick="buyPublic('100k')">
+
+            Buy 100k
+
+          </button>
+
+        </div>
+
+      </div>
+
+      <input
+        id="buy_name_paid"
+        placeholder="Name / Company">
+
+      <input
+        id="buy_email_paid"
+        placeholder="Email for receipt">
+
+      <div
+        id="buyPayBox"
+        style="
+          display:none;
+          background:#000;
+          padding:15px;
+          border-radius:12px;
+          border:3px dashed gold">
+
+        <h3
+          id="buyPayTitle"
+          style="color:gold">
+
+          Ready
+
+        </h3>
+
+        <button
+          class="btn green"
+          onclick="payPublicSecure()">
+
+          💳 TAP TO PAY -
+          Server Verify
+
+        </button>
+
+        <div
+          id="buyPaidBox"
+          style="
+            display:none;
+            background:#00ff88;
+            color:#000;
+            padding:16px;
+            border-radius:12px;
+            margin-top:10px">
+
+          <b>
+            ✅ PAID -
+            Verified + Pending Chairman:
+          </b>
+
+          <br>
+
+          <code
+            id="buyPaidKeyText"
+            style="
+              word-break:break-all;
+              background:#000;
+              color:#00ff88;
+              padding:8px;
+              display:block;
+              border-radius:6px;
+              margin-top:8px">
+          </code>
+
+          <br>
+
+          <div
+            id="buyPaidInfo"
+            style="
+              background:#000;
+              color:#00ff88;
+              padding:8px;
+              border-radius:6px;
+              margin-top:8px">
+          </div>
+
+          <button
+            onclick="
+              copyLink(
+                document.getElementById(
+                  'buyPaidKeyText'
+                ).innerText
+              )"
+            style="
+              padding:12px;
+              background:#000;
+              color:#00ff88;
+              border:none;
+              border-radius:30px;
+              width:100%;
+              font-weight:900">
+
+            COPY KEY
+
+          </button>
+
+          <button
+            onclick="copyApiLink()"
+            style="
+              padding:12px;
+              background:gold;
+              color:#000;
+              border:none;
+              border-radius:30px;
+              width:100%;
+              font-weight:900;
+              margin-top:8px">
+
+            🔗 COPY API LINK -
+            x-api-key: YOUR_KEY
+            (not in URL)
+
+          </button>
+
+        </div>
+
+        <p id="buy_paid_msg"></p>
+
+      </div>
+
+    </div>
+  `;
+
+  window.buyPublic=function(packageId){
+
+    const pkg=PACKAGES[packageId];
+
+    if(!pkg){
+
+      alert('Invalid package');
+
+      return;
+    }
+
+    currentPackage={
+      packageId:packageId,
+      voices:pkg.voices,
+      amount:pkg.amount
+    };
+
+    document.getElementById('buyPayBox')
+      .style.display='block';
+
+    document.getElementById('buyPayTitle')
+      .innerText=
+        `${pkg.label} - Pay ₦${pkg.amount.toLocaleString()} - Server will independently verify package + amount + reference`;
+
+    document.getElementById('buyPayBox')
+      .scrollIntoView({
+        behavior:'smooth'
+      });
+  };
+
+
+  /* FREE KEY IS CREATED BY SERVER */
+
+  window.doBuyFreeSecure=async function(){
+
+    const name=
+      document.getElementById(
+        'buy_name_free'
+      ).value.trim()||
+      'Free User';
+
+    const email=
+      document.getElementById(
+        'buy_email_free'
+      ).value.trim();
+
+    document.getElementById(
+      'buy_free_msg'
+    ).innerText=
+      'Collecting via server...';
+
+    try{
+
+      const res=
+        await fetch(
+          '/api/free/collect',
+          {
+            method:'POST',
+            headers:{
+              'Content-Type':
+                'application/json'
+            },
+            body:JSON.stringify({
+              name,
+              email
+            })
+          }
+        );
+
+      const data=await res.json();
+
+      if(!res.ok){
+
+        throw new Error(
+          data.error||
+          'Free collect failed'
+        );
+      }
+
+      document.getElementById(
+        'buyFreeKeyText'
+      ).innerText=data.full_key;
+
+      document.getElementById(
+        'buyFreeBox'
+      ).style.display='block';
+
+      document.getElementById(
+        'buy_free_msg'
+      ).innerText=
+        '✅ Server created! Chairman go see am!';
+
+    }catch(e){
+
+      document.getElementById(
+        'buy_free_msg'
+      ).innerText=
+        '❌ '+e.message;
+
+    }
+  };
+
+
+  /* PAYSTACK */
+
+  window.payPublicSecure=function(){
+
+    let email=
+      document.getElementById(
+        'buy_email_paid'
+      ).value.trim();
+
+    if(
+      !email||
+      !email.includes('@')
+    ){
+
+      email=prompt('Enter email:')||'';
+
+    }
+
+    if(
+      !email||
+      !email.includes('@')
+    ){
+
+      alert('Valid email required');
+
+      return;
+    }
+
+    const msg=
+      document.getElementById(
+        'buy_paid_msg'
+      );
+
+    const pkg=
+      PACKAGES[
+        currentPackage.packageId
+      ];
+
+    if(!pkg){
+
+      alert('Select package first');
+
+      return;
+    }
+
+    msg.innerText='Opening Paystack...';
+
+    try{
+
+      /*
+        Browser starts payment.
+
+        IMPORTANT:
+        Browser package/amount is NOT trusted
+        by the verification server.
+
+        Server must verify:
+        reference
+        Paystack transaction
+        actual paid amount
+        server-side package mapping
+        duplicate reference
+      */
+
+      const handler=
+        PaystackPop.setup({
+
+          key:PAYSTACK_PUBLIC_KEY,
+
+          email:email,
+
+          amount:pkg.amount*100,
+
+          currency:'NGN',
+
+          ref:
+            'SECURE_' +
+            currentPackage.packageId +
+            '_' +
+            Date.now(),
+
+          callback:async function(res){
+
+            msg.innerText=
+              'Payment OK! Server verifying payment, package, amount and duplicate reference...';
+
+            try{
+
+              const verifyRes=
+                await fetch(
+                  '/api/paystack/verify',
+                  {
+                    method:'POST',
+                    headers:{
+                      'Content-Type':
+                        'application/json'
+                    },
+                    body:JSON.stringify({
+
+                      reference:
+                        res.reference,
+
+                      email:email,
+
+                      name:
+                        document.getElementById(
+                          'buy_name_paid'
+                        ).value.trim()||
+                        'Paid User',
+
+                      packageId:
+                        currentPackage.packageId
+
+                    })
+                  }
+                );
+
+              const verifyData=
+                await verifyRes.json();
+
+              if(!verifyRes.ok){
+
+                throw new Error(
+                  verifyData.error||
+                  'Verification failed'
+                );
+              }
+
+              document.getElementById(
+                'buyPaidKeyText'
+              ).innerText=
+                verifyData.full_key;
+
+              document.getElementById(
+                'buyPaidInfo'
+              ).innerText=
+                `${verifyData.package} - ${verifyData.credits} credits - Ref ${res.reference} - ${verifyData.status}`;
+
+              document.getElementById(
+                'buyPaidBox'
+              ).style.display='block';
+
+              msg.innerText=
+                `✅ ${verifyData.package} Verified! PENDING Chairman approval.`;
+
+            }catch(e){
+
+              msg.innerText=
+                '❌ Verification failed: '+
+                e.message+
+                ' Ref '+
+                res.reference;
+
+            }
+
+          },
+
+          onClose:function(){
+
+            msg.innerText=
+              'Paystack closed';
+
+          }
+
+        });
+
+      handler.openIframe();
+
+    }catch(e){
+
+      msg.innerText=
+        '❌ '+e.message;
+
+    }
+  };
+
+}/* =========================
+   WORKER DASHBOARD
+========================= */
+
 async function renderUserDashboardReal(session){
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(profile?.is_chairman){location.pathname='/admin/dashboard'; return;}
 
-  const {data:recs,error:recError}=await supabaseClient
+  const {
+    data:profile
+  }=await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id',session.user.id)
+    .single();
+
+  if(profile?.is_chairman){
+
+    location.pathname='/admin/dashboard';
+
+    return;
+  }
+
+  const {
+    data:recs
+  }=await supabaseClient
     .from('recordings')
     .select('*')
     .eq('user_id',session.user.id)
     .order('created_at',{ascending:false});
 
-  if(recError){console.error('Recordings error:',recError);}
+  const total=
+    (recs||[])
+      .reduce(
+        (s,r)=>s+(r.word_count||0),
+        0
+      )||0;
 
-  const records=recs||[];
-  const totalRecordings=records.length;
-  const approved=records.filter(r=>String(r.admin_status||'').toLowerCase()==='approved').length;
-  const pending=records.filter(r=>String(r.admin_status||'').toLowerCase()==='pending').length;
-  const rejected=records.filter(r=>String(r.admin_status||'').toLowerCase()==='rejected').length;
-  const totalWords=records.reduce((sum,r)=>sum+(Number(r.word_count)||0),0);
-  const today=new Date(); const todayYear=today.getFullYear(); const todayMonth=today.getMonth(); const todayDate=today.getDate();
-  const todayRecordings=records.filter(r=>{if(!r.created_at)return false; const d=new Date(r.created_at); return d.getFullYear()===todayYear && d.getMonth()===todayMonth && d.getDate()===todayDate;}).length;
-  const wordValue=(totalWords/1000)*2500;
-  const accountNumber=profile?.account_number || ('MNP-'+String(session.user.id).replace(/-/g,'').substring(0,8).toUpperCase());
-  const lang=getLang(); const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; const current=texts[records.length%texts.length]; const pct=Math.min(100,(totalWords/1000)*100); const ann=await fetchAnn();
+  const lang=getLang();
+
+  const texts=
+    TEXTS_DATA[lang]||
+    TEXTS_DATA.pidgin;
+
+  const current=
+    texts[
+      (recs||[]).length%
+      texts.length
+    ];
+
+  const pct=
+    Math.min(
+      100,
+      (total/1000)*100
+    );
+
+  const ann=await fetchAnn();
 
   document.getElementById('app').innerHTML=`
-    ${ann?`<div class="announce">📢 ${ann.title||'ANNOUNCEMENT'}<br><small>${String(ann.message||'').substring(0,180)}</small></div>`:`<div class="announce">💃 MAIN NAIJA PIDGIN</div>`}
+
+    ${
+      ann
+      ?`
+
+        <div class="announce">
+
+          📢 ${ann.title}
+
+          <br>
+
+          <small>
+            ${ann.message.substring(0,180)}
+          </small>
+
+        </div>
+
+      `
+      :`
+
+        <div class="announce">
+          💃 FINAL SECURE -
+          PRIVATE BUCKET!
+        </div>
+
+      `
+    }
+
+
     <div class="header">
-      <div style="font-size:20px;font-weight:900">WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div>
-      <div style="background:#00ff88;color:#000;padding:10px;border-radius:12px;margin:10px 0;font-weight:900;">👤 ACCOUNT NUMBER<br><span style="font-size:22px">${accountNumber}</span></div>
-      <select id="langSelect" onchange="changeLanguage(this.value)" style="background:gold;color:black;font-weight:900;padding:10px;margin-top:8px"><option value="pidgin" ${lang==='pidgin'?'selected':''}>Pidgin</option><option value="hausa" ${lang==='hausa'?'selected':''}>Hausa</option><option value="igbo" ${lang==='igbo'?'selected':''}>Igbo</option><option value="yoruba" ${lang==='yoruba'?'selected':''}>Yoruba</option></select>
-      <div style="margin-top:10px">${totalWords} / 1000 WORDS</div>
-      <div class="progress"><div class="fill" style="width:${pct}%"></div></div>
-    </div>
-    <div class="card" style="border:2px solid #00ff88">
-      <h3 style="margin-top:0">📊 MY WORK</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div style="background:#222;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:25px">${totalRecordings}</b><br>🎙️ TOTAL RECORDINGS</div>
-        <div style="background:#222;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:25px">${todayRecordings}</b><br>📅 TODAY</div>
-        <div style="background:#002b18;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:25px">${approved}</b><br>✅ APPROVED</div>
-        <div style="background:#332900;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:25px">${pending}</b><br>⏳ PENDING</div>
-        <div style="background:#300000;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:25px">${rejected}</b><br>❌ REJECTED</div>
-        <div style="background:#1a1a1a;padding:14px;border-radius:12px;text-align:center;"><b style="font-size:20px">${totalWords}</b><br>📝 TOTAL WORDS</div>
+
+      <div>
+        WELCOME,
+        ${(profile?.display_name||'WORKER').toUpperCase()}
       </div>
-      <div style="margin-top:10px;background:gold;color:#000;padding:12px;border-radius:12px;text-align:center;font-weight:900;">💰 WORD VALUE: ₦${wordValue.toLocaleString('en-NG',{minimumFractionDigits:0,maximumFractionDigits:0})}<br><small>1,000 WORDS = ₦2,500</small></div>
+
+      <select
+        id="langSelect"
+        onchange="changeLanguage(this.value)"
+        style="
+          background:gold;
+          color:black;
+          font-weight:900;
+          padding:10px;
+          margin-top:8px">
+
+        <option
+          value="pidgin"
+          ${lang==='pidgin'?'selected':''}>
+          Pidgin
+        </option>
+
+        <option
+          value="hausa"
+          ${lang==='hausa'?'selected':''}>
+          Hausa
+        </option>
+
+        <option
+          value="igbo"
+          ${lang==='igbo'?'selected':''}>
+          Igbo
+        </option>
+
+        <option
+          value="yoruba"
+          ${lang==='yoruba'?'selected':''}>
+          Yoruba
+        </option>
+
+      </select>
+
+      <div>
+        ${total} / 1000 WORDS
+      </div>
+
+      <div class="progress">
+
+        <div
+          class="fill"
+          style="width:${pct}%">
+        </div>
+
+      </div>
+
     </div>
-    <div class="card" style="border:3px solid #00ff88"><h3>📖 READ</h3><div class="textbox" id="curTxt">${current}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START READ</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>🔴 Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn blue" style="display:none" onclick="saveReadRecord()">💾 SAVE</button><p id="saveReadMsg"></p></div></div>
-    <div class="card" style="border:3px solid gold;background:#1a1a00"><h3>🎤 FREE TALK</h3><label style="display:flex;gap:8px;align-items:center;background:#000;padding:8px;border-radius:8px"><input type="checkbox" id="isWhatsAppCheck" style="width:20px"> 📱 WhatsApp Group?</label><button id="freeTalkBtn" class="btn gold" onclick="toggleFreeTalk()">🎙️ START FREE TALK</button><button id="stopFreeTalkBtn" class="btn red" style="display:none" onclick="stopFreeTalk()">⏹️ STOP</button><div id="freeTalkStatus" style="display:none;background:black;padding:12px;border-radius:10px"><p>🔴 Recording <span id="freeTimer">0s</span></p><audio id="freeAudioPreview" controls style="width:100%;display:none"></audio><button onclick="deleteFreeTalk()" style="background:#ff3b3b;color:#fff;padding:8px 12px;border:none;border-radius:20px;margin-top:8px">🗑️ Delete & Re-record</button></div><div id="freeTalkTranscribe" style="display:none;margin-top:12px;background:#111;padding:12px;border-radius:10px;border:2px solid #00ff88"><textarea id="freeTranscription" placeholder="Type wetin you talk..." rows="3"></textarea><button class="btn green" onclick="saveFreeTalk()">💾 SAVE</button><p id="saveFreeMsg"></p></div></div>
-    <div class="card" style="border:2px solid #00ff88">
-      <h3>🎧 MY RECORDINGS ${totalRecordings} - SAVE ONLY - NO ID CODE</h3>
-      ${records.map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0;border-left:4px solid ${r.admin_status==='approved'?'#00ff88':r.admin_status==='rejected'?'#ff3b3b':'gold'}"><b>#${r.recording_number} ${r.language} - ${r.admin_status} ${r.is_whatsapp_group?'📱':''}</b><br><small>${(r.transcription||r.pidgin_text||'').substring(0,120)}</small><br><audio id="user-audio-${i}" data-file="${r.file_name}" controls style="height:32px;width:100%;margin:6px 0"></audio></div>`).join('') || 'No recordings yet!'}
-    </div>`;
-  setTimeout(()=>loadAllSignedVoices(),600);
+
+
+    <!-- READ -->
+
+    <div
+      class="card"
+      style="border:3px solid #00ff88">
+
+      <h3>📖 READ</h3>
+
+      <div
+        class="textbox"
+        id="curTxt">
+
+        ${current}
+
+      </div>
+
+      <button
+        id="readBtn"
+        class="btn green"
+        onclick="startReadRecord()">
+
+        🎙️ START READ
+
+      </button>
+
+      <button
+        id="stopReadBtn"
+        class="btn red"
+        style="display:none"
+        onclick="stopReadRecord()">
+
+        ⏹️ STOP
+
+      </button>
+
+      <div
+        id="readStatus"
+        style="
+          display:none;
+          background:black;
+          padding:12px;
+          border-radius:10px;
+          margin-top:10px">
+
+        <p>
+          🔴 Recording
+          <span id="readTimer">0s</span>
+        </p>
+
+        <audio
+          id="readAudioPreview"
+          controls
+          style="
+            width:100%;
+            display:none">
+        </audio>
+
+        <button
+          id="saveReadBtn"
+          class="btn blue"
+          style="display:none"
+          onclick="saveReadRecord()">
+
+          💾 SAVE READ
+
+        </button>
+
+        <p id="saveReadMsg"></p>
+
+      </div>
+
+    </div>
+
+
+    <!-- FREE TALK -->
+
+    <div
+      class="card"
+      style="
+        border:3px solid gold;
+        background:#1a1a00">
+
+      <h3>
+        🎤 FREE TALK -
+        Private Upload Path
+      </h3>
+
+      <label
+        style="
+          display:flex;
+          gap:8px;
+          align-items:center;
+          background:#000;
+          padding:8px;
+          border-radius:8px">
+
+        <input
+          type="checkbox"
+          id="isWhatsAppCheck"
+          style="width:20px">
+
+        📱 WhatsApp Group?
+
+      </label>
+
+      <button
+        id="freeTalkBtn"
+        class="btn gold"
+        onclick="toggleFreeTalk()">
+
+        🎙️ START FREE TALK
+
+      </button>
+
+      <button
+        id="stopFreeTalkBtn"
+        class="btn red"
+        style="display:none"
+        onclick="stopFreeTalk()">
+
+        ⏹️ STOP
+
+      </button>
+
+      <div
+        id="freeTalkStatus"
+        style="
+          display:none;
+          background:black;
+          padding:12px;
+          border-radius:10px">
+
+        <p>
+          🔴 Recording
+          <span id="freeTimer">0s</span>
+        </p>
+
+        <audio
+          id="freeAudioPreview"
+          controls
+          style="
+            width:100%;
+            display:none">
+        </audio>
+
+        <button
+          onclick="deleteFreeTalk()"
+          style="
+            background:#ff3b3b;
+            color:#fff;
+            padding:8px 12px;
+            border:none;
+            border-radius:20px;
+            margin-top:8px">
+
+          🗑️ Delete & Re-record
+
+        </button>
+
+      </div>
+
+      <div
+        id="freeTalkTranscribe"
+        style="
+          display:none;
+          margin-top:12px;
+          background:#111;
+          padding:12px;
+          border-radius:10px;
+          border:2px solid #00ff88">
+
+        <textarea
+          id="freeTranscription"
+          placeholder="Type wetin you talk..."
+          rows="3">
+        </textarea>
+
+        <button
+          class="btn green"
+          onclick="saveFreeTalk()">
+
+          💾 SAVE FREE TALK -
+          Private
+
+        </button>
+
+        <p id="saveFreeMsg"></p>
+
+      </div>
+
+    </div>
+
+
+    <!-- MY RECORDINGS -->
+
+    <div
+      class="card"
+      style="border:2px solid #00ff88">
+
+      <h3>
+        🎧 My Recordings
+        ${recs?.length||0}
+        - Private Signed URLs
+      </h3>
+
+      ${
+        (recs||[])
+        .map((r,i)=>`
+
+          <div
+            style="
+              background:#181818;
+              padding:12px;
+              border-radius:12px;
+              margin:10px 0;
+              border-left:4px solid ${
+                r.admin_status==='approved'
+                ?'#00ff88'
+                :'gold'
+              }">
+
+            <b>
+
+              #${r.recording_number}
+
+              ${r.language}
+
+              -
+
+              ${r.admin_status}
+
+              ${r.is_whatsapp_group?'📱':''}
+
+            </b>
+
+            <br>
+
+            <small>
+
+              ${(r.transcription||r.pidgin_text||'')
+                .substring(0,120)}
+
+            </small>
+
+            <br>
+
+            <audio
+              id="user-audio-${i}"
+              data-file="${r.file_name}"
+              controls
+              style="
+                height:32px;
+                width:100%;
+                margin:6px 0">
+            </audio>
+
+            <div
+              style="
+                display:flex;
+                gap:6px;
+                margin-top:6px">
+
+              <button
+                onclick="copyVoiceId('${r.file_name}')"
+                style="
+                  background:#00ff88;
+                  color:#000;
+                  padding:10px 12px;
+                  border:none;
+                  border-radius:20px;
+                  font-weight:900;
+                  flex:1">
+
+                ID Copy
+
+              </button>
+
+            </div>
+
+          </div>
+
+        `)
+        .join('')
+        ||
+        'No recordings yet!'
+      }
+
+    </div>
+  `;
+
+  setTimeout(
+    ()=>loadAllSignedVoices(),
+    600
+  );
 }
 
+
+/* =========================
+   API DASHBOARD
+========================= */
+
 async function renderApiDashboard(){
-  const rawKey=localStorage.getItem('api_key')||'';
-  const prefix=localStorage.getItem('api_key_prefix')||'';
-  if(!rawKey){document.getElementById('app').innerHTML=`<div class="card"><h3>No key - Go /buy</h3><button class="btn gold" onclick="location.pathname='/buy'">Go Buy</button></div>`; return;}
-  document.getElementById('app').innerHTML=`<div class="card"><h3>Checking ${prefix}...</h3></div>`;
+
+  const rawKey=
+    localStorage.getItem('api_key')||'';
+
+  const prefix=
+    localStorage.getItem('api_key_prefix')||'';
+
+  if(!rawKey){
+
+    document.getElementById('app').innerHTML=`
+
+      <div class="card">
+
+        <h3>
+          No key - Go /buy
+        </h3>
+
+        <button
+          class="btn gold"
+          onclick="location.pathname='/buy'">
+
+          Go Buy
+
+        </button>
+
+      </div>
+
+    `;
+
+    return;
+  }
+
+  document.getElementById('app').innerHTML=`
+
+    <div class="card">
+
+      <h3>
+        Checking ${prefix}...
+        Server verifies
+      </h3>
+
+    </div>
+
+  `;
+
   try{
-    const hash=await hashKeyClient(rawKey);
-    const {data:key,error}=await supabaseClient.from('api_keys').select('*').eq('key_hash',hash).single();
-    if(error||!key){document.getElementById('app').innerHTML=`<div class="card"><h3>❌ Key not found</h3><button class="btn gold" onclick="location.pathname='/buy'">Buy New</button></div>`; return;}
-    if(!key.is_active){document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h3>⏳ PENDING APPROVAL</h3><p>Chairman must approve</p><p>${key.key_prefix||prefix}... - ${key.name||''}</p><button class="btn gold" onclick="location.pathname='/buy'">Go Buy Page</button></div>`; return;}
-    if((key.credits_remaining||0)<=0){document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid #ff3b3b"><h3>⚠️ No credits left</h3><p>${key.credits_remaining||0} left</p><button class="btn gold" onclick="location.pathname='/buy'">Buy More</button></div>`; return;}
-    document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid #00ff88"><h2>🔑 API DASHBOARD - ${key.credits_remaining} LEFT</h2><b>${key.name||'API Customer'}</b><br><small>${key.key_prefix||prefix}...</small><div style="background:#000;padding:10px;border-radius:10px;margin:10px 0;border:2px dashed gold"><b>🔗 YOUR API LINK</b><br><code>${API_ENDPOINT}</code><br><small>Header: x-api-key: YOUR_KEY</small><br><button onclick="copyApiLink()" style="background:gold;color:#000;padding:8px 12px;border:none;border-radius:20px;font-weight:900;margin-top:6px">🔗 Copy API Link</button><button onclick="copyLink('${rawKey}')" style="background:#00ff88;color:#000;padding:8px 12px;border:none;border-radius:20px;font-weight:900">Copy Key</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px"><div style="background:#00ff88;color:#000;padding:12px;border-radius:10px;text-align:center"><b>${key.credits_remaining||0}</b><br>LEFT</div><div style="background:#222;padding:12px;border-radius:10px;text-align:center"><b>${key.credits_used||0}</b><br>USED</div><div style="background:gold;color:#000;padding:12px;border-radius:10px;text-align:center"><b>${key.credits_total||0}</b><br>TOTAL</div></div><button class="btn gray" onclick="localStorage.removeItem('api_key');localStorage.removeItem('api_key_prefix');location.pathname='/buy'" style="margin-top:10px">Logout</button></div><div class="card"><h3>🎙️ Secure API Test</h3><button class="btn green" onclick="testSecureApi()" style="padding:18px">🔒 TEST SECURE API</button><p id="secureApiResult" style="background:#000;padding:10px;border-radius:10px;margin-top:10px"></p></div>`;
-    window.testSecureApi=async function(){if(!confirm('Test secure API? This will consume 1 credit.')){return;} const resEl=document.getElementById('secureApiResult'); resEl.innerText='Calling...'; try{const res=await fetch('/api/v1/voice',{method:'GET',headers:{'x-api-key':rawKey}}); const data=await res.json(); if(!res.ok)throw new Error(data.error||'API failed'); const remaining=Number(data.credits_remaining); const mins=Number(data.expires_in_minutes||60); resEl.innerHTML=`✅ Success!<br>Credits left: ${remaining}<br>Voice: ${data.voice?.text?data.voice.text.substring(0,150):'Voice returned'}<br><audio controls src="${data.voice?.audio_url||''}" style="width:100%;margin-top:8px"></audio><br><small>Expires in ${mins} mins</small>`; setTimeout(()=>location.reload(),4000);}catch(e){resEl.innerText='❌ Failed: '+e.message;}}; 
-  }catch(e){document.getElementById('app').innerHTML=`<div class="card"><h3>❌ ${e.message}</h3></div>`;}
+
+    /*
+      This dashboard lookup is ONLY for displaying
+      the customer's key status.
+
+      The actual API request and credit consumption
+      are handled by /api/v1/voice on the server.
+
+      Existing keys are NOT modified here.
+    */
+
+    const hash=
+      await hashKeyClient(rawKey);
+
+    const {
+      data:key,
+      error
+    }=await supabaseClient
+      .from('api_keys')
+      .select('*')
+      .eq('key_hash',hash)
+      .single();
+
+    if(error||!key){
+
+      document.getElementById('app')
+        .innerHTML=`
+
+          <div class="card">
+
+            <h3>
+              ❌ Key not found
+            </h3>
+
+            <button
+              class="btn gold"
+              onclick="location.pathname='/buy'">
+
+              Buy New
+
+            </button>
+
+          </div>
+
+        `;
+
+      return;
+    }
+
+    if(!key.is_active){
+
+      document.getElementById('app')
+        .innerHTML=`
+
+          <div
+            class="card"
+            style="border:3px solid gold">
+
+            <h3>
+              ⏳ PENDING APPROVAL
+            </h3>
+
+            <p>
+              Chairman must approve
+              this key before API use.
+            </p>
+
+            <p>
+              ${key.key_prefix||prefix}...
+              -
+              ${key.name||''}
+            </p>
+
+            <p>
+              Ref:
+              ${key.payment_ref||''}
+            </p>
+
+            <button
+              class="btn gold"
+              onclick="location.pathname='/buy'">
+
+              Go Buy Page
+
+            </button>
+
+            <button
+              class="btn gray"
+              onclick="
+                localStorage.removeItem('api_key');
+                localStorage.removeItem('api_key_prefix');
+                location.pathname='/buy'">
+
+              Logout
+
+            </button>
+
+          </div>
+
+        `;
+
+      return;
+    }
+
+    if((key.credits_remaining||0)<=0){
+
+      document.getElementById('app')
+        .innerHTML=`
+
+          <div
+            class="card"
+            style="border:3px solid #ff3b3b">
+
+            <h3>
+              ⚠️ No credits left
+              but key is still ACTIVE
+            </h3>
+
+            <p>
+              ${key.credits_remaining||0}
+              left -
+              ${key.credits_used||0}/
+              ${key.credits_total||0}
+            </p>
+
+            <p>
+              Chairman controls
+              is_active separately
+              from credits.
+            </p>
+
+            <button
+              class="btn gold"
+              onclick="location.pathname='/buy'">
+
+              Buy More
+
+            </button>
+
+            <button
+              class="btn gray"
+              onclick="
+                localStorage.removeItem('api_key');
+                localStorage.removeItem('api_key_prefix');
+                location.pathname='/buy'">
+
+              Logout
+
+            </button>
+
+          </div>
+
+        `;
+
+      return;
+    }
+
+
+    document.getElementById('app').innerHTML=`
+
+      <div
+        class="card"
+        style="border:3px solid #00ff88">
+
+        <h2>
+          🔑 API DASHBOARD -
+          ${key.credits_remaining}
+          LEFT -
+          SERVER DEDUCTS ONLY
+        </h2>
+
+        <b>
+          ${key.name||'API Customer'}
+        </b>
+
+        <br>
+
+        <small>
+          ${key.key_prefix||prefix}...
+        </small>
+
+
+        <div
+          style="
+            background:#000;
+            padding:10px;
+            border-radius:10px;
+            margin:10px 0;
+            border:2px dashed gold">
+
+          <b>
+            🔗 YOUR API LINK
+            <br>
+            Keep secret key in header,
+            NOT in URL
+          </b>
+
+          <br>
+
+          <code>
+            ${API_ENDPOINT}
+          </code>
+
+          <br>
+
+          <small>
+            Header:
+            x-api-key: YOUR_KEY
+          </small>
+
+          <br>
+
+          <button
+            onclick="copyApiLink()"
+            style="
+              background:gold;
+              color:#000;
+              padding:8px 12px;
+              border:none;
+              border-radius:20px;
+              font-weight:900;
+              margin-top:6px">
+
+            🔗 Copy API Link
+
+          </button>
+
+          <button
+            onclick="copyLink('${rawKey}')"
+            style="
+              background:#00ff88;
+              color:#000;
+              padding:8px 12px;
+              border:none;
+              border-radius:20px;
+              font-weight:900">
+
+            Copy Key
+
+          </button>
+
+        </div>
+
+
+        <div
+          style="
+            display:grid;
+            grid-template-columns:
+              1fr 1fr 1fr;
+            gap:8px;
+            margin-top:10px">
+
+          <div
+            style="
+              background:#00ff88;
+              color:#000;
+              padding:12px;
+              border-radius:10px;
+              text-align:center">
+
+            <b>
+              ${key.credits_remaining||0}
+            </b>
+
+            <br>
+
+            LEFT
+
+          </div>
+
+          <div
+            style="
+              background:#222;
+              padding:12px;
+              border-radius:10px;
+              text-align:center">
+
+            <b>
+              ${key.credits_used||0}
+            </b>
+
+            <br>
+
+            USED
+
+          </div>
+
+          <div
+            style="
+              background:gold;
+              color:#000;
+              padding:12px;
+              border-radius:10px;
+              text-align:center">
+
+            <b>
+              ${key.credits_total||0}
+            </b>
+
+            <br>
+
+            TOTAL
+
+          </div>
+
+        </div>
+
+
+        <button
+          class="btn gray"
+          onclick="
+            localStorage.removeItem('api_key');
+            localStorage.removeItem('api_key_prefix');
+            location.pathname='/buy'"
+          style="margin-top:10px">
+
+          Logout
+
+        </button>
+
+      </div>
+
+
+      <div class="card">
+
+        <h3>
+          🎙️ Secure API Test
+        </h3>
+
+        <p
+          style="
+            font-size:11px;
+            color:gold">
+
+          Server verifies the API key,
+          selects approved voice,
+          creates private signed URL,
+          and deducts exactly one credit
+          on the server.
+
+        </p>
+
+        <button
+          class="btn green"
+          onclick="testSecureApi()"
+          style="padding:18px">
+
+          🔒 TEST SECURE API
+          - Deduct 1 Server-side
+
+        </button>
+
+        <p
+          id="secureApiResult"
+          style="
+            background:#000;
+            padding:10px;
+            border-radius:10px;
+            margin-top:10px">
+        </p>
+
+      </div>
+    `;
+
+
+    window.testSecureApi=async function(){
+
+      if(
+        !confirm(
+          'Test secure API? This will consume 1 credit if successful.'
+        )
+      ){
+
+        return;
+      }
+
+      const resEl=
+        document.getElementById(
+          'secureApiResult'
+        );
+
+      resEl.innerText=
+        'Calling secure API...';
+
+      try{
+
+        const res=
+          await fetch(
+            '/api/v1/voice',
+            {
+              method:'GET',
+              headers:{
+                'x-api-key':rawKey
+              }
+            }
+          );
+
+        const data=
+          await res.json();
+
+        if(!res.ok){
+
+          throw new Error(
+            data.error||
+            'API failed'
+          );
+        }
+
+        const remaining=
+          Number(
+            data.credits_remaining
+          );
+
+        const mins=
+          Number(
+            data.expires_in_minutes||
+            60
+          );
+
+        resEl.innerHTML=`
+
+          ✅ Success!
+
+          <br>
+
+          Credits left:
+          ${remaining}
+
+          <br>
+
+          Voice:
+          ${
+            data.voice?.text
+            ?data.voice.text.substring(0,150)
+            :'Voice returned'
+          }
+
+          <br>
+
+          <audio
+            controls
+            src="${data.voice?.audio_url||''}"
+            style="
+              width:100%;
+              margin-top:8px">
+          </audio>
+
+          <br>
+
+          <small>
+            Signed URL expires in
+            ${mins} minutes.
+            Private bucket.
+          </small>
+
+        `;
+
+        /*
+          Reload after a short delay so the
+          displayed credit count comes from
+          the database/server result.
+        */
+        setTimeout(()=>{
+          location.reload();
+        },4000);
+
+      }catch(e){
+
+        resEl.innerText=
+          '❌ Failed: '+e.message;
+
+      }
+    };
+
+  }catch(e){
+
+    document.getElementById('app')
+      .innerHTML=`
+
+        <div class="card">
+
+          <h3>
+            ❌ ${e.message}
+          </h3>
+
+        </div>
+
+      `;
+
+  }
 }
-function renderApiKeyLogin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:500px;margin:20px auto;border:2px solid #00ff88"><h1 style="text-align:center">🔑 API LOGIN</h1><input id="apiKeyInput" placeholder="sk_free_ or sk_live_"><button class="btn green" onclick="doApiKeyLogin()">LOGIN</button><p id="apiLoginMsg"></p></div>`;}
-async function doApiKeyLogin(){const raw=document.getElementById('apiKeyInput').value.trim(); const msg=document.getElementById('apiLoginMsg'); if(!raw){msg.innerText='Enter key'; return;} msg.innerText='Checking...'; try{const hash=await hashKeyClient(raw); const {data,error}=await supabaseClient.from('api_keys').select('*').eq('key_hash',hash).single(); if(error||!data){msg.innerText='❌ Invalid'; return;} localStorage.setItem('api_key',raw); localStorage.setItem('api_key_prefix',raw.substring(0,18)); location.pathname='/api/dashboard';}catch(e){msg.innerText='❌ '+e.message;}}
-async function router(){const path=location.pathname; const hash=location.hash; if(hash && hash.includes('type=recovery')){renderResetPassword(); return;} const params=new URLSearchParams(location.search); if(params.get('type')==='recovery' || location.href.includes('recovery')){renderResetPassword(); return;} if(path==='/admin/login'){renderLoginAdmin(); return;} if(path==='/user/login'){renderLoginUser(); return;} if(path==='/buy'){renderBuyPage(); return;} if(path==='/admin/keys'){renderKeysPage(); return;} if(path==='/api/login'){renderApiKeyLogin(); return;} if(path==='/api/dashboard'){renderApiDashboard(); return;} if(path==='/admin/dashboard'){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;} renderAdminDashboard(session); return;} if(path==='/user/dashboard'){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/user/login'; return;} renderUserDashboardReal(session); return;} const {data:{session}}=await supabaseClient.auth.getSession(); if(session){const {data:prof}=await supabaseClient.from('profiles').select('is_chairman').eq('id',session.user.id).single(); if(prof?.is_chairman){location.pathname='/admin/dashboard';}else{location.pathname='/user/dashboard';}} else {renderLoginUser();}}
-router();
-})();
-</script>
-</body>
-</html>
+
+
+/* =========================
+   API KEY LOGIN
+========================= */
+
+function renderApiKeyLogin(){
+
+  document.getElementById('app').innerHTML=`
+
+    <div
+      class="card"
+      style="
+        max-width:500px;
+        margin:20px auto;
+        border:3px solid #00ff88">
+
+      <h1 style="text-align:center">
+
+        🔑 API LOGIN -
+        Secure x-api-key
+
+      </h1>
+
+      <input
+        id="apiKeyInput"
+        placeholder="sk_free_ or sk_live_">
+
+      <button
+        class="btn green"
+        onclick="doApiKeyLogin()">
+
+        LOGIN -
+        Check Key
+
+      </button>
+
+      <p id="apiLoginMsg"></p>
+
+      <div
+        style="
+          text-align:center;
+          margin-top:12px">
+
+        <a
+          href="/buy"
+          style="color:gold">
+
+          Don't have key?
+          Go /buy
+
+        </a>
+
+        <br><br>
+
+        <button
+          onclick="copyApiLink()"
+          style="
+            background:gold;
+            color:#000;
+            padding:10px 16px;
+            border:none;
+            border-radius:20px;
+            font-weight:900">
+
+          🔗 Copy API Link -
+          x-api-key header
+
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+async function doApiKeyLogin(){
+
+  const raw=
+    document.getElementById(
+      'apiKeyInput'
+    ).value.trim();
+
+  const msg=
+    document.getElementById(
+      'apiLoginMsg'
+    );
+
+  if(!raw){
+
+    msg.innerText=
+      'Enter key';
+
+    return;
+  }
+
+  msg.innerText=
+    'Checking key...';
+
+  try{
+
+    const hash=
+      await hashKeyClient(raw);
+
+    const {
+      data,
+      error
+    }=await supabaseClient
+      .from('api_keys')
+      .select('*')
+      .eq('key_hash',hash)
+      .single();
+
+    if(error||!data){
+
+      msg.innerText=
+        '❌ Invalid';
+
