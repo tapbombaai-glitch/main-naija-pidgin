@@ -1,4 +1,9 @@
-// api/v1/voice.js - FINAL - Verified with your 12:14 PM deduct function
+// api/v1/voice.js - REAL CODE - Reviewed 12:14/12:22/12:31 PM videos
+// - Preserves old customers (key_hash, sha256, api_key)
+// - Mock returns audio_url:null, NO deduction
+// - Real path disabled until TTS provider connected
+// - Uses verified param p_api_key_id uuid
+
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
@@ -23,6 +28,7 @@ export default async function handler(req,res){
   if(!text) return res.status(400).json({error:'Text required', mock:true, audio_url:null});
 
   try{
+    // --- 4-STEP AUTH - Preserve existing customers ---
     let keyData=null;
     const {data: rawData, error: rawErr} = await supabaseAdmin.from('api_keys').select('*').eq('key_hash', apiKey).maybeSingle();
     if(rawErr) return res.status(500).json({error:'DB error raw', code:'DB_ERROR_RAW', detail:rawErr.message, mock:true, audio_url:null});
@@ -50,8 +56,8 @@ export default async function handler(req,res){
     const remaining = keyData.credits_remaining ?? ((keyData.credits_total ?? keyData.max_words ?? 0) - (keyData.credits_used ?? keyData.words_used ?? 0));
     if(remaining <= 0) return res.status(402).json({error:'No credits', code:'NO_CREDITS', remaining, mock:true, audio_url:null});
 
-    // --- MOCK PATH - NO DEDUCTION ---
-    const isRealTtsConnected = false;
+    // --- REAL TTS DISABLED - MOCK PATH - NO DEDUCTION ---
+    const isRealTtsConnected = false; // Keep false until real Naija Pidgin provider connected
     if(!isRealTtsConnected){
       return res.status(200).json({
         success: true,
@@ -65,17 +71,12 @@ export default async function handler(req,res){
       });
     }
 
-    // --- REAL PATH - DEDUCT WITH VERIFIED PARAM p_api_key_id ---
+    // --- REAL PATH - Only runs when isRealTtsConnected = true + provider connected ---
+    // Step 1: Deduct atomically with verified param
     const {data: deductData, error: deductErr} = await supabaseAdmin.rpc('deduct_api_credit_atomic', { p_api_key_id: keyData.id });
     if(deductErr) return res.status(500).json({error:'Deduct failed', detail:deductErr.message, mock:false, audio_url:null});
 
     const newRemaining = deductData?.[0]?.remaining ?? deductData?.[0]?.credits_remaining ?? (remaining - 1);
-    return res.status(200).json({
-      success: true,
-      mock: false,
-      audio_url: 'https://...real.mp3',
-      credits_remaining: newRemaining
-    });
 
-  }catch(e){ return res.status(500).json({error:'Server error', detail:e.message, mock:true, audio_url:null}); }
-}
+    // Step 2: TODO - Connect real provider here (ElevenLabs / Play.ht etc)
+    // Example: const audioUrl = await generate
