@@ -3,268 +3,116 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Main Naija Pidgin - V7.9 - MORE BETTER - FREE+PAID - Email Only - Tonight</title>
+<title>Main Naija Pidgin - V6.3 - FIXED - No Jump</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px;padding-bottom:120px}
+*{box-sizing:border-box}
+body{margin:0;background:#000;color:#fff;font-family:system-ui;padding:12px;padding-bottom:120px}
 .card{background:#111;border:1px solid #333;border-radius:16px;padding:16px;margin:14px 0}
 .btn{width:100%;padding:14px;border:none;border-radius:40px;font-weight:800;font-size:14px;margin:6px 0;cursor:pointer;min-height:48px}
 .green{background:#00ff88;color:#000}.red{background:#ff3b3b;color:#fff}.gray{background:#333;color:#fff}.gold{background:gold;color:#000}.blue{background:#00aaff;color:#fff}
+.header{border:2px solid #00ff88;border-radius:16px;padding:14px;text-align:center;position:sticky;top:8px;background:#0a0a0a;z-index:20}
+.progress{height:12px;background:#222;border-radius:10px;overflow:hidden;margin-top:8px}.fill{height:100%;background:#00ff88;transition:0.4s}
+input,select,textarea{width:100%;padding:14px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}
 .textbox{background:#1e1e1e;border-left:5px solid #00ff88;padding:16px;border-radius:12px;font-size:17px;min-height:90px}
-input{width:100%;padding:14px;border-radius:12px;border:1px solid #444;background:#222;color:#fff;margin:8px 0;font-size:16px}
+.announce{background:linear-gradient(90deg,#00ff88,#ffcc00);color:#000;border:3px solid #fff;border-radius:16px;padding:14px;margin:12px 0;font-weight:800}
+.price-card{background:#1a1a1a;border-radius:14px;padding:16px;text-align:center;border:2px solid #333}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.stat-box{background:#1a1a1a;padding:14px;border-radius:12px;text-align:center;border-left:4px solid #00ff88}.stat-box.gold-b{border-left-color:gold}.stat-box.red-b{border-left-color:#ff3b3b}
+code{word-break:break-all}
 </style>
 </head>
 <body>
-<div id="app">Loading...</div>
+<div id="app">Loading V6.3 FIXED...</div>
 <script>
 (function(){
 const SUPABASE_URL="https://rupuxvpupdhlhxgjrbsh.supabase.co";
 const SUPABASE_KEY="sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
-const PAYSTACK_PUBLIC_KEY="pk_live_ce90d591406c8d61ec3c8d3be6e0f5fe49c55d09";
+const PAYSTACK_PUBLIC_KEY="pk_live_ce90d591406c8d61ec3c8d3be6e0f5fe49c55d09"
 const supabaseClient=supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const TEXTS_DATA={pidgin:["Chairman, I don finish work for my ₦5,000 tonight.","This Naija Pidgin project dey pay ₦5,000 - More better!","My brother dey come from Lagos to collect ₦5,000.","Make we go market after we collect ₦5,000."],hausa:["Don Allah mu fara aiki yau."],igbo:["Biko ka anyi malite oru taa."],yoruba:["Jowo ka a bere ise loni."]};
+const TEXTS_DATA={pidgin:["Abeg make we start today. I wan tell you say this work na important one.","Today na another beautiful day. How you dey?","Chairman, I don finish the work wey you give me.","Make we go market tomorrow morning.","This Naija Pidgin project na better project."],hausa:["Don Allah mu fara aiki yau."],igbo:["Biko ka anyi malite oru taa."],yoruba:["Jowo ka a bere ise loni."]};
 function getLang(){return localStorage.getItem('selected_language')||'pidgin';}
+function setLang(l){localStorage.setItem('selected_language',l);}
 function countW(t){return t.trim().split(/\s+/).filter(Boolean).length;}
 async function hashKeyClient(t){const e=new TextEncoder(); const d=e.encode(t); const h=await crypto.subtle.digest('SHA-256',d); return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 window.copyLink=function(t){navigator.clipboard.writeText(t).then(()=>alert('✅ Copied!')).catch(()=>prompt('Copy:',t));};
-window.copyVoiceId=function(f){navigator.clipboard.writeText(f).then(()=>alert('✅ Voice ID copied')).catch(()=>prompt('Copy ID:',f));};
+window.copyVoiceId=function(f){navigator.clipboard.writeText(f).then(()=>alert('✅ Voice ID copied: '+f)).catch(()=>prompt('Copy ID:',f));};
 async function fetchAnn(){try{const {data}=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(1).single(); return data;}catch(e){return null;}}
 window.loadSignedVoice=async function(fileName,audioId){try{if(!fileName||fileName.length<5)return; const {data}=await supabaseClient.storage.from('voices').createSignedUrl(fileName,3600); if(data?.signedUrl){const el=document.getElementById(audioId); if(el){el.src=data.signedUrl; el.load();}}}catch(e){}};
 window.loadAllSignedVoices=function(){document.querySelectorAll('audio[data-file]').forEach(el=>{const file=el.getAttribute('data-file'); if(file&&file.length>5)loadSignedVoice(file,el.id);});};
-let mediaRecorder=null,audioChunks=[],readBlob=null,recTimer=null,recSec=0;
+let mediaRecorder=null,audioChunks=[],freeBlob=null,readBlob=null,recTimer=null,recSec=0;
 let currentPackage={packageId:'1k',voices:1000,amount:5000};
+const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'},'10k':{voices:10000,amount:45000,label:'10k Voices ₦45k'},'100k':{voices:100000,amount:350000,label:'100k Voices ₦350k'}};
+window.changeLanguage=function(l){setLang(l); location.reload();};
+window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; document.getElementById('readTimer').innerText=recSec+'s';},1000);}catch(e){alert('Allow mic');}};
+window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('readBtn').style.display='block'; document.getElementById('stopReadBtn').style.display='none';};
+window.saveReadRecord=async function(){const lang=getLang(); const text=document.getElementById('curTxt').innerText; if(!readBlob){alert('Record first'); return;} document.getElementById('saveReadMsg').innerText='Uploading...'; try{const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/user/login'; return;} const fileName=`${session.user.id}/${Date.now()}_read_${lang}.webm`; await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm'}); const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',session.user.id); await supabaseClient.from('recordings').insert([{user_id:session.user.id,file_name:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,admin_status:'pending'}]); document.getElementById('saveReadMsg').innerText='✅ SAVED!'; setTimeout(()=>location.reload(),1000);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
 
-async function renderLoginUser(){
-document.getElementById('app').innerHTML=`
-<div class="card" style="max-width:450px;margin:20px auto;border:3px solid #00ff88;text-align:center">
-  <h1 style="margin:4px">🎙️ MAIN NAIJA PIDGIN</h1>
-  <div style="background:linear-gradient(90deg,#00ff88,gold);color:#000;padding:12px;border-radius:12px;font-weight:900;margin:10px 0">💰 RECORD VOICE & RECEIVE ₦5,000<br><small>Email Only - No Password</small></div>
-  <input id="email" type="email" placeholder="Enter your email only - you@gmail.com" style="font-size:18px;padding:18px;text-align:center;border:3px solid #00ff88">
-  <button class="btn green" onclick="easyEmailOnlyLogin()" style="font-size:20px;padding:20px;margin-top:14px;background:linear-gradient(90deg,#00ff88,gold);color:#000">🚀 LOGIN WITH EMAIL ONLY</button>
-  <p id="msg" style="background:#000;color:gold;padding:12px;border-radius:8px;margin-top:12px;font-weight:900;display:none"></p>
-  <p style="margin-top:12px"><a href="/admin/login" style="color:gold;font-size:11px">Chairman Login</a> | <a href="/buy" style="color:#00ff88;font-size:11px">Buy API Key</a> | <a href="/" style="color:#fff;font-size:11px">Home</a></p>
-</div>`;
-}
-async function easyEmailOnlyLogin(){
-  const email=document.getElementById('email').value.trim().toLowerCase();
-  const msg=document.getElementById('msg'); msg.style.display='block';
-  if(!email||!email.includes('@')){msg.innerText='❌ Enter valid email'; return;}
-  msg.innerText='⏳ Creating account...';
-  try{
-    const {data:existingProfiles}=await supabaseClient.from('profiles').select('*').eq('email',email).limit(1);
-    let profile=existingProfiles&&existingProfiles[0]; let userId;
-    if(profile){userId=profile.id; msg.innerText='✅ Welcome back!';}
-    else{
-      const newId=crypto.randomUUID(); userId=newId;
-      const displayName=email.split('@')[0];
-      const {error:profErr}=await supabaseClient.from('profiles').insert([{id:newId,email:email,display_name:displayName,total_words:0,recordings_count:0,status:'active',is_chairman:false,last_login_at:new Date().toISOString()}]);
-      if(profErr){
-        const dummyPass='EmailOnly_'+Math.random().toString(36).substring(2,12)+'Launch!';
-        const {data:authData}=await supabaseClient.auth.signUp({email:email,password:dummyPass});
-        if(authData?.user){userId=authData.user.id; await supabaseClient.from('profiles').insert([{id:userId,email:email,display_name:displayName,status:'active',is_chairman:false}]);}
-      }
-    }
-    const {data:existingKeys}=await supabaseClient.from('api_keys').select('*').eq('email',email).limit(1);
-    if(!existingKeys||existingKeys.length===0){
-      const fullKey='mnp_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10);
-      const keyHash=await hashKeyClient(fullKey);
-      await supabaseClient.from('api_keys').insert([{email:email,name:email.split('@')[0],api_key:fullKey,key_hash:keyHash,key_prefix:fullKey.substring(0,12),credits_remaining:100,credits_total:100,credits_used:0,is_active:true,payment_ref:'MORE-BETTER-FREE-100'}]);
-    }
-    localStorage.setItem('easy_email',email); localStorage.setItem('easy_user_id',userId);
-    msg.innerText='✅ Redirecting...';
-    setTimeout(()=>{location.pathname='/user/dashboard';},800);
-  }catch(e){msg.innerText='❌ '+e.message; localStorage.setItem('easy_email',email); setTimeout(()=>{location.pathname='/user/dashboard';},1200);}
-}
-window.easyEmailOnlyLogin=easyEmailOnlyLogin;
+async function renderLoginAdmin(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLogin('admin')">LOGIN</button><p id="msg"></p></div>`;}
+async function renderLoginUser(){document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid #00ff88"><h2>🎙️ WORKER LOGIN</h2><input id="email" placeholder="Email"><input id="pass" type="password" placeholder="Password"><input id="name" placeholder="Name for signup"><button class="btn green" onclick="doLogin('user')">LOGIN</button><button class="btn gray" onclick="doSignup()">SIGNUP</button><button class="btn gray" onclick="forgotPassword()" style="background:#222;border:1px dashed #00ff88;">🔑 FORGOT PASSWORD?</button><p id="msg" style="background:#000;padding:10px;border-radius:8px;margin-top:10px;"></p></div>`;}
 
-async function renderLoginAdmin(){
-document.getElementById('app').innerHTML=`<div class="card" style="max-width:450px;margin:30px auto;border:2px solid gold"><h2>👑 CHAIRMAN LOGIN</h2><input id="email" placeholder="Chairman Email"><input id="pass" type="password" placeholder="Password"><button class="btn gold" onclick="doLoginAdmin()">LOGIN</button><p id="msg"></p><p><a href="/user/login" style="color:#00ff88">Worker Email Only</a> | <a href="/" style="color:#fff">Home</a></p></div>`;
-}
-async function doLoginAdmin(){
-  const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const msg=document.getElementById('msg');
-  if(!e||!p){msg.innerText='Fill'; return;} const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p}); if(error){msg.innerText=error.message; return;}
-  const {data:{session}}=await supabaseClient.auth.getSession(); const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
-  if(!prof?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED</h1>'; return;} location.href='/admin/dashboard';
-}
-window.doLoginAdmin=doLoginAdmin;
-
-async function getCurrentUser(){
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(session?.user){const {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(prof) return {id:session.user.id,email:prof.email,profile:prof};}
-  const easyEmail=localStorage.getItem('easy_email'); const easyId=localStorage.getItem('easy_user_id');
-  if(easyEmail){const {data:profiles}=await supabaseClient.from('profiles').select('*').eq('email',easyEmail).limit(1); if(profiles&&profiles[0]){return {id:profiles[0].id,email:easyEmail,profile:profiles[0]};} return {id:easyId||'temp',email:easyEmail,profile:{email:easyEmail,display_name:easyEmail.split('@')[0],is_chairman:false}};}
-  return null;
+// FIXED doLogin - NO MORE JUMP TO ADMIN FOR USER
+async function doLogin(type){
+  const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const msg=document.getElementById('msg'); 
+  if(!e||!p){msg.innerText='Fill'; return;} msg.innerText='Checking...'; 
+  const {error}=await supabaseClient.auth.signInWithPassword({email:e,password:p}); if(error){msg.innerText=error.message; return;} 
+  const {data:{session}}=await supabaseClient.auth.getSession(); 
+  let {data:prof}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); 
+  if(!prof){const newProf={id:session.user.id,email:e,display_name:e.split('@')[0],total_words:0,recordings_count:0,status:'not_started',is_chairman:false}; await supabaseClient.from('profiles').insert([newProf]); prof=newProf;} 
+  if(type==='admin'){
+    if(!prof?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Not Chairman</h1><button class="btn green" onclick="location.pathname=\'/user/login\'">Go Worker</button>'; return;}
+    location.href='/admin/dashboard';
+  }else{
+    // FIXED: USER LOGIN ALWAYS GO TO USER DASHBOARD - EVEN IF is_chairman=true (for kingselysuoye@gmail.com)
+    location.href='/user/dashboard';
+  }
 }
 
-window.startReadRecord=async function(){try{const stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; recSec=0; readBlob=null; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=()=>{readBlob=new Blob(audioChunks,{type:'audio/webm'}); const a=document.getElementById('readAudioPreview'); if(a){a.src=URL.createObjectURL(readBlob); a.style.display='block';} const s=document.getElementById('saveReadBtn'); if(s)s.style.display='block'; const d=document.getElementById('deleteReadBtn'); if(d)d.style.display='block';}; mediaRecorder.start(); document.getElementById('readStatus').style.display='block'; document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='block'; recTimer=setInterval(()=>{recSec++; document.getElementById('readTimer').innerText=recSec+'s';},1000);}catch(e){alert('Allow mic');}};
-window.stopReadRecord=function(){if(mediaRecorder&&mediaRecorder.state==='recording'){mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop());} clearInterval(recTimer); document.getElementById('readBtn').style.display='none'; document.getElementById('stopReadBtn').style.display='none'; document.getElementById('saveReadMsg').innerText='🎧 Check sound well - If no clear, delete & record again';};
-window.deleteReadRecord=function(){
-  readBlob=null; audioChunks=[]; recSec=0;
-  const a=document.getElementById('readAudioPreview'); if(a){a.pause(); a.src=''; a.style.display='none';}
-  document.getElementById('readStatus').style.display='none';
-  document.getElementById('readBtn').style.display='block';
-  document.getElementById('stopReadBtn').style.display='none';
-  document.getElementById('readTimer').innerText='0s';
-  document.getElementById('saveReadMsg').innerText='';
-  clearInterval(recTimer);
-};
-window.saveReadRecord=async function(){
-const lang=getLang(); const text=document.getElementById('curTxt').innerText; if(!readBlob){alert('Record first'); return;} const saveMsg=document.getElementById('saveReadMsg'); saveMsg.innerText='Saving...';
-try{const user=await getCurrentUser(); if(!user){location.pathname='/user/login'; return;} const fileName=`${user.id}/${Date.now()}_read_${lang}.webm`; await supabaseClient.storage.from('voices').upload(fileName, readBlob, {contentType:'audio/webm'}); const {data:existing}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id); await supabaseClient.from('recordings').insert([{user_id:user.id,file_name:fileName,pidgin_text:text,word_count:countW(text),language:lang,recording_number:(existing?.length||0)+1,admin_status:'pending'}]); saveMsg.innerText='✅ Saved!'; setTimeout(()=>location.reload(),1000);}catch(e){document.getElementById('saveReadMsg').innerText='❌ '+e.message;}};
+async function doSignup(){const e=document.getElementById('email').value.trim(); const p=document.getElementById('pass').value; const n=document.getElementById('name').value||e.split('@')[0]; const msg=document.getElementById('msg'); if(!e||!p){msg.innerText='Fill'; return;} msg.innerText='Creating...'; const {data,error}=await supabaseClient.auth.signUp({email:e,password:p}); if(error){msg.innerText=error.message; return;} if(!data.user){msg.innerText='Check email'; return;} await supabaseClient.from('profiles').insert([{id:data.user.id,email:e,display_name:n,total_words:0,recordings_count:0,status:'active',is_chairman:false}]); msg.innerText='✅ Created! Login now';}
+window.doLogin=doLogin; window.doSignup=doSignup;
+async function forgotPassword(){const email=document.getElementById('email').value.trim(); const msg=document.getElementById('msg'); if(!email){msg.innerText='Enter email first'; return;} msg.innerText='Sending...'; try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:'https://main-naija-pidgin.vercel.app/user/login'}); if(error){msg.innerText=error.message; return;} msg.innerText='✅ Check email';}catch(e){msg.innerText='Could not send';}}
+window.forgotPassword=forgotPassword;
 
-window.approveRecording=async function(id){if(!confirm('Approve + Pay ₦50?'))return; await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id); alert('✅ Approved!'); location.reload();};
+window.approveRecording=async function(id){if(!confirm('Approve?'))return; await supabaseClient.from('recordings').update({admin_status:'approved'}).eq('id',id); alert('✅ Approved!'); location.reload();};
 window.rejectRecording=async function(id){if(!confirm('Reject?'))return; await supabaseClient.from('recordings').update({admin_status:'rejected'}).eq('id',id); location.reload();};
 window.deleteRecording=async function(id,file){if(!confirm('DELETE?'))return; if(file)await supabaseClient.storage.from('voices').remove([file]); await supabaseClient.from('recordings').delete().eq('id',id); location.reload();};
 
-function renderBuyPage(){
-document.getElementById('app').innerHTML=`
-<div class="card" style="border:3px solid gold;text-align:center"><h1 style="color:gold;margin:0">BUY API KEY - Email Only Tonight</h1></div>
-<div class="card" style="border:3px solid #00ff88;background:#001a00">
-<h2 style="color:#00ff88;text-align:center;margin:0">🆓 FREE - Email Only - 100</h2>
-<input id="buy_name_free" placeholder="Your Name"><input id="buy_email_free" placeholder="Your Email Only">
-<button class="btn green" onclick="doBuyFreeSecure()">🆓 COLLECT FREE 100 BUTTON</button>
-<p id="buy_free_msg"></p>
-<div id="buyFreeBox" style="display:none;background:#fff;color:#000;padding:16px;border-radius:12px;border:3px solid #00ff88">
-<code id="buyFreeKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br>
-<button onclick="copyLink(document.getElementById('buyFreeKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY</button>
-</div>
-</div>
-<div class="card" style="border:3px solid gold">
-<h2 style="text-align:center;color:gold;margin:0">💳 PAID - Paystack</h2>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0">
-<div class="price-card" style="border-color:#00ff88;background:#001a00"><b>1k voices</b><br><span style="color:#00ff88;font-weight:900;font-size:20px">₦5,000</span><br><button class="btn green" onclick="buyPublic('1k')">1k = ₦5,000 BUTTON</button></div>
-<div class="price-card" style="border-color:gold;background:#1a1500"><b>5k voices</b><br><span style="color:gold;font-weight:900;font-size:20px">₦22,000</span><br><button class="btn gold" onclick="buyPublic('5k')">5k = ₦22,000 BUTTON</button></div>
-</div>
-<input id="buy_name_paid" placeholder="Your Name for Paid Key"><input id="buy_email_paid" placeholder="Your Email for Paid Key">
-<div id="buyPayBox" style="display:none;background:#000;padding:15px;border-radius:12px;border:3px dashed gold">
-<h3 id="buyPayTitle" style="color:gold">Ready for Paystack</h3>
-<button class="btn green" onclick="payPublicSecure()" style="font-size:18px;padding:18px;background:linear-gradient(90deg,#00ff88,gold);color:#000;font-weight:900">💳 TAP TO PAY WITH PAYSTACK BUTTON</button>
-<div id="buyPaidBox" style="display:none;background:#00ff88;color:#000;padding:16px;border-radius:12px;margin-top:10px">
-<code id="buyPaidKeyText" style="word-break:break-all;background:#000;color:#00ff88;padding:8px;display:block;border-radius:6px;margin-top:8px"></code><br>
-<div id="buyPaidInfo" style="background:#000;color:#00ff88;padding:8px;border-radius:6px;margin-top:8px"></div>
-<button onclick="copyLink(document.getElementById('buyPaidKeyText').innerText)" style="padding:12px;background:#000;color:#00ff88;border:none;border-radius:30px;width:100%;font-weight:900">COPY KEY BUTTON</button>
-</div>
-<p id="buy_paid_msg" style="font-weight:900"></p>
-</div>
-</div>`;
-window.buyPublic=function(packageId){
-  const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'}};
-  const pkg=PACKAGES[packageId]; if(!pkg){alert('Invalid'); return;} currentPackage={packageId:packageId,voices:pkg.voices,amount:pkg.amount};
-  document.getElementById('buyPayBox').style.display='block';
-  document.getElementById('buyPayTitle').innerText=`${pkg.label} - Pay ₦${pkg.amount.toLocaleString()}`;
-};
-window.doBuyFreeSecure=async function(){
-  const name=document.getElementById('buy_name_free').value.trim()||'User'; const email=document.getElementById('buy_email_free').value.trim(); const msg=document.getElementById('buy_free_msg');
-  if(!email||!email.includes('@')){msg.innerText='❌ Enter valid email'; return;} msg.innerText='⏳ Collecting FREE...';
-  const {data:exists}=await supabaseClient.from('api_keys').select('id, api_key').eq('email',email).limit(1);
-  if(exists&&exists.length>0){document.getElementById('buyFreeKeyText').innerText=exists[0].api_key; document.getElementById('buyFreeBox').style.display='block'; msg.innerText='⚠️ You already get key'; return;}
-  const fullKey='mnp_'+Math.random().toString(36).substring(2,10)+Math.random().toString(36).substring(2,10); const keyHash=await hashKeyClient(fullKey);
-  await supabaseClient.from('api_keys').insert([{email:email,name:name,api_key:fullKey,key_hash:keyHash,key_prefix:fullKey.substring(0,12),credits_remaining:100,credits_total:100,credits_used:0,is_active:true,payment_ref:'MORE-BETTER-FREE-100'}]);
-  document.getElementById('buyFreeKeyText').innerText=fullKey; document.getElementById('buyFreeBox').style.display='block'; msg.innerText='✅ FREE 100!';
-};
-window.payPublicSecure=function(){
-  let email=document.getElementById('buy_email_paid').value.trim(); if(!email||!email.includes('@')){email=prompt('Enter email for paid key:')||'';} if(!email||!email.includes('@')){alert('Valid email'); return;}
-  const msg=document.getElementById('buy_paid_msg'); const PACKAGES={'1k':{voices:1000,amount:5000,label:'Starter 1k Voices ₦5k'},'5k':{voices:5000,amount:22000,label:'Popular 5k Voices ₦22k'}};
-  const pkg=PACKAGES[currentPackage.packageId]; if(!pkg){alert('Select package first'); return;} msg.innerText='⏳ Opening Paystack...';
-  try{
-    const handler=PaystackPop.setup({key:PAYSTACK_PUBLIC_KEY,email:email,amount:Math.round(pkg.amount*100),currency:'NGN',ref:'MOREBETTER_'+currentPackage.packageId+'_'+Date.now(),callback:function(res){msg.innerText='✅ Payment OK! Verifying...'; (async function(){try{const verifyRes=await fetch('/api/paystack/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({reference:res.reference,email:email,name:document.getElementById('buy_name_paid').value.trim()||'Paid User',packageId:currentPackage.packageId})}); const verifyText=await verifyRes.text(); let verifyData; try{verifyData=verifyText?JSON.parse(verifyText):{};}catch(e){throw new Error('Verify non-JSON');} if(!verifyRes.ok)throw new Error(verifyData.error||'Failed'); document.getElementById('buyPaidKeyText').innerText=verifyData.full_key; document.getElementById('buyPaidInfo').innerText=`${verifyData.package} - ${verifyData.credits} credits - Ref ${res.reference}`; document.getElementById('buyPaidBox').style.display='block'; msg.innerText=`✅ ${verifyData.package} Verified!`;}catch(e){msg.innerText='❌ '+e.message;}})();},onClose:function(){msg.innerText='Paystack closed - Try again';}}); handler.openIframe();
-  }catch(e){msg.innerText='❌ '+e.message;}
-};
-}
-
-async function renderAdminDashboard(){
-  const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;}
-  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single(); if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED</h1>'; return;}
-  const {data:users}=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false});
+async function renderAdminDashboard(session){
+  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  if(!profile?.is_chairman){document.getElementById('app').innerHTML='<h1>🚫 BLOCKED - Not Chairman</h1>'; return;}
   const {data:allRecs}=await supabaseClient.from('recordings').select('*').order('created_at',{ascending:false});
-  const totalWorkers=users?.filter(u=>!u.is_chairman).length||0; const pending=allRecs?.filter(r=>r.admin_status==='pending').length||0; const approved=allRecs?.filter(r=>r.admin_status==='approved').length||0;
-  document.getElementById('app').innerHTML=`
-    <div class="card" style="border:3px solid gold"><h2 style="text-align:center;color:gold">👑 CHAIRMAN V7.9 MORE BETTER - BUTTON BOARD</h2>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <button style="background:#111;border:2px solid #00ff88;color:#fff;padding:16px;border-radius:14px;text-align:left"><b style="font-size:22px">${totalWorkers}</b><br>Workers</button>
-        <button style="background:#111;border:2px solid gold;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${pending}</b><br>Pending - ₦50 each</button>
-        <button style="background:#002b18;border:2px solid #00ff88;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${approved}</b><br>Approved - Paid ₦${approved*50}</button>
-        <button style="background:#111;border:2px solid #333;color:#fff;padding:16px;border-radius:14px;text-align:left"><b>${allRecs?.length||0}</b><br>Total Recs</button>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button onclick="location.pathname='/admin/keys'" style="background:gold;color:#000;padding:16px;border:none;border-radius:50px;font-weight:900">Keys BUTTON</button><button onclick="location.pathname='/buy'" style="background:#00ff88;color:#000;padding:16px;border:none;border-radius:50px;font-weight:900">Buy</button><button onclick="supabaseClient.auth.signOut().then(()=>{localStorage.clear(); location.pathname='/';})" style="background:#333;color:#fff;padding:16px;border:none;border-radius:50px;font-weight:900">Logout</button></div>
-    </div>
-    <div class="card"><h3>Recordings - Approve = ₦50</h3>${(allRecs||[]).slice(0,80).map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0"><b>#${r.recording_number} ${r.admin_status.toUpperCase()} ${r.admin_status==='approved'?'💰 ₦50':''}</b><br><small>${(r.pidgin_text||'').substring(0,70)}</small><div id="rec-${r.id}" style="margin-top:8px"><audio id="admin-audio-${i}" data-file="${r.file_name}" controls style="width:100%"></audio><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:8px"><button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">✅ APPROVE + ₦50</button><button onclick="rejectRecording('${r.id}')" style="background:#ff3b3b;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:900">Reject</button><button onclick="copyVoiceId('${r.file_name}')" style="background:gold;color:#000;padding:14px;border:none;border-radius:10px;font-weight:900">ID CODE</button></div><button onclick="deleteRecording('${r.id}','${r.file_name}')" style="width:100%;background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:14px;border-radius:30px;margin-top:8px;font-weight:900">DELETE BUTTON</button></div></div>`).join('')||'No recordings'}</div>`;
+  document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h2>👑 CHAIRMAN DASHBOARD - V6.3 FIXED</h2><p>Total Recordings: ${allRecs?.length||0}</p><div style="display:flex;gap:8px"><button class="btn gold" onclick="location.pathname='/admin/keys'">Keys</button><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/admin/login')">Logout</button></div></div><div class="card">${(allRecs||[]).slice(0,50).map((r,i)=>`<div style="background:#181818;padding:12px;border-radius:12px;margin:10px 0"><b>#${r.recording_number} ${r.admin_status.toUpperCase()}</b><br><small>${(r.pidgin_text||'').substring(0,100)}</small><br><audio id="admin-audio-${i}" data-file="${r.file_name}" controls style="width:100%;margin:8px 0"></audio><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px"><button onclick="approveRecording('${r.id}')" style="background:#00ff88;color:#000;padding:10px;border:none;border-radius:8px">✅ APPROVE</button><button onclick="deleteRecording('${r.id}','${r.file_name}')" style="background:#000;color:#ff3b3b;border:2px solid #ff3b3b;padding:10px;border-radius:8px">DELETE</button></div></div>`).join('')||'No recordings'}</div>`;
   setTimeout(()=>loadAllSignedVoices(),800);
 }
 
-async function renderUserDashboardReal(){
-  const user=await getCurrentUser(); 
-  if(!user){location.pathname='/user/login'; return;} 
-  if(user.profile?.is_chairman){location.pathname='/admin/dashboard'; return;}
-  const {data:recs}=await supabaseClient.from('recordings').select('id').eq('user_id',user.id);
-  const records=recs||[];
-  const lang=getLang(); 
-  const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; 
-  const current=texts[records.length % texts.length];
-  document.getElementById('app').innerHTML=`
-    <div style="background:#111; border:1px solid #00ff88; border-radius:30px; padding:6px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
-      <small style="color:#888; font-size:10px; padding-left:10px">Your Voice</small>
-      <span style="background:#00ff88; color:#000; padding:4px 14px; border-radius:20px; font-weight:900; font-size:13px">${records.length} / 1000</span>
-    </div>
-    <div style="text-align:center; margin-bottom:8px">
-      <small style="color:#00ff88; font-size:11px; background:#111; border:1px solid #333; padding:5px 12px; border-radius:20px">🎙️ Abeg use quiet place, no noise - make admin approve 👍</small>
-    </div>
-    <div class="card" style="border:2px solid #00ff88; padding:12px">
-      <div class="textbox" id="curTxt" style="font-size:18px">${current}</div>
-      <button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START RECORD</button>
-      <button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button>
-      <div id="readStatus" style="display:none; background:#000; padding:12px; border-radius:12px; margin-top:12px; border:2px solid gold">
-        <p style="text-align:center; margin:5px; font-size:13px">🎧 Check am well - <span id="readTimer">0s</span></p>
-        <audio id="readAudioPreview" controls style="width:100%; display:none; margin:10px 0"></audio>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px">
-          <button id="deleteReadBtn" class="btn" style="background:#222; color:#ff3b3b; border:2px solid #ff3b3b; display:none" onclick="deleteReadRecord()">🗑️ DELETE & RECORD AGAIN</button>
-          <button id="saveReadBtn" class="btn gold" style="display:none" onclick="saveReadRecord()">💾 SAVE</button>
-        </div>
-        <p id="saveReadMsg" style="text-align:center; margin-top:8px; font-size:12px; font-weight:800"></p>
-      </div>
-    </div>
-    <div style="text-align:center; margin-top:10px">
-      <small style="color:#555; font-size:10px">${user.email}</small><br>
-      <button class="btn gray" style="width:auto; padding:8px 16px; font-size:11px; border-radius:20px; margin-top:6px" onclick="localStorage.clear(); supabaseClient.auth.signOut().then(()=>location.pathname='/')">Logout</button>
-    </div>
-  `;
-}
+function renderBuyPage(){document.getElementById('app').innerHTML=`<div class="card"><h1>BUY</h1><button class="btn green" onclick="location.pathname='/user/login'">Go Worker</button></div>`;}
+async function renderKeysPage(){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;} document.getElementById('app').innerHTML=`<div class="card"><h2>KEYS</h2><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button></div>`;}
 
-function renderLanding(){
+// FIXED renderUserDashboardReal - NO MORE REDIRECT TO ADMIN
+async function renderUserDashboardReal(session){
+  const {data:profile}=await supabaseClient.from('profiles').select('*').eq('id',session.user.id).single();
+  // REMOVED: if(profile?.is_chairman){location.pathname='/admin/dashboard'; return;} - THIS WAS BREAKING kingselysuoye@gmail.com
+  const {data:recs}=await supabaseClient.from('recordings').select('*').eq('user_id',session.user.id).order('created_at',{ascending:false});
+  const records=recs||[]; const totalWords=records.reduce((s,r)=>s+(Number(r.word_count)||0),0); const pct=Math.min(100,(totalWords/1000)*100);
+  const lang=getLang(); const texts=TEXTS_DATA[lang]||TEXTS_DATA.pidgin; const current=texts[records.length%texts.length];
   document.getElementById('app').innerHTML=`
-  <div class="card" style="max-width:450px;margin:30px auto;text-align:center;border:3px solid #00ff88">
-    <h1 style="margin:10px">🎙️ MAIN NAIJA PIDGIN</h1>
-    <div style="background:linear-gradient(90deg,#00ff88,gold);color:#000;padding:14px;border-radius:12px;font-weight:900;margin:12px 0">💰 RECORD VOICE & EARN ₦5,000<br><small>1,000 voices = ₦5,000 - Tonight!</small></div>
-    <p style="font-size:12px;color:#aaa">Choose your panel</p>
-    <button class="btn green" onclick="location.pathname='/user/login'" style="font-size:18px;padding:18px;margin-top:10px">👷 WORKER - Email Only</button>
-    <button class="btn gold" onclick="location.pathname='/admin/login'" style="padding:14px">👑 CHAIRMAN LOGIN</button>
-    <button class="btn blue" onclick="location.pathname='/buy'" style="padding:12px">💳 BUY API KEY</button>
-  </div>`;
-}
-
-async function renderKeysPage(){
-  const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;}
-  const {data:keys}=await supabaseClient.from('api_keys').select('*').order('created_at',{ascending:false});
-  document.getElementById('app').innerHTML=`<div class="card" style="border:3px solid gold"><h2>KEYS</h2><button class="btn gold" onclick="location.pathname='/admin/dashboard'">Dashboard</button></div><div class="card"><h3>All Keys ${keys?.length||0}</h3>${(keys||[]).map(k=>`<div style="background:#181818;padding:14px;border-radius:12px;margin:10px 0">${k.email} - ${k.key_prefix} - ${k.credits_remaining}</div>`).join('')||'No keys'}</div>`;
+    <div class="header"><div style="font-size:18px;font-weight:900">WELCOME, ${(profile?.display_name||'WORKER').toUpperCase()}</div><div style="background:#00ff88;color:#000;padding:8px;border-radius:12px;margin:8px 0;font-weight:900;">${records.length} / 1000 voices</div><div>${totalWords} / 1000 WORDS - ${pct.toFixed(0)}%</div><div class="progress"><div class="fill" style="width:${pct}%"></div></div></div>
+    <div class="card" style="border:3px solid #00ff88"><h3>📖 READ</h3><div class="textbox" id="curTxt">${current}</div><button id="readBtn" class="btn green" onclick="startReadRecord()">🎙️ START READ</button><button id="stopReadBtn" class="btn red" style="display:none" onclick="stopReadRecord()">⏹️ STOP</button><div id="readStatus" style="display:none;background:black;padding:12px;border-radius:10px;margin-top:10px"><p>🔴 Recording <span id="readTimer">0s</span></p><audio id="readAudioPreview" controls style="width:100%;display:none"></audio><button id="saveReadBtn" class="btn blue" style="display:none" onclick="saveReadRecord()">💾 SAVE</button><p id="saveReadMsg"></p></div></div>
+    <div class="card"><h3>My Recordings ${records.length}</h3>${records.slice(0,20).map((r,i)=>`<div style="background:#181818;padding:10px;border-radius:8px;margin:6px 0"><b>#${r.recording_number} ${r.admin_status}</b> - ${r.pidgin_text?.substring(0,80)}<br><audio id="user-${i}" data-file="${r.file_name}" controls style="width:100%;height:32px"></audio></div>`).join('')||'No recordings yet'}</div>
+    <div class="card" style="text-align:center"><small>${profile?.email||''}</small><br><button class="btn gray" onclick="supabaseClient.auth.signOut().then(()=>location.pathname='/user/login')">Logout</button></div>`;
+  setTimeout(()=>loadAllSignedVoices(),600);
 }
 
 async function router(){
-const path=location.pathname;
-if(path==='/' || path==='/index.html'){renderLanding(); return;}
-if(path==='/user/login'){renderLoginUser(); return;}
-if(path==='/admin/login'){renderLoginAdmin(); return;}
-if(path==='/buy'){renderBuyPage(); return;}
-if(path==='/admin/keys'){renderKeysPage(); return;}
-if(path==='/admin/dashboard'){renderAdminDashboard(); return;}
-if(path==='/user/dashboard'){renderUserDashboardReal(); return;}
-const {data:{session}}=await supabaseClient.auth.getSession();
-if(session){
-  const {data:prof}=await supabaseClient.from('profiles').select('is_chairman').eq('id',session.user.id).single(); 
-  if(prof?.is_chairman){location.pathname='/admin/dashboard';}else{location.pathname='/user/dashboard';}
-} else {
-  renderLanding();
-}
+  const path=location.pathname;
+  if(path==='/admin/login'){renderLoginAdmin(); return;}
+  if(path==='/user/login'){renderLoginUser(); return;}
+  if(path==='/buy'){renderBuyPage(); return;}
+  if(path==='/admin/keys'){renderKeysPage(); return;}
+  if(path==='/admin/dashboard'){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/admin/login'; return;} renderAdminDashboard(session); return;}
+  if(path==='/user/dashboard'){const {data:{session}}=await supabaseClient.auth.getSession(); if(!session){location.pathname='/user/login'; return;} renderUserDashboardReal(session); return;}
+  const {data:{session}}=await supabaseClient.auth.getSession(); 
+  if(session){location.pathname='/user/dashboard';} else {renderLoginUser();}
 }
 router();
 })();
