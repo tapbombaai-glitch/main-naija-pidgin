@@ -1,107 +1,99 @@
-// api/paystack.js - V6.4 FINAL FIXED - LIVE ₦5k + ₦22k + FREE compatible
+// api/paystack.js - PROPOSED - Preserves Paystack, fixes security + new packages
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+if(!supabaseUrl || !supabaseServiceKey) throw new Error('SUPABASE SERVICE ROLE missing - No anon fallback');
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+// APPROVED PACKAGES - ₦5 per credit - Server-side source of truth
+const PACKAGES = {
+  '1k':  { credits: 1000,  amountKobo: 500000,  amountNaira: 5000,  name: 'Starter 1k' },
+  '2k':  { credits: 2000,  amountKobo: 1000000, amountNaira: 10000, name: 'Standard 2k' },
+  '5k':  { credits: 5000,  amountKobo: 2500000, amountNaira: 25000, name: 'Professional 5k' },
+  '10k': { credits: 10000, amountKobo: 5000000, amountNaira: 50000, name: 'Professional 10k' }
+};
+const LEGACY_AMOUNTS = { 100000:1000, 2200000:5000 }; // Preserve old payments
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if(req.method === 'OPTIONS') return res.status(200).end();
-  if(req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
+export default async function handler(req,res){
+  res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  if(req.method==='OPTIONS') return res.status(200).end();
+  if(req.method!=='POST') return res.status(405).json({error:'Use POST'});
 
-  try {
-    const { email, payment_ref, reference, packageId } = req.body;
-    const payRef = payment_ref || reference;
-    
-    if(!email || !payRef) return res.status(400).json({ error: 'Email + payment_ref required' });
+  try{
+    const {email, payment_ref, reference, packageId} = req.body;
+    const payRef = (payment_ref || reference || '').trim();
+    const frontendEmail = (email||'').toLowerCase().trim();
+    if(!frontendEmail || !payRef) return res.status(400).json({error:'Email + payment_ref required'});
 
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SK_LIVE;
-    if(!PAYSTACK_SECRET) return res.status(500).json({ error: 'PAYSTACK_SECRET_KEY missing in Vercel Env' });
+    if(!PAYSTACK_SECRET) return res.status(500).json({error:'PAYSTACK_SECRET_KEY missing'});
 
-    // Prevent reuse of ref
-    const { data: usedRef } = await supabase.from('api_keys').select('id').eq('payment_ref', payRef).limit(1);
-    if(usedRef?.length > 0) {
-      const { data: existing } = await supabase.from('api_keys').select('key_hash,key_prefix,word_count').eq('payment_ref', payRef).single();
-      return res.status(200).json({ success: true, api_key: existing?.key_hash, full_key: existing?.key_hash, message: 'Already used - returning old key' });
+    // 1. Duplicate protection - No key exposure
+    const {data: existing} = await supabaseAdmin.from('api_keys').select('id,email').eq('payment_ref', payRef).maybeSingle();
+    if(existing){
+      return res.status(409).json({error:'Payment already credited', ref: payRef, email: existing.email});
     }
 
-    // Verify with Paystack LIVE
+    // 2. Verify with Paystack LIVE
     const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${payRef}`, {
-      headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` }
+      headers:{Authorization:`Bearer ${PAYSTACK_SECRET}`}
     });
     const verifyData = await verifyRes.json();
-
-    if(!verifyData.status || verifyData.data.status !== 'success') {
-      return res.status(400).json({ error: 'Paystack says not successful', data: verifyData });
+    if(!verifyData.status || verifyData.data.status!=='success'){
+      return res.status(400).json({error:'Paystack not successful', data: verifyData});
     }
 
-    const amountPaidKobo = verifyData.data.amount;
-    const amountPaidNaira = amountPaidKobo / 100;
+    const amountKobo = verifyData.data.amount;
+    const amountNaira = amountKobo/100;
     const verifiedEmail = verifyData.data.customer.email.toLowerCase();
+    const currency = verifyData.data.currency;
 
-    // Determine package by amount - SUPPORTS YOUR PRICES
-    let credits = 1000;
-    let planName = 'Starter 1k';
-    
-    if (amountPaidKobo === 100000) { credits = 1000; planName = 'TEST 1k - ₦1,000'; }
-    else if (amountPaidKobo >= 400000 && amountPaidKobo <= 600000) { credits = 1000; planName = 'Starter 1k - ₦5,000'; }
-    else if (amountPaidKobo >= 2000000 && amountPaidKobo <= 2500000) { credits = 5000; planName = 'Popular 5k - ₦22,000'; }
-    else if (amountPaidKobo >= 4000000) { credits = Math.floor(amountPaidKobo / 5); planName = `Custom ${Math.floor(amountPaidKobo/5)}`; }
-    else {
-      // Allow any successful payment - don't block
-      credits = packageId === '5k' ? 5000 : 1000;
-      planName = packageId === '5k' ? 'Popular 5k' : 'Starter 1k';
-    }
+    // 3. Exact validation - Server decides credits, not frontend
+    if(currency!=='NGN') return res.status(400).json({error:'Currency must be NGN'});
+    if(verifiedEmail!==frontendEmail) return res.status(400).json({error:`Email mismatch: Paystack ${verifiedEmail} != ${frontendEmail}`});
 
-    // Create key with mnp_ prefix - FIXED to match your table
-    const rawKey = `mnp_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 8)}${Math.random().toString(36).substring(2, 6)}`;
-    const keyHash = rawKey; // Store raw as key_hash for your table structure
-    const prefix = rawKey.substring(0, 12);
+    let credits, planName;
+    const exactPkg = Object.values(PACKAGES).find(p=>p.amountKobo===amountKobo);
+    if(exactPkg){ credits=exactPkg.credits; planName=exactPkg.name; }
+    else if(LEGACY_AMOUNTS[amountKobo]){ credits=LEGACY_AMOUNTS[amountKobo]; planName=`Legacy ${amountKobo/100}`; } // Preserve old
+    else { return res.status(400).json({error:`Amount ₦${amountNaira} not in approved: ₦0, ₦5k, ₦10k, ₦25k, ₦50k`, amount:amountNaira}); }
+
+    // 4. Secure key - crypto.randomBytes, not Math.random
+    const rawKey = `mnp_${crypto.randomBytes(24).toString('hex')}`;
     const shaHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+    const prefix = rawKey.substring(0,16);
 
-    // FIXED INSERT - matches your real columns from video
-    const { data, error } = await supabase.from('api_keys').insert([{
-      name: `${planName} - ${email}`,
+    // 5. Insert - Preserve columns, add new for compatibility
+    const {data, error} = await supabaseAdmin.from('api_keys').insert([{
+      name: `${planName} - ${verifiedEmail}`,
       email: verifiedEmail,
-      key_hash: rawKey,           // Your real column
-      key_prefix: prefix,         // Your real column
-      credits_remaining: credits, // Your real column
-      word_count: credits,        // Your real column
-      words_used: 0,              // Your real column
-      is_active: false,           // PENDING Chairman - you go approve for /admin/keys
-      payment_ref: payRef,
-      // Optional if your table has these
-      // amount_paid: amountPaidNaira,
-      // plan: planName
+      key_hash: rawKey, // RAW for backward compat with old keys
+      key_hash_sha256: shaHash, // New secure
+      key_prefix: prefix,
+      credits_total: credits,
+      credits_remaining: credits,
+      max_words: credits, // For voices.js compatibility
+      word_count: credits, // Legacy
+      words_used: 0,
+      credits_used: 0,
+      is_active: false, // PENDING Chairman approval - Preserve workflow
+      is_exhausted: false,
+      payment_ref: payRef
     }]).select().single();
 
-    if(error) {
-      console.error('Insert error:', error);
-      return res.status(500).json({ error: error.message, details: error });
+    if(error){
+      if(error.code==='23505') return res.status(409).json({error:'Duplicate ref'});
+      return res.status(500).json({error:error.message});
     }
 
-    return res.status(200).json({ 
-      success: true, 
-      api_key: rawKey, 
-      full_key: rawKey,
-      key: rawKey,
-      key_hash: shaHash,
-      email: verifiedEmail, 
-      credits: credits,
-      word_count: credits,
-      package: planName,
-      amount: amountPaidNaira,
-      status: 'pending_approval',
-      message: `✅ Verified ₦${amountPaidNaira.toLocaleString()} - PENDING Chairman approval in /admin/keys`
+    return res.status(200).json({
+      success:true, api_key:rawKey, full_key:rawKey, email:verifiedEmail,
+      credits, package:planName, amount:amountNaira, status:'pending_approval',
+      message:`✅ Verified ₦${amountNaira} - ${credits} credits - Pending Chairman approval`
     });
-
-  } catch(e){ 
-    console.error('Paystack handler error:', e);
-    return res.status(500).json({ error: e.message }); 
-  }
+  }catch(e){ return res.status(500).json({error:e.message}); }
 }
