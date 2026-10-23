@@ -4,10 +4,10 @@ async function loadSignedVoice(fileName, audioId) {
     if (!audio || !fileName) return;
 
     const { data: { session }, error: sessionError } =
-      await supabase.auth.getSession();
+      await supabaseClient.auth.getSession();
 
     if (sessionError || !session?.access_token) {
-      console.error('Audio authentication required');
+      console.error('Audio authentication required - Login as tapbomba.ai@gmail.com');
       return;
     }
 
@@ -23,13 +23,14 @@ async function loadSignedVoice(fileName, audioId) {
     const data = await response.json();
 
     if (!response.ok || !data.signedUrl) {
-      console.error('Audio loading failed:', data);
+      console.error('Audio loading failed:', data, 'File:', fileName);
       return;
     }
 
+    console.log('Audio loaded:', fileName);
     audio.src = data.signedUrl;
     audio.load();
   } catch (error) {
-    console.error('Audio loading error:', error);
+    console.error('Audio loading error:', error, 'File:', fileName);
   }
 }
