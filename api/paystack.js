@@ -1,3 +1,4 @@
+
 // api/paystack.js - PROPOSED - Preserves Paystack, fixes security + new packages
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
