@@ -72,15 +72,39 @@ window.loadSignedVoice = async function(fileName, audioId){
     var text = await res.text();
     
     // If Vercel return HTML instead of JSON, no crash - just log
-    if(text.trim().startsWith('<') || text.includes('<!DOCTYPE')){
-      console.error('API returned HTML - api/my-voice.js not deployed yet. Check Vercel logs.');
-      // Show small error for audio tag, not alert
-      var el = document.getElementById(audioId);
-      if(el){
-        el.parentElement.innerHTML += '<small style="color:red;">⚠️ Voice API not ready - Redeploy Vercel</small>';
-      }
+    window.loadSignedVoice = async function(fileName, audioId){
+  try{
+    if(!fileName) return;
+    var sess = await supabaseClient.auth.getSession();
+    var token = sess.data.session?.access_token;
+    if(!token) return;
+
+    var res = await fetch('/api/my-voice?file='+encodeURIComponent(fileName), {
+      headers:{ 'Authorization':'Bearer '+token }
+    });
+
+    var text = await res.text();
+    if(text.trim().startsWith('<')){
+      console.error('Still getting HTML - Clear cache and redeploy');
       return;
     }
+
+    var data = JSON.parse(text);
+    if(data.signedUrl){
+      var audioEl = document.getElementById(audioId);
+      if(audioEl){
+        audioEl.src = data.signedUrl;
+        audioEl.load();
+        // Try play small
+        console.log('✅ Signed URL loaded:', fileName);
+      }
+    } else {
+      console.warn('No signedUrl:', data);
+    }
+  }catch(e){
+    console.warn('loadSignedVoice error:', e.message);
+  }
+};
 
     var data = JSON.parse(text);
     if(data.signedUrl){
