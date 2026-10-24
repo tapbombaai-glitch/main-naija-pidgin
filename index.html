@@ -58,32 +58,41 @@ window.copyApiLink=function(){ var txt='Endpoint: '+API_ENDPOINT+'\nHeader: x-ap
 window.copyVoiceId=function(f){ navigator.clipboard.writeText(f).then(function(){ alert('✅ Voice ID: '+escapeHtml(f)); }); };
 async function fetchAnn(){ try{ var r=await supabaseClient.from('announcements').select('*').order('created_at',{ascending:false}).limit(1).single(); return r.data; }catch(e){ return null; } }
 // FIX Issue #4 Audio playback - Must return valid authorized URL + show error if not!
-window.loadSignedVoice=async function(fileName,audioId){ 
-  try{ 
+window.loadSignedVoice = async function(fileName, audioId){
+  try{
     if(!fileName) return;
     var sess = await supabaseClient.auth.getSession();
     var token = sess.data.session?.access_token;
-    if(!token){
-      alert('No token - Login again as chairman!');
-      location.pathname='/admin/login';
+    if(!token) return;
+
+    var res = await fetch('/api/my-voice?file='+encodeURIComponent(fileName), {
+      headers:{ 'Authorization':'Bearer '+token }
+    });
+
+    var text = await res.text();
+    
+    // If Vercel return HTML instead of JSON, no crash - just log
+    if(text.trim().startsWith('<') || text.includes('<!DOCTYPE')){
+      console.error('API returned HTML - api/my-voice.js not deployed yet. Check Vercel logs.');
+      // Show small error for audio tag, not alert
+      var el = document.getElementById(audioId);
+      if(el){
+        el.parentElement.innerHTML += '<small style="color:red;">⚠️ Voice API not ready - Redeploy Vercel</small>';
+      }
       return;
     }
-    var res=await fetch('/api/my-voice?file='+encodeURIComponent(fileName),{
-      headers:{'Authorization':'Bearer '+token}
-    }); 
-    var data=await res.json(); 
-    if(data.signedUrl){ 
-      var el=document.getElementById(audioId); 
-      if(el){ 
-        el.src=data.signedUrl; 
-        el.load();
+
+    var data = JSON.parse(text);
+    if(data.signedUrl){
+      var el2 = document.getElementById(audioId);
+      if(el2){
+        el2.src = data.signedUrl;
+        el2.load();
       }
-    }else{
-      alert('Failed: '+(data.error||'No URL'));
     }
-  }catch(e){ 
-    alert('Error: '+e.message); 
-  } 
+  }catch(e){
+    console.warn('loadSignedVoice failed:', e.message);
+  }
 };
 window.loadAllSignedVoices=function(){ document.querySelectorAll('audio[data-file]').forEach(function(el){ var file=el.getAttribute('data-file'); if(file) loadSignedVoice(file,el.id); }); };
 window.changeLanguage=function(l){ setLang(l); location.reload(); };
