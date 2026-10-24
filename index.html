@@ -60,18 +60,30 @@ async function fetchAnn(){ try{ var r=await supabaseClient.from('announcements')
 // FIX Issue #4 Audio playback - Must return valid authorized URL + show error if not!
 window.loadSignedVoice=async function(fileName,audioId){ 
   try{ 
-    if(!fileName){ console.warn('No fileName for', audioId); return; }
-    var res=await fetch('/api/my-voice?file='+encodeURIComponent(fileName)); 
+    if(!fileName) return;
+    var sess = await supabaseClient.auth.getSession();
+    var token = sess.data.session?.access_token;
+    if(!token){
+      alert('No token - Login again as chairman!');
+      location.pathname='/admin/login';
+      return;
+    }
+    var res=await fetch('/api/my-voice?file='+encodeURIComponent(fileName),{
+      headers:{'Authorization':'Bearer '+token}
+    }); 
     var data=await res.json(); 
     if(data.signedUrl){ 
       var el=document.getElementById(audioId); 
-      if(el){ el.src=data.signedUrl; }
+      if(el){ 
+        el.src=data.signedUrl; 
+        el.load();
+      }
     }else{
-      console.warn('No signedUrl for', fileName, data);
-      var el=document.getElementById(audioId);
-      if(el){ el.parentElement.insertAdjacentHTML('beforeend','<small style="color:#f33">Audio auth failed: '+(data.error||'No signedUrl')+'</small>'); }
+      alert('Failed: '+(data.error||'No URL'));
     }
-  }catch(e){ console.warn('loadSignedVoice error', e.message); } 
+  }catch(e){ 
+    alert('Error: '+e.message); 
+  } 
 };
 window.loadAllSignedVoices=function(){ document.querySelectorAll('audio[data-file]').forEach(function(el){ var file=el.getAttribute('data-file'); if(file) loadSignedVoice(file,el.id); }); };
 window.changeLanguage=function(l){ setLang(l); location.reload(); };
