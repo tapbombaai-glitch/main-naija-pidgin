@@ -1,0 +1,7 @@
+{
+  "name": "main-naija-pidgin",
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.42.0"
+  }
+}
