@@ -78,31 +78,21 @@ window.loadSignedVoice = async function(fileName, audioId){
     var sess = await supabaseClient.auth.getSession();
     var token = sess.data.session?.access_token;
     if(!token) return;
-
     var res = await fetch('/api/my-voice?file='+encodeURIComponent(fileName), {
       headers:{ 'Authorization':'Bearer '+token }
     });
-
     var text = await res.text();
-    if(text.trim().startsWith('<')){
-      console.error('Still getting HTML - Clear cache and redeploy');
-      return;
-    }
-
+    if(text.trim().startsWith('<')) return;
     var data = JSON.parse(text);
     if(data.signedUrl){
       var audioEl = document.getElementById(audioId);
       if(audioEl){
         audioEl.src = data.signedUrl;
         audioEl.load();
-        // Try play small
-        console.log('✅ Signed URL loaded:', fileName);
       }
-    } else {
-      console.warn('No signedUrl:', data);
     }
   }catch(e){
-    console.warn('loadSignedVoice error:', e.message);
+    console.warn('Voice error:', e.message);
   }
 };
 
