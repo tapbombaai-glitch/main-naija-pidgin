@@ -15,23 +15,24 @@ const PACKAGE_AMOUNTS: Record<string, number> = {
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Require an authenticated Supabase session.
+    // 1. Require a Supabase access token.
     const authorization = request.headers.get("authorization");
     const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
 
     if (!token) {
       return NextResponse.json(
-        { error: "Login required." },
+        { error: "Please log in first." },
         { status: 401 }
       );
     }
 
-    // 2. Validate the access token with Supabase.
+    // 2. Validate the token with Supabase.
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !anonKey) {
-      console.error("Missing Supabase public environment variables.");
+      console.error("Supabase authentication environment is missing.");
+
       return NextResponse.json(
         { error: "Server authentication is not configured." },
         { status: 500 }
@@ -52,20 +53,20 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { error: "Invalid or expired login. Please sign in again." },
+        { error: "Your session is invalid or expired. Please log in again." },
         { status: 401 }
       );
     }
 
-    // 3. Restrict this action to the chairman account.
+    // 3. Allow only the designated chairman email.
     if (user.email?.trim().toLowerCase() !== CHAIRMAN_EMAIL) {
       return NextResponse.json(
-        { error: "Forbidden: chairman access only." },
+        { error: "Chairman access only." },
         { status: 403 }
       );
     }
 
-    // 4. Verify the chairman's profile and role.
+    // 4. Verify the chairman role in the database.
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("email, is_chairman")
@@ -73,7 +74,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (profileError) {
-      console.error("Chairman profile lookup failed:", profileError.message);
+      console.error("Profile verification failed:", profileError.message);
+
       return NextResponse.json(
         { error: "Could not verify chairman permissions." },
         { status: 500 }
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Validate the requested API key ID.
+    // 5. Validate the API key ID.
     const body = await request.json().catch(() => null);
     const id = String(body?.id ?? "").trim();
 
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 6. Find the key and its payment reference.
+    // 6. Retrieve the API key and its payment information.
     const { data: apiKey, error: keyError } = await supabaseAdmin
       .from("api_keys")
       .select("id, is_active, email, payment_ref, package")
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     if (keyError) {
       console.error("API key lookup failed:", keyError.message);
+
       return NextResponse.json(
         { error: "Could not retrieve the API key." },
         { status: 500 }
@@ -133,15 +136,14 @@ export async function POST(request: NextRequest) {
 
     const paymentReference = String(apiKey.payment_ref ?? "").trim();
     const packageName = String(apiKey.package ?? "").trim();
+    const expectedAmount = PACKAGE_AMOUNTS[packageName];
 
     if (!paymentReference) {
       return NextResponse.json(
-        { error: "This key has no payment reference." },
+        { error: "This API key has no payment reference." },
         { status: 400 }
       );
     }
-
-    const expectedAmount = PACKAGE_AMOUNTS[packageName];
 
     if (!expectedAmount) {
       return NextResponse.json(
@@ -150,17 +152,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 7. Verify payment directly with Paystack.
+    // 7. Require the Paystack secret key on the server.
     const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
     if (!paystackSecret) {
       console.error("PAYSTACK_SECRET_KEY is missing.");
+
       return NextResponse.json(
         { error: "Payment verification is not configured." },
         { status: 500 }
       );
     }
 
+    // 8. Verify the transaction directly with Paystack.
     const paystackResponse = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(
         paymentReference
@@ -177,7 +181,11 @@ export async function POST(request: NextRequest) {
     );
 
     if (!paystackResponse.ok) {
-      console.error("Paystack verification HTTP status:", paystackResponse.status);
+      console.error(
+        "Paystack verification failed with HTTP status:",
+        paystackResponse.status
+      );
+
       return NextResponse.json(
         { error: "Paystack could not verify this payment." },
         { status: 502 }
@@ -196,12 +204,15 @@ export async function POST(request: NextRequest) {
       transaction.amount !== expectedAmount
     ) {
       return NextResponse.json(
-        { error: "Payment is unsuccessful or does not match this package." },
+        {
+          error:
+            "Payment was unsuccessful or its amount does not match the package.",
+        },
         { status: 402 }
       );
     }
 
-    // 8. If the API key has an email, match it to the Paystack customer.
+    // 9. Check the payment email if the API key has an email.
     const keyEmail = String(apiKey.email ?? "").trim().toLowerCase();
     const paidEmail = String(
       transaction.customer?.email ?? ""
@@ -209,13 +220,12 @@ export async function POST(request: NextRequest) {
 
     if (keyEmail && keyEmail !== paidEmail) {
       return NextResponse.json(
-        { error: "The payment email does not match the API key email." },
+        { error: "Payment email does not match the API key email." },
         { status: 402 }
       );
     }
 
-    // 9. Activate only after all checks pass.
-    // The is_active=false condition prevents overwriting an already active key.
+    // 10. Activate only after the payment has been verified.
     const { data: updatedKey, error: updateError } = await supabaseAdmin
       .from("api_keys")
       .update({ is_active: true })
@@ -226,8 +236,9 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       console.error("API key activation failed:", updateError.message);
+
       return NextResponse.json(
-        { error: "Payment verified, but key activation failed." },
+        { error: "Payment verified, but API key activation failed." },
         { status: 500 }
       );
     }
@@ -236,7 +247,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "The key was changed by another request or is already active. Refresh and check its status.",
+            "The key may already have been activated or changed. Refresh and check its status.",
         },
         { status: 409 }
       );
