@@ -18,3 +18,10 @@ prefix,
 hint,
 };
 }
+
+export function hashKey(key: string) {
+return crypto
+.createHash("sha256")
+.update(key)
+.digest("hex");
+}
