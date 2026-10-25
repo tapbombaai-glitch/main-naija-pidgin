@@ -54,6 +54,43 @@ export default function WorkerPage() {
           </nav>
         </section>
 
+        {/* === NEW: MANY PLAY AUDIOS - SAFE ADD === */}
+        <section className="mt-8 rounded-xl border border-gray-800 bg-gray-900 p-5">
+          <h2 className="text-xl font-semibold text-yellow-400">Assigned Audios to Play</h2>
+          <p className="mt-2 text-sm text-gray-400">Play, listen, and record your version.</p>
+          
+          <div className="mt-5 space-y-4">
+            {/* AUDIO 1 */}
+            <div className="rounded-lg border border-gray-700 p-4">
+              <p className="font-semibold">1. How you dey?</p>
+              <audio controls className="mt-2 w-full"><source src="/audio1.mp3" /></audio>
+              <button className="mt-2 rounded bg-yellow-600 px-4 py-2 text-sm">Record My Version</button>
+            </div>
+
+            {/* AUDIO 2 */}
+            <div className="rounded-lg border border-gray-700 p-4">
+              <p className="font-semibold">2. I dey come now now</p>
+              <audio controls className="mt-2 w-full"><source src="/audio2.mp3" /></audio>
+              <button className="mt-2 rounded bg-yellow-600 px-4 py-2 text-sm">Record My Version</button>
+            </div>
+
+            {/* AUDIO 3 */}
+            <div className="rounded-lg border border-gray-700 p-4">
+              <p className="font-semibold">3. Wetin dey sup?</p>
+              <audio controls className="mt-2 w-full"><source src="/audio3.mp3" /></audio>
+              <button className="mt-2 rounded bg-yellow-600 px-4 py-2 text-sm">Record My Version</button>
+            </div>
+
+            {/* AUDIO 4 - Add as many as you want */}
+            <div className="rounded-lg border border-gray-700 p-4">
+              <p className="font-semibold">4. Abeg shift small</p>
+              <audio controls className="mt-2 w-full"><source src="/audio4.mp3" /></audio>
+              <button className="mt-2 rounded bg-yellow-600 px-4 py-2 text-sm">Record My Version</button>
+            </div>
+          </div>
+        </section>
+        {/* === END NEW ADD === */}
+
         <footer className="mt-8 text-center text-sm text-gray-500">
           Main Naija Pidgin · Worker Workspace
         </footer>
