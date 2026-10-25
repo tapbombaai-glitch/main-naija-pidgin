@@ -1,27 +1,27 @@
-import crypto from "node:crypto";
+import { NextResponse } from "next/server";
 
-export function generateApiKey() {
-const fullKey = "mnp_${crypto.randomBytes(32).toString("hex")}";
+export const runtime = "nodejs";
 
-const hash = crypto
-.createHash("sha256")
-.update(fullKey)
-.digest("hex");
-
-const prefix = fullKey.slice(0, 12);
-const hint = fullKey.slice(-4);
-
-return {
-fullKey,
-hash,
-prefix,
-hint,
-};
+// API keys must be created through the verified payment route.
+// Direct key generation is disabled.
+export async function POST() {
+return NextResponse.json(
+{
+success: false,
+error:
+"Direct API key generation is disabled. Purchase a package through Paystack to request an API key.",
+},
+{ status: 403 }
+);
 }
 
-export function hashKey(key: string) {
-return crypto
-.createHash("sha256")
-.update(key)
-.digest("hex");
+// Do not expose every customer's API keys through a public endpoint.
+export async function GET() {
+return NextResponse.json(
+{
+success: false,
+error: "Please use the authenticated API key dashboard.",
+},
+{ status: 401 }
+);
 }
