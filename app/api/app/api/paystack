@@ -1,0 +1,65 @@
+import { NextResponse } from "next/server"
+import { supabaseAdmin } from "@/lib/supabase-admin"
+
+// SERVER decides price, not client! No more ?amount=
+const PRICES: Record<string, number> = {
+  starter: 5000,
+  pro: 10000,
+  enterprise: 25000,
+}
+
+export async function POST(req: Request) {
+  try {
+    const { email, plan } = await req.json()
+
+    if (!email || !plan) {
+      return NextResponse.json({ error: "Email and plan required" }, { status: 400 })
+    }
+
+    const amount = PRICES[plan]
+    if (!amount) {
+      return NextResponse.json({ error: "Invalid plan" }, { status: 400 })
+    }
+
+    const secret = process.env.PAYSTACK_SECRET_KEY
+    if (!secret) return NextResponse.json({ error: "Server misconfigured" }, { status: 500 })
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL!
+
+    // Save pending transaction FIRST - prevent double credit later
+    const reference = `mnp_${Date.now()}_${Math.random().toString(36).slice(2,8)}`
+
+    const res = await fetch("https://api.paystack.co/transaction/initialize", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        amount: amount * 100, // kobo - SERVER price!
+        currency: "NGN",
+        reference,
+        callback_url: `${siteUrl}/success?ref=${reference}`,
+        metadata: { plan, email, reference }
+      })
+    })
+
+    const data = await res.json()
+    
+    if (!data.status) {
+      return NextResponse.json({ error: "Paystack init failed", details: data }, { status: 400 })
+    }
+
+    // Store pending in Supabase using admin
+    await supabaseAdmin.from("transactions").insert({
+      reference,
+      email,
+      plan,
+      amount,
+      status: "pending"
+    })
+
+    return NextResponse.json({ authorization_url: data.data.authorization_url, reference })
+
+  } catch (e) {
+    return NextResponse.json({ error: "Init error" }, { status: 500 })
+  }
+}
