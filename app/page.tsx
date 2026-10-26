@@ -1,280 +1,159 @@
 import Link from "next/link";
 
-const dashboards = [
-  {
-    icon: "🎙️",
-    title: "Worker Panel",
-    description:
-      "Record Pidgin sentences, listen to your recordings, and submit them for Chairman review.",
-    button: "Enter Worker Panel",
-    href: "/worker",
-    theme: "worker",
-  },
-  {
-    icon: "👑",
-    title: "Chairman Panel",
-    description:
-      "Access authorised recording reviews, approve submissions, and manage the platform.",
-    button: "Chairman Login",
-    href: "/login",
-    theme: "chairman",
-  },
-  {
-    icon: "🔑",
-    title: "API Customer Panel",
-    description:
-      "Explore the Voice API, view available credit packages, and access the developer portal.",
-    button: "Explore Voice API",
-    href: "/api-keys",
-    theme: "api",
-  },
-];
-
 export default function HomePage() {
-  return (
-    <main className="home">
-      <header className="header">
-        <Link href="/" className="brand">
-          <span className="brand-icon">🎙️</span>
-          <span>Main Naija Pidgin</span>
-        </Link>
+return (
+<main className="home">
+<div className="content">
+<div className="brand">MAIN NAIJA PIDGIN</div>
 
-        <span className="platform-label">VOICE PLATFORM</span>
-      </header>
+    <h1>Welcome to Main Naija Pidgin</h1>
 
-      <section className="hero">
-        <span className="eyebrow">YOUR VOICE. YOUR LANGUAGE.</span>
+    <p className="subtitle">
+      A platform for Pidgin voice recording, review and approval.
+    </p>
 
-        <h1>
-          Welcome to
-          <br />
-          <span>Main Naija Pidgin</span>
-        </h1>
+    <section className="panels">
+      <Link href="/login" className="panel chairman">
+        <span className="icon">👑</span>
+        <span className="panelTitle">Chairman Panel</span>
+        <span className="panelDescription">
+          Review recordings and manage the platform.
+        </span>
+        <span className="buttonText">Open Chairman Panel →</span>
+      </Link>
 
-        <p>
-          One platform for voice recording, authorised administration,
-          and Pidgin Voice API access.
-        </p>
+      <Link href="/worker" className="panel worker">
+        <span className="icon">🎙️</span>
+        <span className="panelTitle">Worker Panel</span>
+        <span className="panelDescription">
+          Record Pidgin voice and check your submissions.
+        </span>
+        <span className="buttonText">Open Worker Panel →</span>
+      </Link>
+    </section>
 
-        <h2>Choose your dashboard</h2>
-        <p className="subtitle">
-          Select the service you want to access below.
-        </p>
-      </section>
+    <footer>
+      Main Naija Pidgin © 2026
+      <br />
+      Voice Recording Platform
+    </footer>
+  </div>
 
-      <section className="dashboard-grid" aria-label="Available dashboards">
-        {dashboards.map((dashboard) => (
-          <article
-            className={`dashboard-card ${dashboard.theme}`}
-            key={dashboard.theme}
-          >
-            <div className="card-icon" aria-hidden="true">
-              {dashboard.icon}
-            </div>
+  <style jsx>{`
+    .home {
+      min-height: 100vh;
+      padding: 48px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #07130e;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+    }
 
-            <h3>{dashboard.title}</h3>
+    .content {
+      width: 100%;
+      max-width: 680px;
+      text-align: center;
+    }
 
-            <p>{dashboard.description}</p>
+    .brand {
+      color: #e5bd55;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      margin-bottom: 22px;
+    }
 
-            <Link className="dashboard-button" href={dashboard.href}>
-              {dashboard.button}
-              <span aria-hidden="true"> →</span>
-            </Link>
-          </article>
-        ))}
-      </section>
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 6vw, 46px);
+      line-height: 1.15;
+    }
 
-      <footer className="footer">
-        <p>
-          Main Naija Pidgin · Voice Recording &amp; API Platform
-        </p>
-        <p>Built to help preserve and power Nigerian Pidgin voices.</p>
-      </footer>
+    .subtitle {
+      color: #bdc9c1;
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 18px 0 35px;
+    }
 
-      <style>{`
-        * {
-          box-sizing: border-box;
-        }
+    .panels {
+      display: grid;
+      gap: 18px;
+    }
 
-        .home {
-          min-height: 100vh;
-          padding: 24px;
-          color: #f8fafc;
-          background:
-            radial-gradient(ellipse at top, #163d35 0%, transparent 48%),
-            #07110f;
-          font-family: Arial, Helvetica, sans-serif;
-        }
+    .panel {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 26px 20px;
+      border-radius: 18px;
+      text-decoration: none;
+      color: #ffffff;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
 
-        .header {
-          max-width: 1100px;
-          margin: 0 auto;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 16px;
-        }
+    .panel:hover {
+      transform: translateY(-3px);
+      filter: brightness(1.08);
+    }
 
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: #ffffff;
-          text-decoration: none;
-          font-size: 18px;
-          font-weight: 800;
-        }
+    .chairman {
+      background: linear-gradient(135deg, #8f6718, #d6ad42);
+      border: 1px solid #f3d77b;
+    }
 
-        .brand-icon {
-          font-size: 28px;
-        }
+    .worker {
+      background: linear-gradient(135deg, #11633e, #168454);
+      border: 1px solid #45bd83;
+    }
 
-        .platform-label,
-        .eyebrow {
-          color: #80e0ae;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 2px;
-        }
+    .icon {
+      font-size: 32px;
+    }
 
-        .hero {
-          max-width: 780px;
-          margin: 76px auto 42px;
-          text-align: center;
-        }
+    .panelTitle {
+      font-size: 23px;
+      font-weight: 800;
+    }
 
-        .hero h1 {
-          margin: 18px 0;
-          font-size: clamp(34px, 6vw, 58px);
-          line-height: 1.12;
-          letter-spacing: -1.5px;
-        }
+    .panelDescription {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #f0f4f1;
+    }
 
-        .hero h1 span {
-          color: #80e0ae;
-        }
+    .buttonText {
+      margin-top: 5px;
+      padding: 12px 18px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+    }
 
-        .hero > p {
-          max-width: 620px;
-          margin: 0 auto;
-          color: #bdcbc5;
-          font-size: 16px;
-          line-height: 1.8;
-        }
+    footer {
+      margin-top: 35px;
+      color: #87968d;
+      font-size: 12px;
+      line-height: 1.8;
+    }
 
-        .hero h2 {
-          margin: 44px 0 8px;
-          font-size: 25px;
-        }
+    @media (max-width: 480px) {
+      .home {
+        padding: 35px 16px;
+      }
 
-        .hero .subtitle {
-          font-size: 14px;
-        }
+      .panel {
+        padding: 24px 15px;
+      }
+    }
+  `}</style>
+</main>
 
-        .dashboard-grid {
-          max-width: 1100px;
-          margin: 0 auto;
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 20px;
-        }
-
-        .dashboard-card {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          min-width: 0;
-          padding: 26px;
-          border: 1px solid #29453c;
-          border-radius: 18px;
-          background: rgba(15, 31, 26, 0.92);
-        }
-
-        .card-icon {
-          display: grid;
-          width: 54px;
-          height: 54px;
-          place-items: center;
-          border-radius: 14px;
-          background: #203b31;
-          font-size: 29px;
-        }
-
-        .dashboard-card h3 {
-          margin: 22px 0 10px;
-          font-size: 21px;
-        }
-
-        .dashboard-card p {
-          flex: 1;
-          margin: 0 0 24px;
-          color: #bdcbc5;
-          font-size: 14px;
-          line-height: 1.8;
-        }
-
-        .dashboard-button {
-          display: block;
-          width: 100%;
-          padding: 14px 12px;
-          border-radius: 10px;
-          background: #80e0ae;
-          color: #071a12;
-          text-align: center;
-          text-decoration: none;
-          font-size: 14px;
-          font-weight: 800;
-        }
-
-        .dashboard-button:hover {
-          background: #a0f0c4;
-        }
-
-        .footer {
-          max-width: 1100px;
-          margin: 55px auto 0;
-          padding: 22px 0;
-          border-top: 1px solid #29453c;
-          color: #a9b8b1;
-          text-align: center;
-          font-size: 12px;
-          line-height: 1.8;
-        }
-
-        .footer p {
-          margin: 5px 0;
-        }
-
-        @media (max-width: 800px) {
-          .dashboard-grid {
-            grid-template-columns: 1fr;
-            max-width: 520px;
-          }
-
-          .hero {
-            margin-top: 55px;
-          }
-        }
-
-        @media (max-width: 420px) {
-          .home {
-            padding: 18px;
-          }
-
-          .brand {
-            font-size: 15px;
-          }
-
-          .platform-label {
-            font-size: 9px;
-            letter-spacing: 1px;
-          }
-
-          .dashboard-card {
-            padding: 22px;
-          }
-        }
-      `}</style>
-    </main>
-  );
+);
 }
