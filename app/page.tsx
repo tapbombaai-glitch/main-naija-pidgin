@@ -1,76 +1,149 @@
 'use client';
 
+import Link from 'next/link';
+
+const links = [
+  {
+    icon: '🎙️',
+    title: 'Worker Panel',
+    description: 'Record Pidgin sentences and submit your recordings.',
+    href: '/worker',
+    button: 'Enter Worker Panel',
+  },
+  {
+    icon: '👑',
+    title: 'Chairman Panel',
+    description: 'Sign in to access authorized Chairman functions.',
+    href: '/login',
+    button: 'Chairman Login',
+  },
+  {
+    icon: '🔑',
+    title: 'API Customer Panel',
+    description: 'Access your API key and manage your API credits.',
+    href: '/api-keys',
+    button: 'Enter API Panel',
+  },
+];
+
 export default function Home() {
   return (
     <main
       style={{
         minHeight: '100vh',
-        padding: '40px 20px',
-        fontFamily: 'Arial, sans-serif',
         background: '#07110b',
         color: '#ffffff',
-        textAlign: 'center',
+        fontFamily: 'Arial, sans-serif',
+        padding: '35px 18px',
       }}
     >
-      <div
-        style={{
-          maxWidth: '600px',
-          margin: '60px auto',
-          padding: '35px 25px',
-          background: '#102017',
-          border: '1px solid #d4af37',
-          borderRadius: '16px',
-          boxShadow: '0 10px 35px rgba(0,0,0,0.35)',
-        }}
-      >
-        <h1
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <header
           style={{
-            color: '#d4af37',
-            fontSize: 'clamp(26px, 5vw, 38px)',
-            marginBottom: '20px',
+            textAlign: 'center',
+            padding: '35px 10px',
+            marginBottom: 25,
           }}
         >
-          Main Naija Pidgin dey LIVE! ✅
-        </h1>
+          <div style={{ fontSize: 48 }}>🎙️</div>
 
-        <p style={{ fontSize: '18px', lineHeight: 1.7 }}>
-          Chairman, welcome to Main Naija Pidgin!
-        </p>
+          <h1
+            style={{
+              color: '#d4af37',
+              fontSize: 'clamp(28px, 5vw, 42px)',
+              margin: '15px 0',
+            }}
+          >
+            Main Naija Pidgin
+          </h1>
 
-        <p style={{ color: '#cbd5ce', lineHeight: 1.8 }}>
-          Your application recovery page don load successfully.
-        </p>
+          <p
+            style={{
+              color: '#d1d5db',
+              fontSize: 17,
+              lineHeight: 1.8,
+              maxWidth: 600,
+              margin: '0 auto',
+            }}
+          >
+            Welcome! Choose your dashboard below to continue.
+          </p>
+        </header>
 
-        <p style={{ color: '#cbd5ce', lineHeight: 1.8 }}>
-          Your existing Supabase users and recordings remain in your database
-          unless they have been deleted. This page does not modify your data.
-        </p>
-
-        <a
-          href="/worker"
+        <section
           style={{
-            display: 'inline-block',
-            marginTop: '25px',
-            padding: '14px 26px',
-            background: '#16803c',
-            color: '#ffffff',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-            borderRadius: '8px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+            gap: 20,
           }}
         >
-          Go to Worker Panel
-        </a>
+          {links.map((item) => (
+            <article
+              key={item.title}
+              style={{
+                background: '#102017',
+                border: '1px solid #806b2a',
+                borderRadius: 16,
+                padding: '28px 22px',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 250,
+              }}
+            >
+              <div style={{ fontSize: 38 }}>{item.icon}</div>
 
-        <p
+              <h2
+                style={{
+                  color: '#f5d76e',
+                  fontSize: 22,
+                  margin: '18px 0 10px',
+                }}
+              >
+                {item.title}
+              </h2>
+
+              <p
+                style={{
+                  color: '#d1d5db',
+                  fontSize: 15,
+                  lineHeight: 1.8,
+                  flexGrow: 1,
+                }}
+              >
+                {item.description}
+              </p>
+
+              <Link
+                href={item.href}
+                style={{
+                  display: 'block',
+                  background: '#176b39',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                  padding: '14px 12px',
+                  borderRadius: 8,
+                  fontWeight: 'bold',
+                  marginTop: 20,
+                }}
+              >
+                {item.button}
+              </Link>
+            </article>
+          ))}
+        </section>
+
+        <footer
           style={{
-            marginTop: '30px',
+            textAlign: 'center',
             color: '#9ca3af',
-            fontSize: '13px',
+            fontSize: 13,
+            marginTop: 40,
+            paddingBottom: 20,
           }}
         >
-          Main Naija Pidgin · Application Status
-        </p>
+          Main Naija Pidgin · Voice Recording & API Platform
+        </footer>
       </div>
     </main>
   );
