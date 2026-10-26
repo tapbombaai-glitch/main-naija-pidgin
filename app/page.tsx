@@ -2,44 +2,102 @@ import Link from "next/link";
 import "./home.css";
 
 export default function HomePage() {
-return (
-<main className="home">
-<div className="content">
-<div className="brand">MAIN NAIJA PIDGIN</div>
+  return (
+    <main className="home">
+      <div className="content">
+        <header className="hero">
+          <div className="brand">
+            <span className="brandIcon">🎙️</span>
+            MAIN NAIJA PIDGIN
+          </div>
 
-    <h1>Welcome to Main Naija Pidgin</h1>
+          <div className="statusBadge">
+            <span className="statusDot" />
+            VOICE RECORDING PLATFORM
+          </div>
 
-    <p className="subtitle">
-      A platform for Pidgin voice recording, review and approval.
-    </p>
+          <h1>
+            Welcome to <span>Main Naija Pidgin</span>
+          </h1>
 
-    <section className="panels">
-      <Link href="/login" className="panel chairman">
-        <span className="icon">👑</span>
-        <span className="panelTitle">Chairman Panel</span>
-        <span className="panelDescription">
-          Review recordings and manage the platform.
-        </span>
-        <span className="buttonText">Open Chairman Panel →</span>
-      </Link>
+          <p className="subtitle">
+            Record authentic Nigerian Pidgin voices, submit your recordings,
+            and let the Chairman review your work.
+          </p>
+        </header>
 
-      <Link href="/worker" className="panel worker">
-        <span className="icon">🎙️</span>
-        <span className="panelTitle">Worker Panel</span>
-        <span className="panelDescription">
-          Record Pidgin voice and check your submissions.
-        </span>
-        <span className="buttonText">Open Worker Panel →</span>
-      </Link>
-    </section>
+        <section className="panels">
+          {/* Chairman panel: smaller and positioned on the left */}
+          <Link href="/login" className="panel chairman">
+            <div className="chairmanIcon">👑</div>
 
-    <footer>
-      Main Naija Pidgin © 2026
-      <br />
-      Voice Recording Platform
-    </footer>
-  </div>
-</main>
+            <div className="chairmanLabel">ADMINISTRATION</div>
 
-);
+            <h2>Chairman Panel</h2>
+
+            <p>
+              Review recordings, approve submissions, and manage the platform.
+            </p>
+
+            <span className="chairmanButton">
+              Chairman Login <span aria-hidden="true">→</span>
+            </span>
+          </Link>
+
+          {/* Worker panel: larger main workspace */}
+          <Link href="/worker" className="panel worker">
+            <div className="workerTop">
+              <span className="workerIcon">🎙️</span>
+              <span className="workerBadge">RECORDING WORKSPACE</span>
+            </div>
+
+            <h2>Worker Panel</h2>
+
+            <p>
+              Listen to assigned sentences, record your voice, review your
+              audio, and submit your recordings to the Chairman.
+            </p>
+
+            <div className="workerFeatures">
+              <span>🎧 Listen</span>
+              <span>🎤 Record</span>
+              <span>📤 Submit</span>
+            </div>
+
+            <span className="workerButton">
+              Open Worker Workspace <span aria-hidden="true">→</span>
+            </span>
+
+            <div className="workerFootnote">
+              Your recordings go to the Chairman for review.
+            </div>
+          </Link>
+        </section>
+
+        {/* The API marketplace remains a separate destination */}
+        <section className="apiSection">
+          <div>
+            <span className="apiIcon">🔑</span>
+
+            <div>
+              <h2>API Marketplace</h2>
+              <p>
+                Explore voice API access, available credit packages, and
+                developer documentation.
+              </p>
+            </div>
+          </div>
+
+          <Link href="/api-keys" className="apiButton">
+            Explore API <span aria-hidden="true">→</span>
+          </Link>
+        </section>
+
+        <footer className="footer">
+          <span>MAIN NAIJA PIDGIN © 2026</span>
+          <span>Built for Nigerian voices 🇳🇬</span>
+        </footer>
+      </div>
+    </main>
+  );
 }
