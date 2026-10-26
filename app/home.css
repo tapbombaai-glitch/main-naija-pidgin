@@ -1,112 +1,422 @@
+* {
+  box-sizing: border-box;
+}
+
 .home {
-min-height: 100vh;
-padding: 48px 20px;
-display: flex;
-justify-content: center;
-align-items: center;
-background: #07130e;
-color: #ffffff;
-font-family: Arial, sans-serif;
+  min-height: 100vh;
+  padding: 48px 22px 28px;
+  color: #f8fafc;
+  background:
+    radial-gradient(
+      circle at 80% 10%,
+      rgba(212, 175, 55, 0.12),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 10% 80%,
+      rgba(22, 163, 74, 0.12),
+      transparent 30%
+    ),
+    #050706;
 }
 
 .content {
-width: 100%;
-max-width: 680px;
-text-align: center;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.hero {
+  margin-bottom: 36px;
+  text-align: center;
 }
 
 .brand {
-color: #e5bd55;
-font-size: 14px;
-font-weight: 800;
-letter-spacing: 4px;
-margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #facc15;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 3px;
 }
 
-.home h1 {
-margin: 0;
-font-size: clamp(30px, 6vw, 46px);
-line-height: 1.15;
+.brandIcon {
+  font-size: 25px;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 8px 13px;
+  border: 1px solid #294535;
+  border-radius: 999px;
+  background: #0b1710;
+  color: #bbf7d0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.hero h1 {
+  margin: 22px 0 12px;
+  font-size: clamp(30px, 5vw, 52px);
+  line-height: 1.12;
+  letter-spacing: -1.5px;
+}
+
+.hero h1 span {
+  color: #facc15;
 }
 
 .subtitle {
-color: #bdc9c1;
-font-size: 16px;
-line-height: 1.6;
-margin: 18px 0 35px;
+  max-width: 650px;
+  margin: 0 auto;
+  color: #a7b0aa;
+  font-size: 16px;
+  line-height: 1.8;
 }
 
 .panels {
-display: grid;
-gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.65fr);
+  gap: 22px;
+  align-items: stretch;
 }
 
+/* Small Chairman panel on the left */
+
 .panel {
-box-sizing: border-box;
-display: flex;
-flex-direction: column;
-align-items: center;
-gap: 12px;
-padding: 26px 20px;
-border-radius: 18px;
-text-decoration: none;
-color: #ffffff;
-transition: transform 0.2s ease, filter 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-decoration: none;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .panel:hover {
-transform: translateY(-3px);
-filter: brightness(1.08);
+  transform: translateY(-4px);
 }
 
 .chairman {
-background: linear-gradient(135deg, #8f6718, #d6ad42);
-border: 1px solid #f3d77b;
+  align-self: start;
+  padding: 24px 20px;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 20px;
+  background: linear-gradient(145deg, #171509, #0c0d0b);
 }
+
+.chairman:hover {
+  border-color: #facc15;
+  box-shadow: 0 12px 35px rgba(250, 204, 21, 0.08);
+}
+
+.chairmanIcon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  border-radius: 15px;
+  background: #29220b;
+  font-size: 25px;
+}
+
+.chairmanLabel {
+  margin-top: 23px;
+  color: #facc15;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.8px;
+}
+
+.chairman h2 {
+  margin: 10px 0;
+  font-size: 23px;
+}
+
+.chairman p {
+  margin: 0 0 22px;
+  color: #a8aaa2;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.chairmanButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 12px;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 10px;
+  color: #facc15;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Large Worker workspace on the right */
 
 .worker {
-background: linear-gradient(135deg, #11633e, #168454);
-border: 1px solid #45bd83;
+  position: relative;
+  overflow: hidden;
+  padding: 34px;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  border-radius: 24px;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(34, 197, 94, 0.13),
+      transparent 45%
+    ),
+    linear-gradient(145deg, #101b13, #09100c);
 }
 
-.icon {
-font-size: 32px;
+.worker:hover {
+  border-color: #4ade80;
+  box-shadow: 0 16px 45px rgba(34, 197, 94, 0.1);
 }
 
-.panelTitle {
-font-size: 23px;
-font-weight: 800;
+.workerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
 }
 
-.panelDescription {
-font-size: 14px;
-line-height: 1.5;
-color: #f0f4f1;
+.workerIcon {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 18px;
+  background: #12351f;
+  font-size: 32px;
 }
 
-.buttonText {
-margin-top: 5px;
-padding: 12px 18px;
-background: rgba(0, 0, 0, 0.2);
-border: 1px solid rgba(255, 255, 255, 0.35);
-border-radius: 10px;
-font-weight: 700;
-font-size: 14px;
+.workerBadge {
+  padding: 8px 12px;
+  border: 1px solid #285638;
+  border-radius: 999px;
+  color: #86efac;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
 }
 
-.home footer {
-margin-top: 35px;
-color: #87968d;
-font-size: 12px;
-line-height: 1.8;
+.worker h2 {
+  margin: 28px 0 12px;
+  font-size: clamp(29px, 4vw, 40px);
+  letter-spacing: -1px;
 }
 
-@media (max-width: 480px) {
-.home {
-padding: 35px 16px;
+.worker p {
+  max-width: 580px;
+  margin: 0;
+  color: #b4c0b7;
+  font-size: 15px;
+  line-height: 1.9;
 }
 
-.panel {
-padding: 24px 15px;
+.workerFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 24px 0;
 }
+
+.workerFeatures span {
+  padding: 10px 13px;
+  border: 1px solid #294434;
+  border-radius: 10px;
+  background: rgba(9, 30, 16, 0.75);
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.workerButton {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 3px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: #22c55e;
+  color: #041208;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.workerFootnote {
+  margin-top: 18px;
+  color: #8e9d91;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Separate API marketplace destination */
+
+.apiSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-top: 24px;
+  padding: 23px 25px;
+  border: 1px solid #29322c;
+  border-radius: 18px;
+  background: #0b0f0c;
+}
+
+.apiSection > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.apiIcon {
+  display: grid;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 1px solid #303b33;
+  border-radius: 14px;
+  background: #151c17;
+  font-size: 24px;
+}
+
+.apiSection h2 {
+  margin: 0 0 6px;
+  color: #f3f4f6;
+  font-size: 17px;
+}
+
+.apiSection p {
+  max-width: 520px;
+  margin: 0;
+  color: #9ca79f;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.apiButton {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  border: 1px solid #3b4b40;
+  border-radius: 10px;
+  color: #d1fae5;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.apiButton:hover {
+  border-color: #4ade80;
+  background: #102016;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #202820;
+  color: #778179;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+/* Mobile layout */
+
+@media (max-width: 700px) {
+  .home {
+    padding: 30px 15px 22px;
+  }
+
+  .hero {
+    margin-bottom: 27px;
+  }
+
+  .brand {
+    font-size: 12px;
+    letter-spacing: 2px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+
+  .panels {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .chairman {
+    order: 2;
+    padding: 20px;
+  }
+
+  .worker {
+    order: 1;
+    padding: 24px 20px;
+  }
+
+  .worker h2 {
+    margin-top: 23px;
+  }
+
+  .workerBadge {
+    font-size: 9px;
+  }
+
+  .apiSection {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .apiButton {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .footer {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+
+  .panel:hover {
+    transform: none;
+  }
 }
