@@ -83,12 +83,7 @@ const TEXTS_DATA: Record<Language, string[]> = {
 };
 
 const REFERENCE_AUDIO: Record<Language, string[]> = {
-  pidgin: [
-    "/audio1.mp3",
-    "/audio2.mp3",
-    "/audio3.mp3",
-    "/audio4.mp3",
-  ],
+  pidgin: ["/audio1.mp3", "/audio2.mp3", "/audio3.mp3", "/audio4.mp3"],
   hausa: [],
   igbo: [],
   yoruba: [],
@@ -141,8 +136,7 @@ export default function WorkerPage() {
 
   const [language, setLanguage] = useState<Language>("pidgin");
   const [records, setRecords] = useState<WorkerRecording[]>([]);
-  const [announcement, setAnnouncement] =
-    useState<Announcement | null>(null);
+  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
 
   const [mode, setMode] = useState<RecordingMode>("read");
   const [selectedText, setSelectedText] = useState("");
@@ -157,7 +151,6 @@ export default function WorkerPage() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [submissionStatus, setSubmissionStatus] = useState("");
-
   const [loadingData, setLoadingData] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -216,12 +209,15 @@ export default function WorkerPage() {
       ? `MNP-${profile.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`
       : "Not available");
 
-  const isSuspended =
-    (profile?.status || "").toLowerCase() === "suspended";
+  const isSuspended = (profile?.status || "").toLowerCase() === "suspended";
 
-  const isBusy =
+  // Explicitly type this flag so the state checks remain consistent.
+  const isBusy: boolean =
     recordingStatus === "recording" ||
     recordingStatus === "uploading";
+
+  const isSubmitted: boolean = recordingStatus === "submitted";
+  const isRecording: boolean = recordingStatus === "recording";
 
   const releaseMicrophone = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -706,8 +702,6 @@ export default function WorkerPage() {
         );
       }
 
-      // Submission succeeded: discard the local preview and audio blob.
-      // The worker's history below contains statuses only.
       stopTimer();
       releaseMicrophone();
       revokePreview();
@@ -773,9 +767,7 @@ export default function WorkerPage() {
     return (
       <main className="min-h-screen bg-black p-5 text-white">
         <div className="mx-auto max-w-4xl rounded-2xl border border-green-800 bg-gray-950 p-6">
-          <p className="font-bold text-yellow-300">
-            Main Naija Pidgin
-          </p>
+          <p className="font-bold text-yellow-300">Main Naija Pidgin</p>
           <p className="mt-3 text-gray-300">
             Checking your worker account...
           </p>
@@ -872,7 +864,6 @@ export default function WorkerPage() {
           </p>
         )}
 
-        {/* Main workspace: intentionally placed before dashboard details. */}
         <section className="mb-5 rounded-2xl border border-green-800 bg-gray-950 p-4 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -900,7 +891,7 @@ export default function WorkerPage() {
             id="worker-language"
             value={language}
             onChange={(event) => changeLanguage(event.target.value)}
-            disabled={isBusy || recordingStatus === "submitted"}
+            disabled={isBusy || isSubmitted}
             className="mt-2 w-full rounded-xl border border-green-700 bg-black p-3 text-white disabled:opacity-50"
           >
             {LANGUAGES.map((item) => (
@@ -914,7 +905,7 @@ export default function WorkerPage() {
             <button
               type="button"
               onClick={() => changeMode("read")}
-              disabled={isBusy || recordingStatus === "submitted"}
+              disabled={isBusy || isSubmitted}
               className={`rounded-xl border p-3 text-left font-bold disabled:opacity-40 ${
                 mode === "read"
                   ? "border-green-500 bg-green-950/50 text-green-300"
@@ -930,7 +921,7 @@ export default function WorkerPage() {
             <button
               type="button"
               onClick={() => changeMode("free")}
-              disabled={isBusy || recordingStatus === "submitted"}
+              disabled={isBusy || isSubmitted}
               className={`rounded-xl border p-3 text-left font-bold disabled:opacity-40 ${
                 mode === "free"
                   ? "border-yellow-500 bg-yellow-950/40 text-yellow-300"
@@ -954,9 +945,7 @@ export default function WorkerPage() {
                 {currentText}
               </p>
 
-              <p className="mt-4 text-xs text-gray-400">
-                Reference audio
-              </p>
+              <p className="mt-4 text-xs text-gray-400">Reference audio</p>
 
               {language === "pidgin" ? (
                 <audio
@@ -980,8 +969,8 @@ export default function WorkerPage() {
                 </audio>
               ) : (
                 <p className="mt-2 rounded-lg border border-yellow-800 bg-yellow-950/20 p-3 text-sm text-yellow-200">
-                  Reference audio has not yet been configured for
-                  this language. You can still record your reading.
+                  Reference audio has not yet been configured for this
+                  language. You can still record your reading.
                 </p>
               )}
 
@@ -1002,7 +991,7 @@ export default function WorkerPage() {
                   clearCurrentRecording();
                   setRecordingStatus("idle");
                 }}
-                disabled={isBusy || recordingStatus === "submitted"}
+                disabled={isBusy || isSubmitted}
                 className="mt-2 w-full rounded-xl border border-gray-700 bg-black p-3 text-white disabled:opacity-50"
               >
                 {assignedTexts.map((text, index) => (
@@ -1014,13 +1003,11 @@ export default function WorkerPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-xl border border-yellow-800 bg-yellow-950/20 p-4">
-              <h3 className="font-extrabold text-yellow-300">
-                Free Talk
-              </h3>
+              <h3 className="font-extrabold text-yellow-300">Free Talk</h3>
 
               <p className="mt-2 text-sm leading-6 text-gray-300">
-                Speak naturally for up to 60 seconds. Type what you
-                said below before submitting.
+                Speak naturally for up to 60 seconds. Type what you said
+                below before submitting.
               </p>
 
               <label className="mt-4 flex items-center gap-3 rounded-lg bg-black p-3 text-sm">
@@ -1030,7 +1017,7 @@ export default function WorkerPage() {
                   onChange={(event) =>
                     setIsWhatsAppGroup(event.target.checked)
                   }
-                  disabled={isBusy || recordingStatus === "submitted"}
+                  disabled={isBusy || isSubmitted}
                   className="h-5 w-5 accent-green-500"
                 />
                 WhatsApp group recording
@@ -1048,14 +1035,14 @@ export default function WorkerPage() {
                 rows={3}
                 value={freeTalkText}
                 onChange={(event) => setFreeTalkText(event.target.value)}
-                disabled={isBusy || recordingStatus === "submitted"}
+                disabled={isBusy || isSubmitted}
                 placeholder="Type wetin you talk..."
                 className="mt-2 w-full rounded-xl border border-gray-700 bg-black p-3 text-white disabled:opacity-50"
               />
             </div>
           )}
 
-          {recordingStatus === "recording" && (
+          {isRecording && (
             <div className="mt-4 rounded-xl border border-red-800 bg-red-950/40 p-4">
               <p className="font-bold text-red-300">
                 🔴 Recording in progress
@@ -1075,29 +1062,25 @@ export default function WorkerPage() {
                 🎧 Listen before submitting
               </h3>
 
-              <audio
-                controls
-                src={recordedUrl}
-                className="mt-3 w-full"
-              >
+              <audio controls src={recordedUrl} className="mt-3 w-full">
                 Your browser does not support audio playback.
               </audio>
 
               <p className="mt-2 text-xs text-gray-400">
-                If the recording is not good, delete this preview
-                and record again.
+                If the recording is not good, delete this preview and
+                record again.
               </p>
             </div>
           )}
 
-          {recordingStatus === "submitted" && (
+          {isSubmitted && (
             <div className="mt-4 rounded-xl border border-yellow-700 bg-yellow-950/30 p-4">
               <p className="font-extrabold text-yellow-300">
                 ✓ {submissionStatus || "Sent to Chairman"}
               </p>
               <p className="mt-2 text-sm leading-6 text-gray-300">
                 Your audio preview has been cleared from this workspace.
-                Your submitted recording is now awaiting Chairman review.
+                Your submitted recording is awaiting Chairman review.
               </p>
               <button
                 type="button"
@@ -1113,11 +1096,7 @@ export default function WorkerPage() {
             <button
               type="button"
               onClick={() => void startRecording(mode)}
-              disabled={
-                isBusy ||
-                recordingStatus === "submitted" ||
-                recordingStatus === "recording"
-              }
+              disabled={isBusy || isSubmitted || startingRef.current}
               className="rounded-lg bg-yellow-500 px-3 py-3 font-extrabold text-black hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-40"
             >
               🎙️ Start Recording
@@ -1126,7 +1105,7 @@ export default function WorkerPage() {
             <button
               type="button"
               onClick={stopRecording}
-              disabled={recordingStatus !== "recording"}
+              disabled={!isRecording}
               className="rounded-lg bg-red-700 px-3 py-3 font-bold hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ⏹ Stop
@@ -1160,7 +1139,6 @@ export default function WorkerPage() {
           )}
         </section>
 
-        {/* Compact dashboard information. */}
         <section className="mb-4 rounded-xl border border-gray-800 bg-gray-950">
           <details>
             <summary className="cursor-pointer p-4 font-bold text-yellow-300">
@@ -1292,7 +1270,6 @@ export default function WorkerPage() {
           </section>
         )}
 
-        {/* Submission status only: no audio player or playback URL. */}
         <section className="mb-4 rounded-2xl border border-gray-800 bg-gray-950 p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1328,8 +1305,8 @@ export default function WorkerPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-bold">
-                        {record.is_free_talk ? "🎤 Free Talk" : "📖 Read"}{" "}
-                        · {(record.language || "pidgin").toUpperCase()}
+                        {record.is_free_talk ? "🎤 Free Talk" : "📖 Read"} ·{" "}
+                        {(record.language || "pidgin").toUpperCase()}
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
                         {record.created_at
@@ -1354,9 +1331,7 @@ export default function WorkerPage() {
                   </p>
 
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
-                    <span>
-                      Words: {Number(record.word_count) || 0}
-                    </span>
+                    <span>Words: {Number(record.word_count) || 0}</span>
                     <span>
                       Duration:{" "}
                       {record.duration_seconds == null
