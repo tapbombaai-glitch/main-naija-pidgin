@@ -94,10 +94,7 @@ export default function ChairmanDashboardPage() {
       <main style={styles.page}>
         <section style={styles.card}>
           <h1 style={styles.heading}>Chairman Dashboard</h1>
-
-          <p style={styles.error}>
-            {errorMessage}
-          </p>
+          <p style={styles.error}>{errorMessage}</p>
 
           <button
             style={styles.button}
@@ -107,8 +104,7 @@ export default function ChairmanDashboardPage() {
           </button>
 
           <p style={styles.note}>
-            No Chairman dashboard functions have been enabled on this error
-            screen.
+            Dashboard management functions are unavailable on this screen.
           </p>
         </section>
       </main>
@@ -141,31 +137,74 @@ export default function ChairmanDashboardPage() {
       <section style={styles.grid}>
         <article style={styles.card}>
           <h2>Recording Management</h2>
-          <p>
-            Review worker recordings and manage approvals.
-          </p>
+          <p>Review worker recordings and manage approvals.</p>
+
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => router.push("/admin/recordings")}
+          >
+            Manage Recordings
+          </button>
+
           <p style={styles.note}>
-            Recording controls are not connected yet.
+            The recordings page must be connected before recording controls
+            become available.
+          </p>
+        </article>
+
+        <article style={styles.card}>
+          <h2>Worker Account Management</h2>
+          <p>
+            View worker accounts and manage their account status.
+          </p>
+
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => router.push("/admin/workers")}
+          >
+            Manage Workers
+          </button>
+
+          <p style={styles.note}>
+            Account changes must be verified and enforced by secure server
+            routes.
           </p>
         </article>
 
         <article style={styles.card}>
           <h2>API Credit Management</h2>
-          <p>
-            Manage customer API credits securely.
-          </p>
+          <p>Manage customer API credits securely.</p>
+
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => router.push("/api-keys")}
+          >
+            Open API Marketplace
+          </button>
+
           <p style={styles.note}>
-            Credit controls are not connected yet.
+            Customer credit adjustments must use the existing secure Chairman
+            API.
           </p>
         </article>
 
         <article style={styles.card}>
           <h2>Announcements</h2>
-          <p>
-            Prepare announcements for workers.
-          </p>
+          <p>Create and manage announcements for workers.</p>
+
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => router.push("/admin/announcements")}
+          >
+            Manage Announcements
+          </button>
+
           <p style={styles.note}>
-            Announcement controls are not connected yet.
+            The announcement management page will be connected next.
           </p>
         </article>
       </section>
@@ -212,6 +251,10 @@ const styles: Record<string, React.CSSProperties> = {
     gap: "16px",
   },
   card: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "10px",
     padding: "20px",
     border: "1px solid #383838",
     borderRadius: "12px",
