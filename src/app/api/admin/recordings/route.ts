@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { supabaseAdmin } from "../../../lib/supabase-admin";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return NextResponse.json({ success: false, error: "Missing token" }, { status: 401 });
+  if (!auth?.startsWith("Bearer ")) {
+    return NextResponse.json({ success: false, error: "Missing token" }, { status: 401 });
+  }
   const token = auth.slice(7);
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Try NEW system first: worker_recordings table, status column
-  const { data: workerRec, error: workerError } = await supabaseAdmin
+  const { data: workerRec } = await supabaseAdmin
     .from("worker_recordings")
     .select("id")
     .eq("id", id)
