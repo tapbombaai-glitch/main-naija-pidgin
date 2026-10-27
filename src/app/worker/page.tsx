@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { PIDGIN_500 } from "../data/pidgin-500";
 
+const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 const MAX_RECORDING_SECONDS = 60;
 const MAX_RECORDING_BYTES = 15 * 1024 * 1024;
 
@@ -27,24 +28,54 @@ export default function WorkerPage() {
   const startedAtRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopRequestedRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const selectedText = PIDGIN_500[selectedIndex] ?? "";
 
+  const releaseMicrophone = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+
+    if (mountedRef.current) {
+      setIsRecording(false);
+    }
+  }, []);
+
   useEffect(() => {
+    mountedRef.current = true;
     let active = true;
 
     async function checkLogin() {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error: sessionError } =
+          await supabase.auth.getSession();
 
-        if (error) throw error;
+        if (sessionError) throw sessionError;
 
-        if (!data.session) {
+        const session = data.session;
+
+        if (!session) {
           router.replace("/login");
           return;
         }
 
-        if (active) setIsLoading(false);
+        const email = session.user.email?.trim().toLowerCase();
+
+        // Keep the Chairman out of the Worker Panel.
+        if (email === CHAIRMAN_EMAIL) {
+          router.replace("/admin/dashboard");
+          return;
+        }
+
+        if (active) {
+          setIsLoading(false);
+        }
       } catch {
         if (active) {
           setError("We could not verify your login. Please sign in again.");
@@ -57,33 +88,30 @@ export default function WorkerPage() {
 
     return () => {
       active = false;
+      mountedRef.current = false;
 
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
 
-      if (
-        recorderRef.current &&
-        recorderRef.current.state !== "inactive"
-      ) {
-        recorderRef.current.ondataavailable = null;
-        recorderRef.current.onstop = null;
-        recorderRef.current.stop();
+      const recorder = recorderRef.current;
+
+      if (recorder && recorder.state !== "inactive") {
+        recorder.ondataavailable = null;
+        recorder.onstop = null;
+
+        try {
+          recorder.stop();
+        } catch {
+          // The recorder may already have stopped.
+        }
       }
 
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
     };
   }, [router]);
-
-  const releaseMicrophone = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-    setIsRecording(false);
-  }, []);
 
   async function submitRecording(blob: Blob, durationSeconds: number) {
     if (!blob.size) {
@@ -110,6 +138,14 @@ export default function WorkerPage() {
 
       if (!session?.access_token) {
         router.replace("/login");
+        return;
+      }
+
+      // Check again before submitting a worker recording.
+      if (
+        session.user.email?.trim().toLowerCase() === CHAIRMAN_EMAIL
+      ) {
+        router.replace("/admin/dashboard");
         return;
       }
 
@@ -183,6 +219,12 @@ export default function WorkerPage() {
         audio: true,
       });
 
+      // The component may have unmounted while permission was pending.
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       streamRef.current = stream;
 
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -202,18 +244,28 @@ export default function WorkerPage() {
       setSeconds(0);
 
       recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) chunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
       };
 
       recorder.onerror = () => {
-        setError("A recording error occurred. Please try again.");
+        if (mountedRef.current) {
+          setError("A recording error occurred. Please try again.");
+        }
+
+        stopRequestedRef.current = true;
         releaseMicrophone();
       };
 
       recorder.onstop = () => {
+        const elapsed = Math.round(
+          (Date.now() - startedAtRef.current) / 1000
+        );
+
         const duration = Math.min(
           MAX_RECORDING_SECONDS,
-          Math.max(1, Math.round((Date.now() - startedAtRef.current) / 1000))
+          Math.max(1, elapsed)
         );
 
         const blob = new Blob(chunksRef.current, {
@@ -223,7 +275,7 @@ export default function WorkerPage() {
         chunksRef.current = [];
         releaseMicrophone();
 
-        if (!stopRequestedRef.current) {
+        if (!stopRequestedRef.current && mountedRef.current) {
           void submitRecording(blob, duration);
         }
       };
@@ -247,9 +299,12 @@ export default function WorkerPage() {
       }, 250);
     } catch {
       releaseMicrophone();
-      setError(
-        "Microphone access failed. Allow microphone permission and try again."
-      );
+
+      if (mountedRef.current) {
+        setError(
+          "Microphone access failed. Allow microphone permission and try again."
+        );
+      }
     }
   }
 
@@ -264,7 +319,7 @@ export default function WorkerPage() {
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
-        <p>Checking your worker login...</p>
+        <p>Checking your account...</p>
       </main>
     );
   }
@@ -331,13 +386,13 @@ export default function WorkerPage() {
               type="checkbox"
               checked={isWhatsAppGroup}
               disabled={isRecording || isSubmitting}
-              onChange={(event) => setIsWhatsAppGroup(event.target.checked)}
+              onChange={(event) =>
+                setIsWhatsAppGroup(event.target.checked)
+              }
               className="mt-1 h-4 w-4 accent-yellow-500"
             />
 
-            <span>
-              This recording is intended for the WhatsApp group.
-            </span>
+            <span>This recording is intended for the WhatsApp group.</span>
           </label>
 
           <div className="mt-6 rounded-lg border border-gray-700 p-4">
@@ -400,9 +455,9 @@ export default function WorkerPage() {
           )}
 
           <p className="mt-5 text-sm leading-6 text-gray-400">
-            Submitted recordings should remain pending until the Chairman
-            reviews them. This page relies on the server endpoint to verify
-            ownership, store the audio privately, and enforce approval rules.
+            Submitted recordings remain pending until the Chairman reviews
+            them. The server endpoint must independently verify account access
+            and store recordings privately.
           </p>
 
           <nav className="mt-6 flex flex-wrap gap-3">
