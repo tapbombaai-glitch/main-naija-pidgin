@@ -14,10 +14,23 @@ type Announcement = {
   id: string;
   title: string;
   message: string;
-  published: boolean;
+  is_published: boolean;
   created_at: string;
-  updated_at: string;
+  published_at: string | null;
 };
+
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+
+  return "An unexpected error occurred.";
+}
 
 export default function ChairmanAnnouncementsPage() {
   const router = useRouter();
@@ -29,7 +42,7 @@ export default function ChairmanAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [published, setPublished] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -42,7 +55,7 @@ export default function ChairmanAnnouncementsPage() {
       const { data, error } = await supabase
         .from("announcements")
         .select(
-          "id, title, message, published, created_at, updated_at"
+          "id, title, message, is_published, created_at, published_at"
         )
         .order("created_at", { ascending: false });
 
@@ -51,11 +64,8 @@ export default function ChairmanAnnouncementsPage() {
       setAnnouncements((data ?? []) as Announcement[]);
     } catch (error) {
       console.error("Loading announcements failed:", error);
-
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to load announcements."
+        `Unable to load announcements: ${getErrorMessage(error)}`
       );
     } finally {
       setLoading(false);
@@ -69,7 +79,7 @@ export default function ChairmanAnnouncementsPage() {
       if (!isSupabaseConfigured) {
         if (active) {
           setErrorMessage(
-            "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
+            "Supabase is not configured. Check the public Supabase environment variables in Render."
           );
           setChecking(false);
         }
@@ -104,7 +114,9 @@ export default function ChairmanAnnouncementsPage() {
         console.error("Chairman verification failed:", error);
 
         if (active) {
-          setErrorMessage("Unable to verify Chairman access.");
+          setErrorMessage(
+            `Unable to verify Chairman access: ${getErrorMessage(error)}`
+          );
           setChecking(false);
         }
       }
@@ -120,12 +132,34 @@ export default function ChairmanAnnouncementsPage() {
   function resetForm() {
     setTitle("");
     setMessage("");
-    setPublished(false);
+    setIsPublished(false);
     setEditingId(null);
     setNotice("");
   }
 
-  async function saveAnnouncement(event: FormEvent<HTMLFormElement>) {
+  async function verifyCurrentChairman() {
+    const { data, error } = await supabase.auth.getUser();
+
+    if (error || !data.user) {
+      router.replace("/login");
+      return null;
+    }
+
+    const user = data.user;
+    const userEmail = (user.email ?? "").trim().toLowerCase();
+
+    if (userEmail !== CHAIRMAN_EMAIL) {
+      await supabase.auth.signOut();
+      router.replace("/login");
+      return null;
+    }
+
+    return user;
+  }
+
+  async function saveAnnouncement(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setNotice("");
     setErrorMessage("");
@@ -135,7 +169,7 @@ export default function ChairmanAnnouncementsPage() {
 
     if (!cleanTitle || !cleanMessage) {
       setErrorMessage(
-        "Enter both a title and an announcement message."
+        "Enter both an announcement title and message."
       );
       return;
     }
@@ -143,33 +177,22 @@ export default function ChairmanAnnouncementsPage() {
     setSaving(true);
 
     try {
-      const { data: authData, error: authError } =
-        await supabase.auth.getUser();
+      const user = await verifyCurrentChairman();
+      if (!user) return;
 
-      const user = authData.user;
-
-      if (authError || !user) {
-        router.replace("/login");
-        return;
-      }
-
-      if (
-        (user.email ?? "").trim().toLowerCase() !== CHAIRMAN_EMAIL
-      ) {
-        await supabase.auth.signOut();
-        router.replace("/login");
-        return;
-      }
+      const announcementData = {
+        title: cleanTitle,
+        message: cleanMessage,
+        is_published: isPublished,
+        published_at: isPublished
+          ? new Date().toISOString()
+          : null,
+      };
 
       if (editingId) {
         const { error } = await supabase
           .from("announcements")
-          .update({
-            title: cleanTitle,
-            message: cleanMessage,
-            published,
-            updated_at: new Date().toISOString(),
-          })
+          .update(announcementData)
           .eq("id", editingId);
 
         if (error) throw error;
@@ -178,17 +201,12 @@ export default function ChairmanAnnouncementsPage() {
       } else {
         const { error } = await supabase
           .from("announcements")
-          .insert({
-            title: cleanTitle,
-            message: cleanMessage,
-            published,
-            created_by: user.id,
-          });
+          .insert(announcementData);
 
         if (error) throw error;
 
         setNotice(
-          published
+          isPublished
             ? "Announcement published successfully."
             : "Draft saved successfully."
         );
@@ -198,11 +216,8 @@ export default function ChairmanAnnouncementsPage() {
       await loadAnnouncements();
     } catch (error) {
       console.error("Saving announcement failed:", error);
-
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to save announcement."
+        `Unable to save announcement: ${getErrorMessage(error)}`
       );
     } finally {
       setSaving(false);
@@ -213,7 +228,7 @@ export default function ChairmanAnnouncementsPage() {
     setEditingId(item.id);
     setTitle(item.title);
     setMessage(item.message);
-    setPublished(item.published);
+    setIsPublished(item.is_published);
     setNotice("");
     setErrorMessage("");
 
@@ -231,23 +246,8 @@ export default function ChairmanAnnouncementsPage() {
     setErrorMessage("");
 
     try {
-      const { data: authData, error: authError } =
-        await supabase.auth.getUser();
-
-      const user = authData.user;
-
-      if (authError || !user) {
-        router.replace("/login");
-        return;
-      }
-
-      if (
-        (user.email ?? "").trim().toLowerCase() !== CHAIRMAN_EMAIL
-      ) {
-        await supabase.auth.signOut();
-        router.replace("/login");
-        return;
-      }
+      const user = await verifyCurrentChairman();
+      if (!user) return;
 
       const { error } = await supabase
         .from("announcements")
@@ -265,11 +265,8 @@ export default function ChairmanAnnouncementsPage() {
       await loadAnnouncements();
     } catch (error) {
       console.error("Deleting announcement failed:", error);
-
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to delete announcement."
+        `Unable to delete announcement: ${getErrorMessage(error)}`
       );
     }
   }
@@ -298,7 +295,6 @@ export default function ChairmanAnnouncementsPage() {
         <section style={styles.card}>
           <h1 style={styles.heading}>Announcement Board</h1>
           <p style={styles.error}>{errorMessage}</p>
-
           <button
             type="button"
             style={styles.button}
@@ -347,7 +343,6 @@ export default function ChairmanAnnouncementsPage() {
         <form onSubmit={saveAnnouncement} style={styles.form}>
           <label style={styles.field}>
             Announcement title
-
             <input
               style={styles.input}
               value={title}
@@ -359,7 +354,6 @@ export default function ChairmanAnnouncementsPage() {
 
           <label style={styles.field}>
             Message
-
             <textarea
               style={styles.textarea}
               value={message}
@@ -373,8 +367,10 @@ export default function ChairmanAnnouncementsPage() {
           <label style={styles.checkbox}>
             <input
               type="checkbox"
-              checked={published}
-              onChange={(event) => setPublished(event.target.checked)}
+              checked={isPublished}
+              onChange={(event) =>
+                setIsPublished(event.target.checked)
+              }
             />
             Publish now so workers can read it
           </label>
@@ -389,7 +385,7 @@ export default function ChairmanAnnouncementsPage() {
                 ? "Saving..."
                 : editingId
                   ? "Save Changes"
-                  : published
+                  : isPublished
                     ? "Publish Announcement"
                     : "Save Draft"}
             </button>
@@ -451,12 +447,12 @@ export default function ChairmanAnnouncementsPage() {
 
                 <span
                   style={
-                    item.published
+                    item.is_published
                       ? styles.publishedBadge
                       : styles.draftBadge
                   }
                 >
-                  {item.published ? "Published" : "Draft"}
+                  {item.is_published ? "Published" : "Draft"}
                 </span>
               </div>
 
@@ -465,6 +461,13 @@ export default function ChairmanAnnouncementsPage() {
               <p style={styles.date}>
                 Created: {new Date(item.created_at).toLocaleString()}
               </p>
+
+              {item.published_at && (
+                <p style={styles.date}>
+                  Published:{" "}
+                  {new Date(item.published_at).toLocaleString()}
+                </p>
+              )}
 
               <div style={styles.actions}>
                 <button
