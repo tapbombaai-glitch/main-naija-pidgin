@@ -1,7 +1,8 @@
 // app/api/worker-recordings/route.ts
 // Main Naija Pidgin — Secure Worker Recording Upload
-// Step 1: Worker Panel
-// Payment integration is intentionally not included.
+// Upgrade 1: Authentication, suspension checks, private storage,
+// recording metadata, and cleanup if the database insert fails.
+// Customer API payment integration is intentionally excluded.
 
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
@@ -16,7 +17,29 @@ const SUPABASE_URL =
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function response(
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
+const MAX_RECORDING_SECONDS = 60;
+const MAX_TEXT_LENGTH = 5000;
+
+const VALID_LANGUAGES = new Set([
+  "pidgin",
+  "hausa",
+  "igbo",
+  "yoruba",
+]);
+
+const ALLOWED_AUDIO_TYPES = new Set([
+  "audio/webm",
+  "audio/webm;codecs=opus",
+  "audio/ogg",
+  "audio/ogg;codecs=opus",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/x-wav",
+]);
+
+function respond(
   status: number,
   body: Record<string, unknown>
 ) {
@@ -28,21 +51,35 @@ function response(
   });
 }
 
+function getExtension(mimeType: string): string {
+  const mime = mimeType.toLowerCase();
+
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("mp4")) return "m4a";
+  if (mime.includes("mpeg")) return "mp3";
+  if (mime.includes("wav")) return "wav";
+
+  return "webm";
+}
+
 export async function POST(req: NextRequest) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    console.error("Worker upload: Supabase server configuration missing.");
+    console.error(
+      "Worker upload: server-side Supabase configuration is missing."
+    );
 
-    return response(500, {
+    return respond(500, {
       error: "Recording service is not configured.",
     });
   }
 
+  // 1. Require a valid Supabase access token.
   const authorization = req.headers.get("authorization") || "";
   const tokenMatch = authorization.match(/^Bearer\s+(.+)$/i);
   const accessToken = tokenMatch?.[1]?.trim();
 
   if (!accessToken) {
-    return response(401, {
+    return respond(401, {
       error: "Please log in before submitting a recording.",
     });
   }
@@ -58,53 +95,83 @@ export async function POST(req: NextRequest) {
     }
   );
 
+  let uploadedFileName: string | null = null;
+
   try {
-    // 1. Verify the actual Supabase user.
+    // 2. Verify the real Supabase user.
     const {
       data: authData,
       error: authError,
     } = await supabaseAdmin.auth.getUser(accessToken);
 
     if (authError || !authData.user) {
-      return response(401, {
+      return respond(401, {
         error: "Your session has expired. Please log in again.",
       });
     }
 
     const user = authData.user;
 
-    // 2. Read and validate the submitted form.
+    // 3. Enforce account suspension on the server.
+    // Do not rely only on disabled buttons in the browser.
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select("id,status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "Worker upload: profile lookup failed:",
+        profileError.message
+      );
+
+      return respond(500, {
+        error: "Could not verify your worker account.",
+      });
+    }
+
+    if (!profile) {
+      return respond(403, {
+        error: "Your worker profile could not be found.",
+      });
+    }
+
+    if ((profile.status || "").toLowerCase() === "suspended") {
+      return respond(403, {
+        error: "Your worker account is suspended. Contact the Chairman.",
+      });
+    }
+
+    // 4. Parse and validate the submitted form.
     const formData = await req.formData();
 
     const audio = formData.get("audio");
     const text = formData.get("text");
     const language = formData.get("language");
     const freeTalkValue = formData.get("isFreeTalk");
+    const whatsappValue = formData.get("isWhatsAppGroup");
+    const durationValue = formData.get("durationSeconds");
 
     if (!(audio instanceof File)) {
-      return response(400, {
+      return respond(400, {
         error: "Audio recording is missing.",
       });
     }
 
-    if (audio.size <= 0 || audio.size > 15 * 1024 * 1024) {
-      return response(400, {
-        error: "Recording must be smaller than 15 MB.",
+    if (audio.size <= 0 || audio.size > MAX_AUDIO_BYTES) {
+      return respond(400, {
+        error: "Recording must be greater than zero and no larger than 15 MB.",
       });
     }
 
-    const allowedTypes = new Set([
-      "audio/webm",
-      "audio/webm;codecs=opus",
-      "audio/ogg",
-      "audio/mp4",
-      "audio/mpeg",
-      "audio/wav",
-      "audio/x-wav",
-    ]);
+    const audioType = audio.type.toLowerCase();
 
-    if (!allowedTypes.has(audio.type.toLowerCase())) {
-      return response(400, {
+    if (!ALLOWED_AUDIO_TYPES.has(audioType)) {
+      return respond(400, {
         error: "Unsupported audio format. Please record again.",
       });
     }
@@ -112,27 +179,20 @@ export async function POST(req: NextRequest) {
     if (
       typeof text !== "string" ||
       !text.trim() ||
-      text.trim().length > 5000
+      text.trim().length > MAX_TEXT_LENGTH
     ) {
-      return response(400, {
+      return respond(400, {
         error: "Enter the sentence or text you recorded.",
       });
     }
-
-    const validLanguages = new Set([
-      "pidgin",
-      "hausa",
-      "igbo",
-      "yoruba",
-    ]);
 
     const selectedLanguage =
       typeof language === "string"
         ? language.trim().toLowerCase()
         : "";
 
-    if (!validLanguages.has(selectedLanguage)) {
-      return response(400, {
+    if (!VALID_LANGUAGES.has(selectedLanguage)) {
+      return respond(400, {
         error: "Please select a supported language.",
       });
     }
@@ -141,31 +201,56 @@ export async function POST(req: NextRequest) {
       freeTalkValue !== "true" &&
       freeTalkValue !== "false"
     ) {
-      return response(400, {
+      return respond(400, {
         error: "Invalid recording type.",
       });
     }
 
+    if (
+      whatsappValue !== "true" &&
+      whatsappValue !== "false"
+    ) {
+      return respond(400, {
+        error: "Invalid WhatsApp-group selection.",
+      });
+    }
+
     const isFreeTalk = freeTalkValue === "true";
+    const isWhatsAppGroup = whatsappValue === "true";
 
-    // 3. Build a private, user-owned storage path.
-    const mime = audio.type.toLowerCase();
+    // The browser supplies this value for display/statistics.
+    // It is not proof that the actual audio duration is valid.
+    let durationSeconds: number | null = null;
 
-    const extension =
-      mime.includes("ogg") ? "ogg" :
-      mime.includes("mp4") ? "m4a" :
-      mime.includes("mpeg") ? "mp3" :
-      mime.includes("wav") ? "wav" :
-      "webm";
+    if (
+      typeof durationValue === "string" &&
+      durationValue.trim() !== ""
+    ) {
+      const parsedDuration = Number(durationValue);
 
+      if (
+        !Number.isInteger(parsedDuration) ||
+        parsedDuration < 0 ||
+        parsedDuration > MAX_RECORDING_SECONDS
+      ) {
+        return respond(400, {
+          error: "Recording duration must be between 0 and 60 seconds.",
+        });
+      }
+
+      durationSeconds = parsedDuration;
+    }
+
+    // 5. Generate a storage path from the authenticated user ID.
+    // The client cannot choose another user's storage folder.
     const fileName =
-      `${user.id}/${Date.now()}-${randomUUID()}.${extension}`;
+      `${user.id}/${Date.now()}-${randomUUID()}.${getExtension(audioType)}`;
 
     const audioBuffer = Buffer.from(
       await audio.arrayBuffer()
     );
 
-    // 4. Upload the audio to the private "voices" bucket.
+    // 6. Upload to the private Supabase Storage bucket.
     const {
       error: uploadError,
     } = await supabaseAdmin.storage
@@ -181,15 +266,15 @@ export async function POST(req: NextRequest) {
         uploadError.message
       );
 
-      return response(500, {
+      return respond(500, {
         error: "Could not upload your recording. Please try again.",
       });
     }
 
-    // 5. Save the recording metadata.
-    // Do not accept a user_id from the browser:
-    // the authenticated Supabase user determines ownership.
-    const wordCount = text.trim().split(/\s+/).length;
+    uploadedFileName = fileName;
+
+    // 7. Save recording metadata using the verified user ID.
+    const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
 
     const {
       data: recording,
@@ -201,13 +286,19 @@ export async function POST(req: NextRequest) {
         file_name: fileName,
         audio_path: fileName,
         pidgin_text: text.trim(),
+        transcription: text.trim(),
         word_count: wordCount,
         language: selectedLanguage,
         admin_status: "pending",
         is_free_talk: isFreeTalk,
+        is_whatsapp_group: isWhatsAppGroup,
+        duration_seconds: durationSeconds,
+
+        // Keep the existing lock behavior until the playback
+        // endpoint is updated and verified separately.
         locked_for_worker: false,
       })
-      .select("id,admin_status,file_name,created_at")
+      .select("id,admin_status,created_at")
       .single();
 
     if (insertError || !recording) {
@@ -216,8 +307,10 @@ export async function POST(req: NextRequest) {
         insertError?.message
       );
 
-      // Remove the uploaded file if its database record could not be saved.
-      const { error: cleanupError } = await supabaseAdmin.storage
+      // 8. Clean up the uploaded file if saving the database row failed.
+      const {
+        error: cleanupError,
+      } = await supabaseAdmin.storage
         .from("voices")
         .remove([fileName]);
 
@@ -226,18 +319,22 @@ export async function POST(req: NextRequest) {
           "Worker upload cleanup failed:",
           cleanupError.message
         );
+      } else {
+        uploadedFileName = null;
       }
 
-      return response(500, {
+      return respond(500, {
         error:
-          "Your recording could not be saved. Please contact the Chairman if this continues.",
+          "Your recording could not be saved. Please try again or contact the Chairman.",
       });
     }
 
-    // 6. Confirm submission without exposing a public storage URL.
-    return response(201, {
+    uploadedFileName = null;
+
+    // 9. Return metadata only, never a public storage URL.
+    return respond(201, {
       success: true,
-      message: "Recording submitted for Chairman review.",
+      message: "Recording submitted to the Chairman for review.",
       recording: {
         id: recording.id,
         status: recording.admin_status,
@@ -250,7 +347,23 @@ export async function POST(req: NextRequest) {
       error instanceof Error ? error.message : "Unknown error"
     );
 
-    return response(500, {
+    // Best-effort cleanup for unexpected errors after uploading.
+    if (uploadedFileName) {
+      const {
+        error: cleanupError,
+      } = await supabaseAdmin.storage
+        .from("voices")
+        .remove([uploadedFileName]);
+
+      if (cleanupError) {
+        console.error(
+          "Unexpected-error cleanup failed:",
+          cleanupError.message
+        );
+      }
+    }
+
+    return respond(500, {
       error: "An unexpected error occurred while submitting your recording.",
     });
   }
