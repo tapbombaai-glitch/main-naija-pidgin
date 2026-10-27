@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   supabase,
   isSupabaseConfigured,
-} from "../../../../src/lib/supabase";
+} from "../../../src/lib/supabase";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
@@ -50,6 +51,7 @@ export default function ChairmanAnnouncementsPage() {
       setAnnouncements((data ?? []) as Announcement[]);
     } catch (error) {
       console.error("Loading announcements failed:", error);
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -66,7 +68,9 @@ export default function ChairmanAnnouncementsPage() {
     async function verifyChairman() {
       if (!isSupabaseConfigured) {
         if (active) {
-          setErrorMessage("Supabase is not configured. Check your Render environment variables.");
+          setErrorMessage(
+            "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
+          );
           setChecking(false);
         }
         return;
@@ -121,7 +125,7 @@ export default function ChairmanAnnouncementsPage() {
     setNotice("");
   }
 
-  async function saveAnnouncement(event: React.FormEvent<HTMLFormElement>) {
+  async function saveAnnouncement(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNotice("");
     setErrorMessage("");
@@ -130,7 +134,9 @@ export default function ChairmanAnnouncementsPage() {
     const cleanMessage = message.trim();
 
     if (!cleanTitle || !cleanMessage) {
-      setErrorMessage("Enter both a title and an announcement message.");
+      setErrorMessage(
+        "Enter both a title and an announcement message."
+      );
       return;
     }
 
@@ -192,6 +198,7 @@ export default function ChairmanAnnouncementsPage() {
       await loadAnnouncements();
     } catch (error) {
       console.error("Saving announcement failed:", error);
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -209,6 +216,7 @@ export default function ChairmanAnnouncementsPage() {
     setPublished(item.published);
     setNotice("");
     setErrorMessage("");
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -249,11 +257,15 @@ export default function ChairmanAnnouncementsPage() {
       if (error) throw error;
 
       setNotice("Announcement deleted.");
-      if (editingId === item.id) resetForm();
+
+      if (editingId === item.id) {
+        resetForm();
+      }
 
       await loadAnnouncements();
     } catch (error) {
       console.error("Deleting announcement failed:", error);
+
       setErrorMessage(
         error instanceof Error
           ? error.message
@@ -273,7 +285,9 @@ export default function ChairmanAnnouncementsPage() {
   if (checking) {
     return (
       <main style={styles.page}>
-        <p>Verifying Chairman access...</p>
+        <section style={styles.card}>
+          <p>Verifying Chairman access...</p>
+        </section>
       </main>
     );
   }
@@ -281,11 +295,18 @@ export default function ChairmanAnnouncementsPage() {
   if (errorMessage && !email) {
     return (
       <main style={styles.page}>
-        <h1 style={styles.heading}>Announcement Board</h1>
-        <p style={styles.error}>{errorMessage}</p>
-        <button style={styles.button} onClick={() => router.replace("/login")}>
-          Return to Login
-        </button>
+        <section style={styles.card}>
+          <h1 style={styles.heading}>Announcement Board</h1>
+          <p style={styles.error}>{errorMessage}</p>
+
+          <button
+            type="button"
+            style={styles.button}
+            onClick={() => router.replace("/login")}
+          >
+            Return to Login
+          </button>
+        </section>
       </main>
     );
   }
@@ -301,24 +322,32 @@ export default function ChairmanAnnouncementsPage() {
 
         <div style={styles.actions}>
           <button
+            type="button"
             style={styles.secondaryButton}
             onClick={() => router.push("/admin/dashboard")}
           >
             Dashboard
           </button>
 
-          <button style={styles.button} onClick={signOut}>
+          <button
+            type="button"
+            style={styles.button}
+            onClick={signOut}
+          >
             Sign Out
           </button>
         </div>
       </header>
 
       <section style={styles.card}>
-        <h2>{editingId ? "Edit Announcement" : "Create Announcement"}</h2>
+        <h2>
+          {editingId ? "Edit Announcement" : "Create Announcement"}
+        </h2>
 
         <form onSubmit={saveAnnouncement} style={styles.form}>
           <label style={styles.field}>
             Announcement title
+
             <input
               style={styles.input}
               value={title}
@@ -330,6 +359,7 @@ export default function ChairmanAnnouncementsPage() {
 
           <label style={styles.field}>
             Message
+
             <textarea
               style={styles.textarea}
               value={message}
@@ -350,7 +380,11 @@ export default function ChairmanAnnouncementsPage() {
           </label>
 
           <div style={styles.actions}>
-            <button type="submit" style={styles.button} disabled={saving}>
+            <button
+              type="submit"
+              style={styles.button}
+              disabled={saving}
+            >
               {saving
                 ? "Saving..."
                 : editingId
@@ -373,14 +407,24 @@ export default function ChairmanAnnouncementsPage() {
         </form>
       </section>
 
-      {notice && <p style={styles.success}>{notice}</p>}
-      {errorMessage && <p style={styles.error}>{errorMessage}</p>}
+      {notice && (
+        <p style={styles.success} role="status">
+          {notice}
+        </p>
+      )}
+
+      {errorMessage && (
+        <p style={styles.error} role="alert">
+          {errorMessage}
+        </p>
+      )}
 
       <section style={styles.listSection}>
         <div style={styles.listHeader}>
           <h2>Previous Announcements</h2>
 
           <button
+            type="button"
             style={styles.secondaryButton}
             onClick={() => void loadAnnouncements()}
             disabled={loading}
@@ -393,7 +437,9 @@ export default function ChairmanAnnouncementsPage() {
 
         {!loading && announcements.length === 0 && (
           <article style={styles.card}>
-            <p>No announcements found. Create your first announcement above.</p>
+            <p>
+              No announcements found. Create your first announcement above.
+            </p>
           </article>
         )}
 
@@ -417,12 +463,12 @@ export default function ChairmanAnnouncementsPage() {
               <p style={styles.message}>{item.message}</p>
 
               <p style={styles.date}>
-                Created:{" "}
-                {new Date(item.created_at).toLocaleString()}
+                Created: {new Date(item.created_at).toLocaleString()}
               </p>
 
               <div style={styles.actions}>
                 <button
+                  type="button"
                   style={styles.secondaryButton}
                   onClick={() => editAnnouncement(item)}
                 >
@@ -430,6 +476,7 @@ export default function ChairmanAnnouncementsPage() {
                 </button>
 
                 <button
+                  type="button"
                   style={styles.deleteButton}
                   onClick={() => void deleteAnnouncement(item)}
                 >
@@ -444,7 +491,7 @@ export default function ChairmanAnnouncementsPage() {
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   page: {
     minHeight: "100vh",
     padding: "24px",
