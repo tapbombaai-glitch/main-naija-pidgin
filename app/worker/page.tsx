@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../src/lib/supabase";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 const MAX_RECORDING_SECONDS = 60;
+const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 
 type Language = "pidgin" | "hausa" | "igbo" | "yoruba";
 type RecordingMode = "read" | "free";
@@ -45,6 +51,14 @@ type Announcement = {
   message?: string | null;
   created_at?: string | null;
 };
+
+type RecordingStatus =
+  | "idle"
+  | "recording"
+  | "ready"
+  | "uploading"
+  | "submitted"
+  | "error";
 
 const LANGUAGES: { value: Language; label: string }[] = [
   { value: "pidgin", label: "Nigerian Pidgin" },
@@ -97,7 +111,9 @@ function formatDate(value?: string | null): string {
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
 
   return date.toLocaleString();
 }
@@ -127,14 +143,19 @@ export default function WorkerPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
   const startingRef = useRef(false);
+  const audioUrlRef = useRef<string | null>(null);
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
 
-  const [profile, setProfile] = useState<WorkerProfile | null>(null);
+  const [profile, setProfile] = useState<WorkerProfile | null>(
+    null
+  );
   const [records, setRecords] = useState<WorkerRecording[]>([]);
   const [announcement, setAnnouncement] =
     useState<Announcement | null>(null);
@@ -145,9 +166,8 @@ export default function WorkerPage() {
   const [freeTalkText, setFreeTalkText] = useState("");
   const [isWhatsAppGroup, setIsWhatsAppGroup] = useState(false);
 
-  const [recordingStatus, setRecordingStatus] = useState<
-    "idle" | "recording" | "ready" | "uploading" | "submitted" | "error"
-  >("idle");
+  const [recordingStatus, setRecordingStatus] =
+    useState<RecordingStatus>("idle");
 
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -166,6 +186,31 @@ export default function WorkerPage() {
           textIndex % TEXTS_DATA[language].length
         ]
       : freeTalkText.trim();
+
+  const clearAudioPreview = useCallback(() => {
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+
+    setAudioUrl(null);
+    setAudioBlob(null);
+  }, []);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const stopMicrophone = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => {
+      track.stop();
+    });
+
+    streamRef.current = null;
+  }, []);
 
   const loadWorkerData = useCallback(async () => {
     if (!activeRef.current) return;
@@ -199,10 +244,13 @@ export default function WorkerPage() {
         .trim()
         .toLowerCase();
 
-      // Only the allowlisted email belongs in the Chairman dashboard.
+      // Chairman accounts belong in the separate admin area.
       if (normalizedEmail === CHAIRMAN_EMAIL) {
         setSignedIn(false);
         setProfile(null);
+        setRecords([]);
+        setAnnouncement(null);
+
         router.replace("/admin/dashboard");
         return;
       }
@@ -222,7 +270,6 @@ export default function WorkerPage() {
       const workerProfile =
         profileResult.data as WorkerProfile | null;
 
-      // A non-Chairman account must have a worker profile.
       if (
         !workerProfile ||
         workerProfile.is_chairman === true
@@ -279,16 +326,13 @@ export default function WorkerPage() {
               | undefined) || null)
       );
 
-      const savedLanguage =
-        typeof window !== "undefined"
-          ? localStorage.getItem("selected_language")
-          : null;
+      const savedLanguage = localStorage.getItem(
+        "selected_language"
+      );
 
       if (
         savedLanguage &&
-        LANGUAGES.some(
-          (item) => item.value === savedLanguage
-        )
+        LANGUAGES.some((item) => item.value === savedLanguage)
       ) {
         setLanguage(savedLanguage as Language);
       }
@@ -312,7 +356,6 @@ export default function WorkerPage() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(() => {
-      // Defer the next auth check until the callback has returned.
       setTimeout(() => {
         if (activeRef.current) {
           void loadWorkerData();
@@ -324,48 +367,20 @@ export default function WorkerPage() {
       activeRef.current = false;
       subscription.unsubscribe();
 
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      stopTimer();
 
       if (recorderRef.current?.state === "recording") {
         recorderRef.current.stop();
       }
 
-      streamRef.current?.getTracks().forEach((track) => {
-        track.stop();
-      });
+      stopMicrophone();
 
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
       }
     };
-  }, [loadWorkerData]);
-
-  function stopTimer() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }
-
-  function stopMicrophone() {
-    streamRef.current?.getTracks().forEach((track) => {
-      track.stop();
-    });
-
-    streamRef.current = null;
-  }
-
-  function clearAudioPreview() {
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-    }
-
-    setAudioUrl(null);
-    setAudioBlob(null);
-  }
+  }, [loadWorkerData, stopMicrophone, stopTimer]);
 
   function resetRecording() {
     stopTimer();
@@ -388,9 +403,7 @@ export default function WorkerPage() {
 
         if (next >= MAX_RECORDING_SECONDS) {
           setTimeout(() => {
-            if (
-              recorderRef.current?.state === "recording"
-            ) {
+            if (recorderRef.current?.state === "recording") {
               recorderRef.current.stop();
             }
           }, 0);
@@ -421,10 +434,7 @@ export default function WorkerPage() {
 
     if (startingRef.current || isBusy) return;
 
-    if (
-      typeof navigator === "undefined" ||
-      !navigator.mediaDevices?.getUserMedia
-    ) {
+    if (!navigator.mediaDevices?.getUserMedia) {
       setErrorMessage(
         "Your browser does not support microphone recording."
       );
@@ -460,10 +470,9 @@ export default function WorkerPage() {
 
       clearAudioPreview();
 
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
 
       streamRef.current = stream;
       chunksRef.current = [];
@@ -471,7 +480,11 @@ export default function WorkerPage() {
       let recorder: MediaRecorder;
 
       try {
-        recorder = new MediaRecorder(stream);
+        const preferredType = "audio/webm;codecs=opus";
+
+        recorder = MediaRecorder.isTypeSupported(preferredType)
+          ? new MediaRecorder(stream, { mimeType: preferredType })
+          : new MediaRecorder(stream);
       } catch {
         stopMicrophone();
 
@@ -516,7 +529,16 @@ export default function WorkerPage() {
           return;
         }
 
+        if (blob.size > MAX_AUDIO_BYTES) {
+          setRecordingStatus("error");
+          setErrorMessage(
+            "This recording is larger than 15 MB. Please record again."
+          );
+          return;
+        }
+
         const url = URL.createObjectURL(blob);
+        audioUrlRef.current = url;
 
         setAudioBlob(blob);
         setAudioUrl(url);
@@ -564,6 +586,13 @@ export default function WorkerPage() {
       return;
     }
 
+    if (audioBlob.size > MAX_AUDIO_BYTES) {
+      setErrorMessage(
+        "This recording is larger than 15 MB. Please record again."
+      );
+      return;
+    }
+
     setRecordingStatus("uploading");
 
     try {
@@ -579,10 +608,17 @@ export default function WorkerPage() {
 
       const formData = new FormData();
 
+      const mimeType = audioBlob.type.toLowerCase();
+
       const extension =
-        audioBlob.type.includes("mp4") ||
-        audioBlob.type.includes("aac")
+        mimeType.includes("mp4") || mimeType.includes("aac")
           ? "m4a"
+          : mimeType.includes("ogg")
+          ? "ogg"
+          : mimeType.includes("mpeg")
+          ? "mp3"
+          : mimeType.includes("wav")
+          ? "wav"
           : "webm";
 
       formData.append(
@@ -603,23 +639,20 @@ export default function WorkerPage() {
         String(recordingSeconds)
       );
 
-      const response = await fetch(
-        "/api/worker-recordings",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: formData,
-        }
-      );
+      const response = await fetch("/api/worker-recordings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
 
       const contentType =
         response.headers.get("content-type") || "";
 
       if (!contentType.includes("application/json")) {
         throw new Error(
-          "The recording API did not return JSON. Check that /api/worker-recordings is deployed correctly."
+          "The recording API did not return JSON. Check that app/api/worker-recordings/route.ts is deployed."
         );
       }
 
@@ -639,7 +672,6 @@ export default function WorkerPage() {
 
       stopTimer();
       stopMicrophone();
-
       clearAudioPreview();
 
       setFreeTalkText("");
@@ -655,6 +687,7 @@ export default function WorkerPage() {
 
   async function signOut() {
     setErrorMessage("");
+
     await supabase.auth.signOut();
 
     setSignedIn(false);
@@ -669,9 +702,7 @@ export default function WorkerPage() {
     setLanguage(value);
     setTextIndex(0);
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("selected_language", value);
-    }
+    localStorage.setItem("selected_language", value);
   }
 
   const today = new Date().toDateString();
@@ -679,9 +710,7 @@ export default function WorkerPage() {
   const todayCount = records.filter((record) => {
     if (!record.created_at) return false;
 
-    return (
-      new Date(record.created_at).toDateString() === today
-    );
+    return new Date(record.created_at).toDateString() === today;
   }).length;
 
   const approvedCount = records.filter(
@@ -719,7 +748,7 @@ export default function WorkerPage() {
       <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
         <section className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-8 text-center">
           <h1 className="text-2xl font-bold text-yellow-400">
-            Main Naija Pidgin
+            German Family
           </h1>
 
           <p className="mt-3 text-gray-300">
@@ -753,7 +782,7 @@ export default function WorkerPage() {
             </p>
 
             <h1 className="mt-1 text-2xl font-bold text-yellow-400">
-              Worker Dashboard
+              German Family — Worker Panel
             </h1>
 
             <p className="mt-1 text-sm text-gray-300">
@@ -824,10 +853,7 @@ export default function WorkerPage() {
                 key={String(label)}
                 className="rounded-xl border border-gray-800 bg-gray-900 p-4"
               >
-                <p className="text-xs text-gray-400">
-                  {label}
-                </p>
-
+                <p className="text-xs text-gray-400">{label}</p>
                 <p className="mt-2 text-2xl font-bold text-yellow-400">
                   {value}
                 </p>
@@ -862,17 +888,12 @@ export default function WorkerPage() {
                 value={language}
                 disabled={isBusy || recordingStatus === "ready"}
                 onChange={(event) =>
-                  changeLanguage(
-                    event.target.value as Language
-                  )
+                  changeLanguage(event.target.value as Language)
                 }
                 className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3"
               >
                 {LANGUAGES.map((item) => (
-                  <option
-                    key={item.value}
-                    value={item.value}
-                  >
+                  <option key={item.value} value={item.value}>
                     {item.label}
                   </option>
                 ))}
@@ -892,9 +913,7 @@ export default function WorkerPage() {
                 value={mode}
                 disabled={isBusy || recordingStatus === "ready"}
                 onChange={(event) => {
-                  setMode(
-                    event.target.value as RecordingMode
-                  );
+                  setMode(event.target.value as RecordingMode);
                   setErrorMessage("");
                 }}
                 className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3"
@@ -923,8 +942,7 @@ export default function WorkerPage() {
                 onClick={() =>
                   setTextIndex(
                     (previous) =>
-                      (previous + 1) %
-                      TEXTS_DATA[language].length
+                      (previous + 1) % TEXTS_DATA[language].length
                   )
                 }
                 className="mt-4 rounded-lg border border-gray-600 px-4 py-2 text-sm hover:bg-gray-800 disabled:opacity-50"
@@ -966,9 +984,7 @@ export default function WorkerPage() {
               className="mt-1"
             />
 
-            <span>
-              This recording is for the WhatsApp group.
-            </span>
+            <span>This recording is for the WhatsApp group.</span>
           </label>
 
           <div className="mt-6 rounded-xl border border-gray-800 bg-gray-950 p-5">
@@ -1068,11 +1084,7 @@ export default function WorkerPage() {
                   Preview Your Recording
                 </p>
 
-                <audio
-                  controls
-                  src={audioUrl}
-                  className="w-full"
-                />
+                <audio controls src={audioUrl} className="w-full" />
               </div>
             )}
           </div>
@@ -1152,9 +1164,7 @@ export default function WorkerPage() {
                       </span>
 
                       <span className="rounded bg-gray-800 px-2 py-1">
-                        {record.is_free_talk
-                          ? "Free Talk"
-                          : "Read Text"}
+                        {record.is_free_talk ? "Free Talk" : "Read Text"}
                       </span>
 
                       <span className="rounded bg-gray-800 px-2 py-1">
@@ -1179,7 +1189,7 @@ export default function WorkerPage() {
         </section>
 
         <footer className="border-t border-gray-800 py-5 text-center text-xs text-gray-500">
-          Main Naija Pidgin · Worker Dashboard
+          German Family · Worker Panel
         </footer>
       </div>
     </main>
