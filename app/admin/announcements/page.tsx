@@ -7,11 +7,7 @@ useMemo,
 useState,
 } from "react";
 
-import type {
-FormEvent,
-CSSProperties,
-} from "react";
-
+import type { FormEvent, CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../../lib/supabase/client";
 
@@ -28,11 +24,7 @@ created_at: string;
 published_at: string | null;
 };
 
-function normalizeEmail(email: string | null | undefined): string {
-return (email ?? "").trim().toLowerCase();
-}
-
-function getErrorMessage(error: unknown): string {
+function errorText(error: unknown): string {
 if (
 typeof error === "object" &&
 error !== null &&
@@ -45,30 +37,28 @@ return error.message;
 return "An unexpected error occurred.";
 }
 
-function formatDate(date: string | null): string {
-if (!date) return "Not published";
+function formatDate(value: string | null): string {
+if (!value) return "Not published";
 
-const parsed = new Date(date);
+const date = new Date(value);
 
-if (Number.isNaN(parsed.getTime())) {
-return "Date unavailable";
-}
-
-return parsed.toLocaleString();
+return Number.isNaN(date.getTime())
+? "Date unavailable"
+: date.toLocaleString();
 }
 
 export default function ChairmanAnnouncementsPage() {
 const router = useRouter();
 
-const isSupabaseConfigured = Boolean(
+const supabaseConfigured = Boolean(
 process.env.NEXT_PUBLIC_SUPABASE_URL &&
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-const supabase = useMemo(() => {
-if (!isSupabaseConfigured) return null;
-return createClient();
-}, [isSupabaseConfigured]);
+const supabase = useMemo(
+() => (supabaseConfigured ? createClient() : null),
+[supabaseConfigured]
+);
 
 const [checking, setChecking] = useState(true);
 const [loading, setLoading] = useState(false);
@@ -86,10 +76,10 @@ const [editingId, setEditingId] = useState<string | null>(null);
 const [notice, setNotice] = useState("");
 const [errorMessage, setErrorMessage] = useState("");
 
-const verifyCurrentChairman = useCallback(async () => {
+const verifyChairman = useCallback(async () => {
 if (!supabase) {
 setErrorMessage(
-"Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
+"Supabase is not configured. Check your NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY environment variables."
 );
 return null;
 }
@@ -101,24 +91,22 @@ if (error || !data.user) {
   return null;
 }
 
-const userEmail = normalizeEmail(data.user.email);
+const currentEmail = (data.user.email ?? "").trim().toLowerCase();
 
-if (userEmail !== CHAIRMAN_EMAIL) {
+if (currentEmail !== CHAIRMAN_EMAIL) {
   await supabase.auth.signOut();
   router.replace("/login");
   return null;
 }
 
-setEmail(userEmail);
+setEmail(currentEmail);
 return data.user;
 
 }, [router, supabase]);
 
 const loadAnnouncements = useCallback(async () => {
 if (!supabase) {
-setErrorMessage(
-"Supabase is not configured. Check your Render environment variables."
-);
+setErrorMessage("Supabase is not configured.");
 return;
 }
 
@@ -126,7 +114,7 @@ setLoading(true);
 setErrorMessage("");
 
 try {
-  const user = await verifyCurrentChairman();
+  const user = await verifyChairman();
 
   if (!user) return;
 
@@ -141,25 +129,24 @@ try {
 
   setAnnouncements((data ?? []) as Announcement[]);
 } catch (error) {
-  console.error("Loading announcements failed:", error);
-
+  console.error("Could not load announcements:", error);
   setErrorMessage(
-    `Unable to load announcements: ${getErrorMessage(error)}`
+    `Could not load announcements: ${errorText(error)}`
   );
 } finally {
   setLoading(false);
 }
 
-}, [supabase, verifyCurrentChairman]);
+}, [supabase, verifyChairman]);
 
 useEffect(() => {
-let active = true;
+let mounted = true;
 
 async function initialize() {
   try {
     if (!supabase) {
       setErrorMessage(
-        "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
+        "Supabase is not configured. Check the environment variables in Render."
       );
       return;
     }
@@ -171,37 +158,37 @@ async function initialize() {
       return;
     }
 
-    const userEmail = normalizeEmail(data.user.email);
+    const currentEmail = (data.user.email ?? "")
+      .trim()
+      .toLowerCase();
 
-    if (userEmail !== CHAIRMAN_EMAIL) {
+    if (currentEmail !== CHAIRMAN_EMAIL) {
       await supabase.auth.signOut();
       router.replace("/login");
       return;
     }
 
-    if (!active) return;
+    if (!mounted) return;
 
-    setEmail(userEmail);
+    setEmail(currentEmail);
     await loadAnnouncements();
   } catch (error) {
     console.error("Chairman verification failed:", error);
 
-    if (active) {
+    if (mounted) {
       setErrorMessage(
-        `Unable to verify Chairman access: ${getErrorMessage(error)}`
+        `Chairman verification failed: ${errorText(error)}`
       );
     }
   } finally {
-    if (active) {
-      setChecking(false);
-    }
+    if (mounted) setChecking(false);
   }
 }
 
 void initialize();
 
 return () => {
-  active = false;
+  mounted = false;
 };
 
 }, [router, supabase, loadAnnouncements]);
@@ -224,9 +211,7 @@ setNotice("");
 setErrorMessage("");
 
 if (!supabase) {
-  setErrorMessage(
-    "Supabase is not configured. Check your Render environment variables."
-  );
+  setErrorMessage("Supabase is not configured.");
   return;
 }
 
@@ -234,22 +219,20 @@ const cleanTitle = title.trim();
 const cleanMessage = message.trim();
 
 if (!cleanTitle || !cleanMessage) {
-  setErrorMessage(
-    "Enter both an announcement title and message."
-  );
+  setErrorMessage("Enter both a title and a message.");
   return;
 }
 
 if (cleanTitle.length > MAX_TITLE_LENGTH) {
   setErrorMessage(
-    `The title cannot exceed ${MAX_TITLE_LENGTH} characters.`
+    `Title must not exceed ${MAX_TITLE_LENGTH} characters.`
   );
   return;
 }
 
 if (cleanMessage.length > MAX_MESSAGE_LENGTH) {
   setErrorMessage(
-    `The message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`
+    `Message must not exceed ${MAX_MESSAGE_LENGTH} characters.`
   );
   return;
 }
@@ -257,11 +240,11 @@ if (cleanMessage.length > MAX_MESSAGE_LENGTH) {
 setSaving(true);
 
 try {
-  const user = await verifyCurrentChairman();
+  const user = await verifyChairman();
 
   if (!user) return;
 
-  let existingAnnouncement: Announcement | null = null;
+  let existing: Announcement | null = null;
 
   if (editingId) {
     const { data, error } = await supabase
@@ -276,26 +259,23 @@ try {
 
     if (!data) {
       throw new Error(
-        "This announcement no longer exists. Refresh the page."
+        "This announcement was not found. Refresh and try again."
       );
     }
 
-    existingAnnouncement = data as Announcement;
+    existing = data as Announcement;
   }
 
-  const wasPublished =
-    existingAnnouncement?.is_published ?? false;
-
-  const previousPublishedAt =
-    existingAnnouncement?.published_at ?? null;
+  const wasPublished = existing?.is_published ?? false;
+  const oldPublishedAt = existing?.published_at ?? null;
 
   const announcementData = {
     title: cleanTitle,
     message: cleanMessage,
     is_published: isPublished,
     published_at: isPublished
-      ? wasPublished && previousPublishedAt
-        ? previousPublishedAt
+      ? wasPublished && oldPublishedAt
+        ? oldPublishedAt
         : new Date().toISOString()
       : null,
   };
@@ -310,7 +290,7 @@ try {
 
     setNotice(
       isPublished
-        ? "Announcement updated successfully."
+        ? "Announcement updated and published."
         : "Announcement saved as a draft."
     );
   } else {
@@ -334,10 +314,9 @@ try {
 
   await loadAnnouncements();
 } catch (error) {
-  console.error("Saving announcement failed:", error);
-
+  console.error("Could not save announcement:", error);
   setErrorMessage(
-    `Unable to save announcement: ${getErrorMessage(error)}`
+    `Could not save announcement: ${errorText(error)}`
   );
 } finally {
   setSaving(false);
@@ -353,15 +332,12 @@ setIsPublished(item.is_published);
 setNotice("");
 setErrorMessage("");
 
-window.scrollTo({
-  top: 0,
-  behavior: "smooth",
-});
+window.scrollTo({ top: 0, behavior: "smooth" });
 
 }
 
 async function deleteAnnouncement(item: Announcement) {
-// FIXED: Backticks allow the announcement title to be inserted safely.
+// Correct syntax: backticks surround the complete message.
 const confirmed = window.confirm(
 "Delete "${item.title}" permanently? This action cannot be undone."
 );
@@ -369,9 +345,7 @@ const confirmed = window.confirm(
 if (!confirmed) return;
 
 if (!supabase) {
-  setErrorMessage(
-    "Supabase is not configured. Check your Render environment variables."
-  );
+  setErrorMessage("Supabase is not configured.");
   return;
 }
 
@@ -380,7 +354,7 @@ setErrorMessage("");
 setDeletingId(item.id);
 
 try {
-  const user = await verifyCurrentChairman();
+  const user = await verifyChairman();
 
   if (!user) return;
 
@@ -391,8 +365,6 @@ try {
 
   if (error) throw error;
 
-  setNotice("Announcement deleted successfully.");
-
   if (editingId === item.id) {
     setTitle("");
     setMessage("");
@@ -400,12 +372,12 @@ try {
     setEditingId(null);
   }
 
+  setNotice("Announcement deleted successfully.");
   await loadAnnouncements();
 } catch (error) {
-  console.error("Deleting announcement failed:", error);
-
+  console.error("Could not delete announcement:", error);
   setErrorMessage(
-    `Unable to delete announcement: ${getErrorMessage(error)}`
+    `Could not delete announcement: ${errorText(error)}`
   );
 } finally {
   setDeletingId(null);
@@ -427,7 +399,7 @@ if (checking) {
 return (
 <main style={styles.page}>
 <section style={styles.card}>
-<p>Verifying Chairman access...</p>
+Verifying Chairman access...
 </section>
 </main>
 );
@@ -439,9 +411,8 @@ return (
 <section style={styles.card}>
 <h1 style={styles.heading}>Announcement Board</h1>
 
-      <p style={styles.error} role="alert">
-        {errorMessage ||
-          "Chairman access could not be verified."}
+      <p role="alert" style={styles.error}>
+        {errorMessage || "Chairman access could not be verified."}
       </p>
 
       <button
@@ -467,7 +438,7 @@ return (
 <main style={styles.page}>
 <header style={styles.header}>
 <div>
-<p style={styles.label}>MAIN NAIJA PIDGIN</p>
+<p style={styles.brand}>MAIN NAIJA PIDGIN</p>
 <h1 style={styles.heading}>Announcement Board</h1>
 <p style={styles.muted}>Chairman: {email}</p>
 </div>
@@ -492,13 +463,13 @@ return (
   </header>
 
   {notice && (
-    <p style={styles.success} role="status">
+    <p role="status" style={styles.success}>
       {notice}
     </p>
   )}
 
   {errorMessage && (
-    <p style={styles.error} role="alert">
+    <p role="alert" style={styles.error}>
       {errorMessage}
     </p>
   )}
@@ -555,7 +526,6 @@ return (
           }
           disabled={saving}
         />
-
         Publish now so workers can read it
       </label>
 
@@ -592,7 +562,6 @@ return (
     <div style={styles.listHeader}>
       <div>
         <h2>Previous Announcements</h2>
-
         <p style={styles.muted}>
           Total: {announcements.length}
           {" · "}
@@ -618,10 +587,7 @@ return (
 
     {!loading && announcements.length === 0 && (
       <article style={styles.card}>
-        <p>
-          No announcements found. Create your first announcement
-          above.
-        </p>
+        No announcements found. Create your first announcement above.
       </article>
     )}
 
@@ -687,11 +653,10 @@ page: {
 minHeight: "100vh",
 padding: "24px",
 background: "#101010",
-color: "#ffffff",
+color: "#fff",
 fontFamily: "Arial, sans-serif",
 boxSizing: "border-box",
 },
-
 header: {
 display: "flex",
 flexWrap: "wrap",
@@ -700,24 +665,20 @@ alignItems: "center",
 gap: "16px",
 marginBottom: "24px",
 },
-
-label: {
+brand: {
 color: "#d4af37",
 fontWeight: 700,
 letterSpacing: "2px",
 },
-
 heading: {
 color: "#d4af37",
 margin: "8px 0",
 },
-
 muted: {
 color: "#bdbdbd",
 fontSize: "13px",
 lineHeight: 1.6,
 },
-
 card: {
 padding: "20px",
 border: "1px solid #383838",
@@ -726,49 +687,43 @@ background: "#1b1b1b",
 overflowWrap: "anywhere",
 minWidth: 0,
 },
-
 form: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
-
 field: {
 display: "grid",
 gap: "8px",
 fontWeight: 700,
 },
-
 input: {
 width: "100%",
 padding: "12px",
 borderRadius: "8px",
 border: "1px solid #555",
 background: "#101010",
-color: "#ffffff",
+color: "#fff",
 boxSizing: "border-box",
 fontSize: "16px",
 },
-
 textarea: {
 width: "100%",
 padding: "12px",
 borderRadius: "8px",
 border: "1px solid #555",
 background: "#101010",
-color: "#ffffff",
+color: "#fff",
 resize: "vertical",
 boxSizing: "border-box",
 fontSize: "16px",
 lineHeight: 1.6,
 },
-
 checkbox: {
 display: "flex",
 alignItems: "center",
 gap: "10px",
 },
-
 button: {
 padding: "12px 18px",
 border: "none",
@@ -778,7 +733,6 @@ color: "#101010",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 secondaryButton: {
 padding: "12px 18px",
 border: "1px solid #d4af37",
@@ -788,28 +742,24 @@ color: "#d4af37",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 deleteButton: {
 padding: "12px 18px",
 border: "none",
 borderRadius: "8px",
 background: "#8b2626",
-color: "#ffffff",
+color: "#fff",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 actions: {
 display: "flex",
 flexWrap: "wrap",
 gap: "10px",
 alignItems: "center",
 },
-
 listSection: {
 marginTop: "28px",
 },
-
 listHeader: {
 display: "flex",
 flexWrap: "wrap",
@@ -817,41 +767,34 @@ justifyContent: "space-between",
 alignItems: "center",
 gap: "12px",
 },
-
 list: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
-
 itemTitle: {
 overflowWrap: "anywhere",
 },
-
 message: {
 whiteSpace: "pre-wrap",
 lineHeight: 1.7,
 overflowWrap: "anywhere",
 },
-
 date: {
 color: "#c4c4c4",
 fontSize: "13px",
 lineHeight: 1.6,
 },
-
 publishedBadge: {
 color: "#8be28b",
 fontWeight: 700,
 fontSize: "12px",
 },
-
 draftBadge: {
 color: "#f0d27a",
 fontWeight: 700,
 fontSize: "12px",
 },
-
 success: {
 padding: "12px",
 marginTop: "16px",
@@ -860,7 +803,6 @@ background: "#16351f",
 color: "#a8f0b5",
 overflowWrap: "anywhere",
 },
-
 error: {
 padding: "12px",
 marginTop: "16px",
