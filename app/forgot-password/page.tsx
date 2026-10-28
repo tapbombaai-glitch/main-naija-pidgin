@@ -1,32 +1,37 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import "../admin/login/login.css";
+import { createClient } from "@/lib/supabase/client";
+import "../login/login.css";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage("");
     setError("");
-
-    if (!email) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
       setError("Put your email first");
       return;
     }
-
-    // === FOR NOW - MOCK (no Supabase) ===
-    setMessage(`Reset link don send to ${email} — Check your email! (MOCK - when Supabase dey, real email go send)`);
-
-    // === WHEN SUPABASE DEY - UNCOMMENT THIS ===
-    // const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    //   redirectTo: `${window.location.origin}/reset-password`,
-    // });
-    // if (error) setError(error.message);
-    // else setMessage("Check your email for reset link!");
+    setLoading(true);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) setError(error.message);
+      else setMessage(`Reset link don send to ${normalizedEmail} — Check email (and spam folder)!`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -43,17 +48,16 @@ export default function ForgotPassword() {
           <form onSubmit={handleReset} className="loginForm">
             <div className="inputGroup">
               <label>Your Email</label>
-              <input type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <input type="email" placeholder="your@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} />
             </div>
             {error && <p style={{color:'#ff4444', background:'#3a1717', padding:'10px', borderRadius:'8px', fontSize:'13px'}}>{error}</p>}
             {message && <p style={{color:'#00d084', background:'#0a2a1a', padding:'10px', borderRadius:'8px', fontSize:'13px'}}>{message}</p>}
-            <button type="submit" className="loginBtn">Send Reset Link →</button>
+            <button type="submit" className="loginBtn" disabled={loading}>{loading ? "Sending..." : "Send Reset Link →"}</button>
           </form>
           <div style={{textAlign:'center', marginTop:'16px'}}>
-            <Link href="/admin/login" style={{color:'#d4af37', fontSize:'13px', marginRight:'15px'}}>Chairman Login</Link>
+            <Link href="/login" style={{color:'#d4af37', fontSize:'13px', marginRight:'15px'}}>Chairman Login</Link>
             <Link href="/worker-login" style={{color:'#00d084', fontSize:'13px'}}>Worker Login</Link>
           </div>
-          <div className="loginFooter">Reset link go expire for 1 hour</div>
         </div>
       </div>
     </main>
