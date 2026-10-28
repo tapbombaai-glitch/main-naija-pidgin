@@ -3,6 +3,7 @@
 import {
 useCallback,
 useEffect,
+useMemo,
 useState,
 } from "react";
 
@@ -13,12 +14,12 @@ CSSProperties,
 
 import { useRouter } from "next/navigation";
 
-import {
-supabase,
-isSupabaseConfigured,
-} from "../../../lib/supabase";
+import { createClient } from "../../../lib/supabase/client";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+
+const MAX_TITLE_LENGTH = 150;
+const MAX_MESSAGE_LENGTH = 10000;
 
 type Announcement = {
 id: string;
@@ -28,6 +29,12 @@ is_published: boolean;
 created_at: string;
 published_at: string | null;
 };
+
+function normalizeEmail(
+email: string | null | undefined
+): string {
+return (email ?? "").trim().toLowerCase();
+}
 
 function getErrorMessage(error: unknown): string {
 if (
@@ -42,11 +49,7 @@ return error.message;
 return "An unexpected error occurred.";
 }
 
-function normalizeEmail(email: string | null | undefined) {
-return (email ?? "").trim().toLowerCase();
-}
-
-function formatDate(date: string | null) {
+function formatDate(date: string | null): string {
 if (!date) return "Not published";
 
 const parsed = new Date(date);
@@ -61,23 +64,51 @@ return parsed.toLocaleString();
 export default function ChairmanAnnouncementsPage() {
 const router = useRouter();
 
+const isSupabaseConfigured = Boolean(
+process.env.NEXT_PUBLIC_SUPABASE_URL &&
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+const supabase = useMemo(() => {
+if (!isSupabaseConfigured) {
+return null;
+}
+
+return createClient();
+
+}, [isSupabaseConfigured]);
+
 const [checking, setChecking] = useState(true);
 const [loading, setLoading] = useState(false);
 const [saving, setSaving] = useState(false);
-const [deletingId, setDeletingId] = useState<string | null>(null);
+const [deletingId, setDeletingId] = useState<string | null>(
+null
+);
 
 const [email, setEmail] = useState("");
-const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+const [announcements, setAnnouncements] = useState<
+Announcement[]
+
+«([]);»
 
 const [title, setTitle] = useState("");
 const [message, setMessage] = useState("");
 const [isPublished, setIsPublished] = useState(false);
-const [editingId, setEditingId] = useState<string | null>(null);
+const [editingId, setEditingId] = useState<string | null>(
+null
+);
 
 const [notice, setNotice] = useState("");
 const [errorMessage, setErrorMessage] = useState("");
 
 const loadAnnouncements = useCallback(async () => {
+if (!supabase) {
+setErrorMessage(
+"Supabase is not configured. Check your Render environment variables."
+);
+return;
+}
+
 setLoading(true);
 setErrorMessage("");
 
@@ -93,7 +124,10 @@ try {
 
   setAnnouncements((data ?? []) as Announcement[]);
 } catch (error) {
-  console.error("Loading announcements failed:", error);
+  console.error(
+    "Loading announcements failed:",
+    error
+  );
 
   setErrorMessage(
     `Unable to load announcements: ${getErrorMessage(error)}`
@@ -102,12 +136,12 @@ try {
   setLoading(false);
 }
 
-}, []);
+}, [supabase]);
 
 const verifyCurrentChairman = useCallback(async () => {
-if (!isSupabaseConfigured) {
+if (!supabase) {
 setErrorMessage(
-"Supabase is not configured. Check the public Supabase environment variables in Render."
+"Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
 );
 
   return null;
@@ -132,14 +166,14 @@ setEmail(userEmail);
 
 return data.user;
 
-}, [router]);
+}, [router, supabase]);
 
 useEffect(() => {
 let active = true;
 
 async function initialize() {
   try {
-    if (!isSupabaseConfigured) {
+    if (!supabase) {
       setErrorMessage(
         "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
       );
@@ -147,7 +181,8 @@ async function initialize() {
       return;
     }
 
-    const { data, error } = await supabase.auth.getUser();
+    const { data, error } =
+      await supabase.auth.getUser();
 
     if (error || !data.user) {
       router.replace("/login");
@@ -165,9 +200,13 @@ async function initialize() {
     if (!active) return;
 
     setEmail(userEmail);
+
     await loadAnnouncements();
   } catch (error) {
-    console.error("Chairman verification failed:", error);
+    console.error(
+      "Chairman verification failed:",
+      error
+    );
 
     if (active) {
       setErrorMessage(
@@ -187,7 +226,7 @@ return () => {
   active = false;
 };
 
-}, [router, loadAnnouncements]);
+}, [router, supabase, loadAnnouncements]);
 
 function resetForm() {
 setTitle("");
@@ -206,6 +245,13 @@ event.preventDefault();
 setNotice("");
 setErrorMessage("");
 
+if (!supabase) {
+  setErrorMessage(
+    "Supabase is not configured. Check your Render environment variables."
+  );
+  return;
+}
+
 const cleanTitle = title.trim();
 const cleanMessage = message.trim();
 
@@ -213,23 +259,20 @@ if (!cleanTitle || !cleanMessage) {
   setErrorMessage(
     "Enter both an announcement title and message."
   );
-
   return;
 }
 
-if (cleanTitle.length > 150) {
+if (cleanTitle.length > MAX_TITLE_LENGTH) {
   setErrorMessage(
-    "The announcement title cannot exceed 150 characters."
+    `The title cannot exceed ${MAX_TITLE_LENGTH} characters.`
   );
-
   return;
 }
 
-if (cleanMessage.length > 10000) {
+if (cleanMessage.length > MAX_MESSAGE_LENGTH) {
   setErrorMessage(
-    "The announcement message cannot exceed 10,000 characters."
+    `The message cannot exceed ${MAX_MESSAGE_LENGTH} characters.`
   );
-
   return;
 }
 
@@ -265,7 +308,7 @@ try {
   const wasPublished =
     existingAnnouncement?.is_published ?? false;
 
-  const existingPublishedAt =
+  const previousPublishedAt =
     existingAnnouncement?.published_at ?? null;
 
   const announcementData = {
@@ -273,8 +316,8 @@ try {
     message: cleanMessage,
     is_published: isPublished,
     published_at: isPublished
-      ? wasPublished && existingPublishedAt
-        ? existingPublishedAt
+      ? wasPublished && previousPublishedAt
+        ? previousPublishedAt
         : new Date().toISOString()
       : null,
   };
@@ -313,7 +356,10 @@ try {
 
   await loadAnnouncements();
 } catch (error) {
-  console.error("Saving announcement failed:", error);
+  console.error(
+    "Saving announcement failed:",
+    error
+  );
 
   setErrorMessage(
     `Unable to save announcement: ${getErrorMessage(error)}`
@@ -347,6 +393,13 @@ const confirmed = window.confirm(
 
 if (!confirmed) return;
 
+if (!supabase) {
+  setErrorMessage(
+    "Supabase is not configured. Check your Render environment variables."
+  );
+  return;
+}
+
 setNotice("");
 setErrorMessage("");
 setDeletingId(item.id);
@@ -374,7 +427,10 @@ try {
 
   await loadAnnouncements();
 } catch (error) {
-  console.error("Deleting announcement failed:", error);
+  console.error(
+    "Deleting announcement failed:",
+    error
+  );
 
   setErrorMessage(
     `Unable to delete announcement: ${getErrorMessage(error)}`
@@ -387,7 +443,9 @@ try {
 
 async function signOut() {
 try {
+if (supabase) {
 await supabase.auth.signOut();
+}
 } finally {
 router.replace("/login");
 }
@@ -412,7 +470,8 @@ Announcement Board
 </h1>
 
       <p style={styles.error} role="alert">
-        {errorMessage || "Chairman access could not be verified."}
+        {errorMessage ||
+          "Chairman access could not be verified."}
       </p>
 
       <button
@@ -428,13 +487,17 @@ Announcement Board
 
 }
 
+const publishedCount = announcements.filter(
+(item) => item.is_published
+).length;
+
+const draftCount = announcements.length - publishedCount;
+
 return (
 <main style={styles.page}>
 <header style={styles.header}>
 <div>
-<p style={styles.label}>
-MAIN NAIJA PIDGIN
-</p>
+<p style={styles.label}>MAIN NAIJA PIDGIN</p>
 
       <h1 style={styles.heading}>
         Announcement Board
@@ -464,6 +527,18 @@ MAIN NAIJA PIDGIN
     </div>
   </header>
 
+  {notice && (
+    <p style={styles.success} role="status">
+      {notice}
+    </p>
+  )}
+
+  {errorMessage && (
+    <p style={styles.error} role="alert">
+      {errorMessage}
+    </p>
+  )}
+
   <section style={styles.card}>
     <h2>
       {editingId
@@ -481,15 +556,17 @@ MAIN NAIJA PIDGIN
         <input
           style={styles.input}
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          maxLength={150}
+          onChange={(event) =>
+            setTitle(event.target.value)
+          }
+          maxLength={MAX_TITLE_LENGTH}
           required
           disabled={saving}
           placeholder="Enter announcement title"
         />
 
         <small style={styles.muted}>
-          {title.length}/150 characters
+          {title.length}/{MAX_TITLE_LENGTH} characters
         </small>
       </label>
 
@@ -499,16 +576,18 @@ MAIN NAIJA PIDGIN
         <textarea
           style={styles.textarea}
           value={message}
-          onChange={(event) => setMessage(event.target.value)}
+          onChange={(event) =>
+            setMessage(event.target.value)
+          }
           rows={7}
-          maxLength={10000}
+          maxLength={MAX_MESSAGE_LENGTH}
           required
           disabled={saving}
           placeholder="Write your announcement here..."
         />
 
         <small style={styles.muted}>
-          {message.length}/10,000 characters
+          {message.length}/{MAX_MESSAGE_LENGTH} characters
         </small>
       </label>
 
@@ -554,18 +633,6 @@ MAIN NAIJA PIDGIN
     </form>
   </section>
 
-  {notice && (
-    <p style={styles.success} role="status">
-      {notice}
-    </p>
-  )}
-
-  {errorMessage && (
-    <p style={styles.error} role="alert">
-      {errorMessage}
-    </p>
-  )}
-
   <section style={styles.listSection}>
     <div style={styles.listHeader}>
       <div>
@@ -574,17 +641,9 @@ MAIN NAIJA PIDGIN
         <p style={styles.muted}>
           Total: {announcements.length}
           {" · "}
-          Published: {
-            announcements.filter(
-              (item) => item.is_published
-            ).length
-          }
+          Published: {publishedCount}
           {" · "}
-          Drafts: {
-            announcements.filter(
-              (item) => !item.is_published
-            ).length
-          }
+          Drafts: {draftCount}
         </p>
       </div>
 
@@ -607,7 +666,8 @@ MAIN NAIJA PIDGIN
     {!loading && announcements.length === 0 && (
       <article style={styles.card}>
         <p>
-          No announcements found. Create your first announcement above.
+          No announcements found. Create your first
+          announcement above.
         </p>
       </article>
     )}
@@ -652,7 +712,9 @@ MAIN NAIJA PIDGIN
               type="button"
               style={styles.secondaryButton}
               onClick={() => editAnnouncement(item)}
-              disabled={saving || deletingId !== null}
+              disabled={
+                saving || deletingId !== null
+              }
             >
               Edit
             </button>
@@ -660,7 +722,9 @@ MAIN NAIJA PIDGIN
             <button
               type="button"
               style={styles.deleteButton}
-              onClick={() => void deleteAnnouncement(item)}
+              onClick={() =>
+                void deleteAnnouncement(item)
+              }
               disabled={
                 saving || deletingId !== null
               }
