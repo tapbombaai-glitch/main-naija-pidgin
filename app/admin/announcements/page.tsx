@@ -13,11 +13,9 @@ CSSProperties,
 } from "react";
 
 import { useRouter } from "next/navigation";
-
 import { createClient } from "../../../lib/supabase/client";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
-
 const MAX_TITLE_LENGTH = 150;
 const MAX_MESSAGE_LENGTH = 10000;
 
@@ -30,9 +28,7 @@ created_at: string;
 published_at: string | null;
 };
 
-function normalizeEmail(
-email: string | null | undefined
-): string {
+function normalizeEmail(email: string | null | undefined): string {
 return (email ?? "").trim().toLowerCase();
 }
 
@@ -70,81 +66,32 @@ process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 const supabase = useMemo(() => {
-if (!isSupabaseConfigured) {
-return null;
-}
-
+if (!isSupabaseConfigured) return null;
 return createClient();
-
 }, [isSupabaseConfigured]);
 
 const [checking, setChecking] = useState(true);
 const [loading, setLoading] = useState(false);
 const [saving, setSaving] = useState(false);
-const [deletingId, setDeletingId] = useState<string | null>(
-null
-);
+const [deletingId, setDeletingId] = useState<string | null>(null);
 
 const [email, setEmail] = useState("");
-const [announcements, setAnnouncements] = useState<
-Announcement[]
-
-«([]);»
+const [announcements, setAnnouncements] = useState<Announcement[]>([]);
 
 const [title, setTitle] = useState("");
 const [message, setMessage] = useState("");
 const [isPublished, setIsPublished] = useState(false);
-const [editingId, setEditingId] = useState<string | null>(
-null
-);
+const [editingId, setEditingId] = useState<string | null>(null);
 
 const [notice, setNotice] = useState("");
 const [errorMessage, setErrorMessage] = useState("");
-
-const loadAnnouncements = useCallback(async () => {
-if (!supabase) {
-setErrorMessage(
-"Supabase is not configured. Check your Render environment variables."
-);
-return;
-}
-
-setLoading(true);
-setErrorMessage("");
-
-try {
-  const { data, error } = await supabase
-    .from("announcements")
-    .select(
-      "id, title, message, is_published, created_at, published_at"
-    )
-    .order("created_at", { ascending: false });
-
-  if (error) throw error;
-
-  setAnnouncements((data ?? []) as Announcement[]);
-} catch (error) {
-  console.error(
-    "Loading announcements failed:",
-    error
-  );
-
-  setErrorMessage(
-    `Unable to load announcements: ${getErrorMessage(error)}`
-  );
-} finally {
-  setLoading(false);
-}
-
-}, [supabase]);
 
 const verifyCurrentChairman = useCallback(async () => {
 if (!supabase) {
 setErrorMessage(
 "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
 );
-
-  return null;
+return null;
 }
 
 const { data, error } = await supabase.auth.getUser();
@@ -163,10 +110,47 @@ if (userEmail !== CHAIRMAN_EMAIL) {
 }
 
 setEmail(userEmail);
-
 return data.user;
 
 }, [router, supabase]);
+
+const loadAnnouncements = useCallback(async () => {
+if (!supabase) {
+setErrorMessage(
+"Supabase is not configured. Check your Render environment variables."
+);
+return;
+}
+
+setLoading(true);
+setErrorMessage("");
+
+try {
+  const user = await verifyCurrentChairman();
+
+  if (!user) return;
+
+  const { data, error } = await supabase
+    .from("announcements")
+    .select(
+      "id, title, message, is_published, created_at, published_at"
+    )
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+
+  setAnnouncements((data ?? []) as Announcement[]);
+} catch (error) {
+  console.error("Loading announcements failed:", error);
+
+  setErrorMessage(
+    `Unable to load announcements: ${getErrorMessage(error)}`
+  );
+} finally {
+  setLoading(false);
+}
+
+}, [supabase, verifyCurrentChairman]);
 
 useEffect(() => {
 let active = true;
@@ -177,12 +161,10 @@ async function initialize() {
       setErrorMessage(
         "Supabase is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Render."
       );
-
       return;
     }
 
-    const { data, error } =
-      await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
 
     if (error || !data.user) {
       router.replace("/login");
@@ -200,13 +182,9 @@ async function initialize() {
     if (!active) return;
 
     setEmail(userEmail);
-
     await loadAnnouncements();
   } catch (error) {
-    console.error(
-      "Chairman verification failed:",
-      error
-    );
+    console.error("Chairman verification failed:", error);
 
     if (active) {
       setErrorMessage(
@@ -237,9 +215,7 @@ setNotice("");
 setErrorMessage("");
 }
 
-async function saveAnnouncement(
-event: FormEvent<HTMLFormElement>
-) {
+async function saveAnnouncement(event: FormEvent<HTMLFormElement>) {
 event.preventDefault();
 
 setNotice("");
@@ -256,9 +232,7 @@ const cleanTitle = title.trim();
 const cleanMessage = message.trim();
 
 if (!cleanTitle || !cleanMessage) {
-  setErrorMessage(
-    "Enter both an announcement title and message."
-  );
+  setErrorMessage("Enter both an announcement title and message.");
   return;
 }
 
@@ -280,7 +254,6 @@ setSaving(true);
 
 try {
   const user = await verifyCurrentChairman();
-
   if (!user) return;
 
   let existingAnnouncement: Announcement | null = null;
@@ -305,9 +278,7 @@ try {
     existingAnnouncement = data as Announcement;
   }
 
-  const wasPublished =
-    existingAnnouncement?.is_published ?? false;
-
+  const wasPublished = existingAnnouncement?.is_published ?? false;
   const previousPublishedAt =
     existingAnnouncement?.published_at ?? null;
 
@@ -356,10 +327,7 @@ try {
 
   await loadAnnouncements();
 } catch (error) {
-  console.error(
-    "Saving announcement failed:",
-    error
-  );
+  console.error("Saving announcement failed:", error);
 
   setErrorMessage(
     `Unable to save announcement: ${getErrorMessage(error)}`
@@ -375,14 +343,10 @@ setEditingId(item.id);
 setTitle(item.title);
 setMessage(item.message);
 setIsPublished(item.is_published);
-
 setNotice("");
 setErrorMessage("");
 
-window.scrollTo({
-  top: 0,
-  behavior: "smooth",
-});
+window.scrollTo({ top: 0, behavior: "smooth" });
 
 }
 
@@ -406,7 +370,6 @@ setDeletingId(item.id);
 
 try {
   const user = await verifyCurrentChairman();
-
   if (!user) return;
 
   const { error } = await supabase
@@ -427,10 +390,7 @@ try {
 
   await loadAnnouncements();
 } catch (error) {
-  console.error(
-    "Deleting announcement failed:",
-    error
-  );
+  console.error("Deleting announcement failed:", error);
 
   setErrorMessage(
     `Unable to delete announcement: ${getErrorMessage(error)}`
@@ -465,13 +425,10 @@ if (!email) {
 return (
 <main style={styles.page}>
 <section style={styles.card}>
-<h1 style={styles.heading}>
-Announcement Board
-</h1>
+<h1 style={styles.heading}>Announcement Board</h1>
 
       <p style={styles.error} role="alert">
-        {errorMessage ||
-          "Chairman access could not be verified."}
+        {errorMessage || "Chairman access could not be verified."}
       </p>
 
       <button
@@ -498,15 +455,9 @@ return (
 <header style={styles.header}>
 <div>
 <p style={styles.label}>MAIN NAIJA PIDGIN</p>
-
-      <h1 style={styles.heading}>
-        Announcement Board
-      </h1>
-
-      <p style={styles.muted}>
-        Chairman: {email}
-      </p>
-    </div>
+<h1 style={styles.heading}>Announcement Board</h1>
+<p style={styles.muted}>Chairman: {email}</p>
+</div>
 
     <div style={styles.actions}>
       <button
@@ -540,25 +491,16 @@ return (
   )}
 
   <section style={styles.card}>
-    <h2>
-      {editingId
-        ? "Edit Announcement"
-        : "Create Announcement"}
-    </h2>
+    <h2>{editingId ? "Edit Announcement" : "Create Announcement"}</h2>
 
-    <form
-      onSubmit={saveAnnouncement}
-      style={styles.form}
-    >
+    <form onSubmit={saveAnnouncement} style={styles.form}>
       <label style={styles.field}>
         Announcement title
 
         <input
           style={styles.input}
           value={title}
-          onChange={(event) =>
-            setTitle(event.target.value)
-          }
+          onChange={(event) => setTitle(event.target.value)}
           maxLength={MAX_TITLE_LENGTH}
           required
           disabled={saving}
@@ -576,9 +518,7 @@ return (
         <textarea
           style={styles.textarea}
           value={message}
-          onChange={(event) =>
-            setMessage(event.target.value)
-          }
+          onChange={(event) => setMessage(event.target.value)}
           rows={7}
           maxLength={MAX_MESSAGE_LENGTH}
           required
@@ -595,21 +535,14 @@ return (
         <input
           type="checkbox"
           checked={isPublished}
-          onChange={(event) =>
-            setIsPublished(event.target.checked)
-          }
+          onChange={(event) => setIsPublished(event.target.checked)}
           disabled={saving}
         />
-
         Publish now so workers can read it
       </label>
 
       <div style={styles.actions}>
-        <button
-          type="submit"
-          style={styles.button}
-          disabled={saving}
-        >
+        <button type="submit" style={styles.button} disabled={saving}>
           {saving
             ? "Saving..."
             : editingId
@@ -657,18 +590,11 @@ return (
       </button>
     </div>
 
-    {loading && (
-      <p style={styles.muted}>
-        Loading announcements...
-      </p>
-    )}
+    {loading && <p style={styles.muted}>Loading announcements...</p>}
 
     {!loading && announcements.length === 0 && (
       <article style={styles.card}>
-        <p>
-          No announcements found. Create your first
-          announcement above.
-        </p>
+        <p>No announcements found. Create your first announcement above.</p>
       </article>
     )}
 
@@ -676,9 +602,7 @@ return (
       {announcements.map((item) => (
         <article key={item.id} style={styles.card}>
           <div style={styles.listHeader}>
-            <h3 style={styles.itemTitle}>
-              {item.title}
-            </h3>
+            <h3 style={styles.itemTitle}>{item.title}</h3>
 
             <span
               style={
@@ -687,15 +611,11 @@ return (
                   : styles.draftBadge
               }
             >
-              {item.is_published
-                ? "PUBLISHED"
-                : "DRAFT"}
+              {item.is_published ? "PUBLISHED" : "DRAFT"}
             </span>
           </div>
 
-          <p style={styles.message}>
-            {item.message}
-          </p>
+          <p style={styles.message}>{item.message}</p>
 
           <p style={styles.date}>
             Created: {formatDate(item.created_at)}
@@ -712,9 +632,7 @@ return (
               type="button"
               style={styles.secondaryButton}
               onClick={() => editAnnouncement(item)}
-              disabled={
-                saving || deletingId !== null
-              }
+              disabled={saving || deletingId !== null}
             >
               Edit
             </button>
@@ -722,16 +640,10 @@ return (
             <button
               type="button"
               style={styles.deleteButton}
-              onClick={() =>
-                void deleteAnnouncement(item)
-              }
-              disabled={
-                saving || deletingId !== null
-              }
+              onClick={() => void deleteAnnouncement(item)}
+              disabled={saving || deletingId !== null}
             >
-              {deletingId === item.id
-                ? "Deleting..."
-                : "Delete"}
+              {deletingId === item.id ? "Deleting..." : "Delete"}
             </button>
           </div>
         </article>
@@ -752,7 +664,6 @@ color: "#ffffff",
 fontFamily: "Arial, sans-serif",
 boxSizing: "border-box",
 },
-
 header: {
 display: "flex",
 flexWrap: "wrap",
@@ -761,24 +672,20 @@ alignItems: "center",
 gap: "16px",
 marginBottom: "24px",
 },
-
 label: {
 color: "#d4af37",
 fontWeight: 700,
 letterSpacing: "2px",
 },
-
 heading: {
 color: "#d4af37",
 margin: "8px 0",
 },
-
 muted: {
 color: "#bdbdbd",
 fontSize: "13px",
 lineHeight: 1.6,
 },
-
 card: {
 padding: "20px",
 border: "1px solid #383838",
@@ -787,19 +694,16 @@ background: "#1b1b1b",
 overflowWrap: "anywhere",
 minWidth: 0,
 },
-
 form: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
-
 field: {
 display: "grid",
 gap: "8px",
 fontWeight: 700,
 },
-
 input: {
 width: "100%",
 padding: "12px",
@@ -810,7 +714,6 @@ color: "#ffffff",
 boxSizing: "border-box",
 fontSize: "16px",
 },
-
 textarea: {
 width: "100%",
 padding: "12px",
@@ -823,13 +726,11 @@ boxSizing: "border-box",
 fontSize: "16px",
 lineHeight: 1.6,
 },
-
 checkbox: {
 display: "flex",
 alignItems: "center",
 gap: "10px",
 },
-
 button: {
 padding: "12px 18px",
 border: "none",
@@ -839,7 +740,6 @@ color: "#101010",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 secondaryButton: {
 padding: "12px 18px",
 border: "1px solid #d4af37",
@@ -849,7 +749,6 @@ color: "#d4af37",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 deleteButton: {
 padding: "12px 18px",
 border: "none",
@@ -859,18 +758,15 @@ color: "#ffffff",
 fontWeight: 700,
 cursor: "pointer",
 },
-
 actions: {
 display: "flex",
 flexWrap: "wrap",
 gap: "10px",
 alignItems: "center",
 },
-
 listSection: {
 marginTop: "28px",
 },
-
 listHeader: {
 display: "flex",
 flexWrap: "wrap",
@@ -878,41 +774,34 @@ justifyContent: "space-between",
 alignItems: "center",
 gap: "12px",
 },
-
 list: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
-
 itemTitle: {
 overflowWrap: "anywhere",
 },
-
 message: {
 whiteSpace: "pre-wrap",
 lineHeight: 1.7,
 overflowWrap: "anywhere",
 },
-
 date: {
 color: "#c4c4c4",
 fontSize: "13px",
 lineHeight: 1.6,
 },
-
 publishedBadge: {
 color: "#8be28b",
 fontWeight: 700,
 fontSize: "12px",
 },
-
 draftBadge: {
 color: "#f0d27a",
 fontWeight: 700,
 fontSize: "12px",
 },
-
 success: {
 padding: "12px",
 marginTop: "16px",
@@ -921,7 +810,6 @@ background: "#16351f",
 color: "#a8f0b5",
 overflowWrap: "anywhere",
 },
-
 error: {
 padding: "12px",
 marginTop: "16px",
