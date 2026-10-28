@@ -1,144 +1,83 @@
 "use client";
 import { useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "../../lib/supabase/client";
 
-export default function WorkerWorkspace() {
+export default function WorkerPage() {
   const [isRecording, setIsRecording] = useState(false);
-  const [seconds, setSeconds] = useState(5);
+  const [seconds, setSeconds] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const timerRef = useRef<any>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const router = useRouter();
 
   const taskText = "How are you doing today?";
-  const userName = "Kingsley";
 
   const speakTask = () => {
-    const utter = new SpeechSynthesisUtterance(taskText);
-    utter.lang = "en-NG";
-    speechSynthesis.speak(utter);
+    const u = new SpeechSynthesisUtterance(taskText);
+    u.lang = "en-NG";
+    speechSynthesis.speak(u);
   };
 
-  const startRecording = async () => {
+  const startRec = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      recorderRef.current = recorder;
+      const rec = new MediaRecorder(stream);
+      recorderRef.current = rec;
       chunksRef.current = [];
-      
-      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-      recorder.onstop = () => {
+      rec.ondataavailable = (e) => chunksRef.current.push(e.data);
+      rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         setAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach(t => t.stop());
       };
-      
-      recorder.start();
+      rec.start();
       setIsRecording(true);
       setSeconds(0);
-      
       timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
-    } catch (err) {
-      alert("Abeg allow microphone access 🙏");
-    }
+    } catch { alert("Abeg allow mic 🎤"); }
   };
 
-  const stopRecording = () => {
-    if (recorderRef.current?.state === "recording") {
-      recorderRef.current.stop();
-    }
+  const stopRec = () => {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
     setIsRecording(false);
     clearInterval(timerRef.current);
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0f0a] text-white p-4 flex justify-center">
-      <div className="w-full max-w-[420px] space-y-5">
-        {/* Header */}
-        <div className="flex justify-between items-center pt-2">
-          <h1 className="font-bold text-lg"><span className="text-green-400">Main</span> Naija Pidgin</h1>
-          <div className="w-8 h-8 rounded-full bg-yellow-400 text-black font-bold flex items-center justify-center">K</div>
+    <main style={{minHeight:"100vh", background:"#0a0f0a", color:"white", padding:"16px", display:"flex", justifyContent:"center"}}>
+      <div style={{width:"100%", maxWidth:"420px"}}>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+          <h1 style={{fontWeight:"bold"}}><span style={{color:"#22c55e"}}>Main</span> Naija Pidgin</h1>
+          <button onClick={async()=>{const s=createClient(); await s.auth.signOut(); router.push("/worker/login");}} style={{border:"1px solid #333", padding:"6px 12px", borderRadius:"8px", background:"transparent", color:"#aaa"}}>Logout</button>
         </div>
 
-        {/* Welcome Card */}
-        <div className="rounded-[20px] bg-[#151d15] border border-green-900/30 p-5">
-          <h2 className="text-xl font-bold">Welcome, {userName}! 👋</h2>
-          <p className="text-sm text-gray-400 mt-1">Ready to record some Pidgin?</p>
-          <div className="flex gap-3 mt-4">
-            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
-              <p className="text-2xl font-bold text-green-400">12</p>
-              <p className="text-[11px] text-gray-400">RECORDED</p>
-            </div>
-            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
-              <p className="text-2xl font-bold text-yellow-400">5</p>
-              <p className="text-[11px] text-gray-400">TODAY</p>
-            </div>
-            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
-              <p className="text-2xl font-bold text-white">₦2k</p>
-              <p className="text-[11px] text-gray-400">EARNED</p>
-            </div>
+        <div style={{marginTop:"20px", background:"#151d15", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"20px", padding:"20px"}}>
+          <h2 style={{fontSize:"20px", fontWeight:"bold"}}>Welcome, Kingsley! 👋</h2>
+          <p style={{color:"#888", fontSize:"13px"}}>Ready to record?</p>
+          <div style={{display:"flex", gap:"10px", marginTop:"16px"}}>
+            <div style={{flex:1, background:"rgba(0,0,0,0.4)", borderRadius:"12px", padding:"12px", textAlign:"center"}}><p style={{fontSize:"22px", fontWeight:"bold", color:"#22c55e"}}>12</p><p style={{fontSize:"10px", color:"#888"}}>RECORDED</p></div>
+            <div style={{flex:1, background:"rgba(0,0,0,0.4)", borderRadius:"12px", padding:"12px", textAlign:"center"}}><p style={{fontSize:"22px", fontWeight:"bold", color:"#eab308"}}>5</p><p style={{fontSize:"10px", color:"#888"}}>TODAY</p></div>
+            <div style={{flex:1, background:"rgba(0,0,0,0.4)", borderRadius:"12px", padding:"12px", textAlign:"center"}}><p style={{fontSize:"22px", fontWeight:"bold"}}>₦2k</p><p style={{fontSize:"10px", color:"#888"}}>EARNED</p></div>
           </div>
         </div>
 
-        {/* Task Card */}
-        <div className="rounded-[24px] bg-gradient-to-b from-[#1a261a] to-[#131a13] border border-green-500/20 p-6 shadow-[0_0_40px_rgba(34,197,94,0.15)]">
-          <div className="flex justify-between items-center">
-            <span className="text-[11px] tracking-widest text-green-400 font-bold">TODAY'S TASK • #013</span>
-            <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full">● Pidgin</span>
+        <div style={{marginTop:"20px", background:"linear-gradient(to bottom, #1a261a, #131a13)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"24px", padding:"24px", boxShadow:"0 0 40px rgba(34,197,94,0.15)"}}>
+          <div style={{display:"flex", justifyContent:"space-between"}}><span style={{fontSize:"11px", letterSpacing:"2px", color:"#22c55e", fontWeight:"bold"}}>TODAY'S TASK • #013</span><span style={{fontSize:"11px", background:"rgba(34,197,94,0.2)", color:"#86efac", padding:"2px 8px", borderRadius:"999px"}}>Pidgin</span></div>
+          <h3 style={{fontSize:"22px", fontWeight:"bold", marginTop:"16px"}}>"{taskText}"</h3>
+          <button onClick={speakTask} style={{marginTop:"16px", width:"100%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"999px", padding:"12px", color:"white", cursor:"pointer"}}>🔊 Listen</button>
+          <div style={{display:"flex", flexDirection:"column", alignItems:"center", marginTop:"32px"}}>
+            <button onClick={isRecording ? stopRec : startRec} style={{width:"112px", height:"112px", borderRadius:"999px", fontSize:"36px", background: isRecording ? "#ef4444" : "#22c55e", border:"none", boxShadow: isRecording ? "0 0 50px rgba(239,68,68,0.5)" : "0 0 50px rgba(34,197,94,0.5)", cursor:"pointer"}}>{isRecording ? "■" : "🎤"}</button>
+            <p style={{marginTop:"20px", fontFamily:"monospace", fontSize:"32px", fontWeight:"bold", color: isRecording ? "#22c55e" : "white"}}>00:{String(seconds).padStart(2,"0")}</p>
+            <p style={{fontSize:"12px", color:"#888"}}>{isRecording ? "Recording... Tap to stop" : "Tap to start recording"}</p>
+            {audioUrl && <audio controls src={audioUrl} style={{width:"100%", marginTop:"20px"}} />}
           </div>
-
-          <h3 className="text-[22px] font-bold leading-8 mt-4">"{taskText}"</h3>
-
-          <button onClick={speakTask} className="mt-4 w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-3 text-sm transition">
-            <span>🔊</span> Listen
-            <span className="flex gap-[3px] ml-2">
-              <span className="w-[3px] h-3 bg-green-400 rounded-full animate-pulse"></span>
-              <span className="w-[3px] h-5 bg-green-400 rounded-full animate-pulse delay-75"></span>
-              <span className="w-[3px] h-3 bg-green-400 rounded-full animate-pulse delay-150"></span>
-            </span>
-          </button>
-
-          {/* BIG MIC BUTTON */}
-          <div className="flex flex-col items-center mt-8">
-            <div className="relative">
-              {isRecording && <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-30"></div>}
-              {isRecording && <div className="absolute -inset-4 bg-green-500/20 rounded-full animate-pulse"></div>}
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`relative w-28 h-28 rounded-full flex items-center justify-center text-4xl shadow-[0_0_50px_rgba(34,197,94,0.5)] transition-all active:scale-95 ${isRecording ? 'bg-red-500 shadow-red-500/50' : 'bg-green-500 hover:bg-green-400'}`}
-              >
-                {isRecording ? '■' : '🎤'}
-              </button>
-            </div>
-
-            <p className={`mt-5 font-mono text-3xl font-bold tracking-widest ${isRecording ? 'text-green-400' : 'text-white'}`}>
-              00:{String(seconds).padStart(2,'0')}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">{isRecording ? 'Recording... Tap to stop' : 'Tap to start recording'}</p>
-
-            {/* Waveform Animation */}
-            {isRecording && (
-              <div className="flex items-center gap-1 mt-4 h-8">
-                {[...Array(12)].map((_,i) => (
-                  <div key={i} className="w-1 bg-green-400 rounded-full animate-[wave_0.5s_ease-in-out_infinite]" style={{height: `${12 + Math.random()*20}px`, animationDelay: `${i*0.05}s`}}></div>
-                ))}
-              </div>
-            )}
-
-            {audioUrl && (
-              <div className="w-full mt-6">
-                <audio controls src={audioUrl} className="w-full" />
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Buttons */}
-          <div className="grid grid-cols-2 gap-3 mt-8">
-            <button className="rounded-full bg-white/5 border border-white/10 py-3.5 text-sm font-semibold hover:bg-white/10">Next Task</button>
-            <button className="rounded-full bg-green-500 text-black py-3.5 text-sm font-bold hover:bg-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]">Submit ✓</button>
+          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginTop:"32px"}}>
+            <button style={{borderRadius:"999px", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.1)", padding:"14px", color:"white"}}>Next Task</button>
+            <button style={{borderRadius:"999px", background:"#22c55e", color:"black", padding:"14px", fontWeight:"bold", border:"none"}}>Submit ✓</button>
           </div>
         </div>
-
-        <style>{`@keyframes wave { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1.5)} }`}</style>
       </div>
     </main>
   );
