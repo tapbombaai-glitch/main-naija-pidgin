@@ -1,1251 +1,144 @@
 "use client";
+import { useState, useRef } from "react";
 
-import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "../../lib/supabase/client";
-
-const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
-const MAX_RECORDING_SECONDS = 60;
-const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
-
-type Language = "pidgin" | "hausa" | "igbo" | "yoruba";
-type RecordingMode = "read" | "free";
-
-type WorkerProfile = {
-  id: string;
-  email?: string | null;
-  display_name?: string | null;
-  account_number?: string | null;
-  status?: string | null;
-  total_words?: number | null;
-  recordings_count?: number | null;
-  is_chairman?: boolean | null;
-};
-
-type WorkerRecording = {
-  id: string;
-  user_id?: string;
-  file_name?: string | null;
-  audio_path?: string | null;
-  pidgin_text?: string | null;
-  transcription?: string | null;
-  language?: string | null;
-  word_count?: number | null;
-  recording_number?: string | null;
-  is_free_talk?: boolean | null;
-  is_whatsapp_group?: boolean | null;
-  admin_status?: string | null;
-  created_at?: string | null;
-  duration_seconds?: number | null;
-};
-
-type Announcement = {
-  id: string;
-  title?: string | null;
-  message?: string | null;
-  created_at?: string | null;
-};
-
-type RecordingStatus =
-  | "idle"
-  | "recording"
-  | "ready"
-  | "uploading"
-  | "submitted"
-  | "error";
-
-const LANGUAGES: { value: Language; label: string }[] = [
-  { value: "pidgin", label: "Nigerian Pidgin" },
-  { value: "hausa", label: "Hausa" },
-  { value: "igbo", label: "Igbo" },
-  { value: "yoruba", label: "Yoruba" },
-];
-
-const TEXTS_DATA: Record<Language, string[]> = {
-  pidgin: [
-    "Abeg make we start today. I wan make everything go well.",
-    "Good morning. How body? I hope say everything dey fine.",
-    "If you need help, abeg make you tell me.",
-    "Make we work together so we fit achieve our goal.",
-  ],
-  hausa: [
-    "Ina kwana? Ina fatan kana lafiya.",
-    "Na gode da taimakon da ka ba ni.",
-    "Yau rana ce mai kyau.",
-    "Mu yi aiki tare domin mu cimma burinmu.",
-  ],
-  igbo: [
-    "Ụtụtụ ọma. Kedu ka ị mere taa?",
-    "Daalụ maka enyemaka gị.",
-    "Ka anyị rụọ ọrụ ọnụ.",
-    "Enwere m olileanya na ihe niile ga-adị mma.",
-  ],
-  yoruba: [
-    "E kaaro. Bawo ni ara re?",
-    "E se fun iranlowo re.",
-    "Jẹ́ ká ṣiṣẹ́ pọ̀.",
-    "Mo nireti pe ohun gbogbo yoo dara.",
-  ],
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-  submitted: "bg-blue-100 text-blue-800",
-};
-
-function errorText(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "Something went wrong. Please try again.";
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return "Date unavailable";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
-
-  return date.toLocaleString();
-}
-
-function formatTime(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const remainder = seconds % 60;
-
-  return `${String(minutes).padStart(2, "0")}:${String(
-    remainder
-  ).padStart(2, "0")}`;
-}
-
-function statusLabel(status?: string | null): string {
-  const value = (status || "pending").toLowerCase();
-
-  if (value === "approved") return "Approved";
-  if (value === "rejected") return "Rejected";
-
-  return "Sent to Chairman";
-}
-
-export default function WorkerPage() {
-  const router = useRouter();
-
-  const supabase = useMemo(() => createClient(), []);
-
-  const activeRef = useRef(false);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(
-    null
-  );
-  const startingRef = useRef(false);
-  const audioUrlRef = useRef<string | null>(null);
-  const submittingRef = useRef(false);
-
-  const [checkingSession, setCheckingSession] = useState(true);
-  const [loadingData, setLoadingData] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-
-  const [profile, setProfile] = useState<WorkerProfile | null>(
-    null
-  );
-  const [records, setRecords] = useState<WorkerRecording[]>([]);
-  const [announcement, setAnnouncement] =
-    useState<Announcement | null>(null);
-
-  const [language, setLanguage] = useState<Language>("pidgin");
-  const [mode, setMode] = useState<RecordingMode>("read");
-  const [textIndex, setTextIndex] = useState(0);
-  const [freeTalkText, setFreeTalkText] = useState("");
-  const [isWhatsAppGroup, setIsWhatsAppGroup] = useState(false);
-
-  const [recordingStatus, setRecordingStatus] =
-    useState<RecordingStatus>("idle");
-
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+export default function WorkerWorkspace() {
+  const [isRecording, setIsRecording] = useState(false);
+  const [seconds, setSeconds] = useState(5);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const timerRef = useRef<any>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const taskText = "How are you doing today?";
+  const userName = "Kingsley";
 
-  const isBusy =
-    recordingStatus === "recording" ||
-    recordingStatus === "uploading";
+  const speakTask = () => {
+    const utter = new SpeechSynthesisUtterance(taskText);
+    utter.lang = "en-NG";
+    speechSynthesis.speak(utter);
+  };
 
-  const selectedText =
-    mode === "read"
-      ? TEXTS_DATA[language][
-          textIndex % TEXTS_DATA[language].length
-        ]
-      : freeTalkText.trim();
-
-  const clearAudioPreview = useCallback(() => {
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
-
-    setAudioUrl(null);
-    setAudioBlob(null);
-  }, []);
-
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const stopMicrophone = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => {
-      track.stop();
-    });
-
-    streamRef.current = null;
-  }, []);
-
-  const loadWorkerData = useCallback(async () => {
-    if (!activeRef.current) return;
-
-    setLoadingData(true);
-    setErrorMessage("");
-
+  const startRecording = async () => {
     try {
-      const {
-        data: sessionData,
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        throw new Error(sessionError.message);
-      }
-
-      const session = sessionData.session;
-
-      if (!session) {
-        setSignedIn(false);
-        setProfile(null);
-        setRecords([]);
-        setAnnouncement(null);
-
-        router.replace("/worker-login");
-        return;
-      }
-
-      const normalizedEmail = (session.user.email || "")
-        .trim()
-        .toLowerCase();
-
-      if (normalizedEmail === CHAIRMAN_EMAIL) {
-        setSignedIn(false);
-        setProfile(null);
-        setRecords([]);
-        setAnnouncement(null);
-
-        router.replace("/admin/dashboard");
-        return;
-      }
-
-      const profileResult = await supabase
-        .from("profiles")
-        .select(
-          "id,email,display_name,account_number,status,total_words,recordings_count,is_chairman"
-        )
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (profileResult.error) {
-        throw new Error(
-          `Could not load your profile: ${profileResult.error.message}`
-        );
-      }
-
-      const workerProfile =
-        profileResult.data as WorkerProfile | null;
-
-      if (
-        !workerProfile ||
-        workerProfile.is_chairman === true
-      ) {
-        await supabase.auth.signOut();
-
-        setSignedIn(false);
-        setProfile(null);
-        setRecords([]);
-        setAnnouncement(null);
-
-        router.replace("/worker-login");
-        return;
-      }
-
-      if (
-        workerProfile.status?.trim().toLowerCase() ===
-        "suspended"
-      ) {
-        setSignedIn(true);
-        setProfile(workerProfile);
-        setRecords([]);
-        setAnnouncement(null);
-        setErrorMessage(
-          "Your account is suspended. Contact the Chairman for assistance."
-        );
-        return;
-      }
-
-      const [recordingsResult, announcementResult] =
-        await Promise.all([
-          supabase
-            .from("recordings")
-            .select(
-              "id,user_id,file_name,audio_path,pidgin_text,transcription,language,word_count,recording_number,is_free_talk,is_whatsapp_group,admin_status,created_at,duration_seconds"
-            )
-            .eq("user_id", session.user.id)
-            .order("created_at", { ascending: false }),
-
-          supabase
-            .from("announcements")
-            .select("id,title,message,created_at")
-            .eq("is_published", true)
-            .order("created_at", { ascending: false })
-            .limit(1),
-        ]);
-
-      if (recordingsResult.error) {
-        throw new Error(
-          `Could not load your recording history: ${recordingsResult.error.message}`
-        );
-      }
-
-      if (!activeRef.current) return;
-
-      setSignedIn(true);
-      setProfile(workerProfile);
-
-      setRecords(
-        (recordingsResult.data || []) as WorkerRecording[]
-      );
-
-      setAnnouncement(
-        announcementResult.error
-          ? null
-          : ((announcementResult.data?.[0] as
-              | Announcement
-              | undefined) || null)
-      );
-
-      const savedLanguage = localStorage.getItem(
-        "selected_language"
-      );
-
-      if (
-        savedLanguage &&
-        LANGUAGES.some((item) => item.value === savedLanguage)
-      ) {
-        setLanguage(savedLanguage as Language);
-      }
-    } catch (error) {
-      if (activeRef.current) {
-        setErrorMessage(errorText(error));
-      }
-    } finally {
-      if (activeRef.current) {
-        setLoadingData(false);
-        setCheckingSession(false);
-      }
-    }
-  }, [router, supabase]);
-
-  useEffect(() => {
-    activeRef.current = true;
-
-    void loadWorkerData();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      setTimeout(() => {
-        if (activeRef.current) {
-          void loadWorkerData();
-        }
-      }, 0);
-    });
-
-    return () => {
-      activeRef.current = false;
-      subscription.unsubscribe();
-
-      stopTimer();
-
-      if (recorderRef.current?.state === "recording") {
-        recorderRef.current.stop();
-      }
-
-      stopMicrophone();
-
-      if (audioUrlRef.current) {
-        URL.revokeObjectURL(audioUrlRef.current);
-        audioUrlRef.current = null;
-      }
-    };
-  }, [loadWorkerData, stopMicrophone, stopTimer, supabase]);
-
-  function resetRecording() {
-    stopTimer();
-    stopMicrophone();
-
-    recorderRef.current = null;
-    chunksRef.current = [];
-
-    setRecordingSeconds(0);
-    setRecordingStatus("idle");
-    clearAudioPreview();
-  }
-
-  function startTimer() {
-    stopTimer();
-
-    timerRef.current = setInterval(() => {
-      setRecordingSeconds((previous) => {
-        const next = previous + 1;
-
-        if (next >= MAX_RECORDING_SECONDS) {
-          setTimeout(() => {
-            if (recorderRef.current?.state === "recording") {
-              recorderRef.current.stop();
-            }
-          }, 0);
-
-          return MAX_RECORDING_SECONDS;
-        }
-
-        return next;
-      });
-    }, 1000);
-  }
-
-  async function startRecording() {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!signedIn || !profile) {
-      router.replace("/worker-login");
-      return;
-    }
-
-    if (profile.status?.trim().toLowerCase() === "suspended") {
-      setErrorMessage(
-        "Your account is suspended. Please contact the Chairman."
-      );
-      return;
-    }
-
-    if (startingRef.current || isBusy) return;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setErrorMessage(
-        "Your browser does not support microphone recording. Use a supported browser over HTTPS."
-      );
-      return;
-    }
-
-    if (typeof MediaRecorder === "undefined") {
-      setErrorMessage(
-        "Audio recording is not supported by this browser."
-      );
-      return;
-    }
-
-    if (mode === "free" && !freeTalkText.trim()) {
-      setErrorMessage(
-        "Please enter the text or a short description for your Free Talk recording."
-      );
-      return;
-    }
-
-    startingRef.current = true;
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        router.replace("/worker-login");
-        return;
-      }
-
-      clearAudioPreview();
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-      });
-
-      streamRef.current = stream;
-      chunksRef.current = [];
-
-      let recorder: MediaRecorder;
-
-      try {
-        const preferredType = "audio/webm;codecs=opus";
-
-        recorder = MediaRecorder.isTypeSupported(preferredType)
-          ? new MediaRecorder(stream, { mimeType: preferredType })
-          : new MediaRecorder(stream);
-      } catch {
-        stopMicrophone();
-
-        throw new Error(
-          "Your browser could not create an audio recorder."
-        );
-      }
-
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
       recorderRef.current = recorder;
-
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      recorder.onerror = () => {
-        stopTimer();
-        stopMicrophone();
-
-        setRecordingStatus("error");
-        setErrorMessage(
-          "Recording failed. Please try again."
-        );
-      };
-
+      chunksRef.current = [];
+      
+      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
       recorder.onstop = () => {
-        stopTimer();
-        stopMicrophone();
-
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-
-        chunksRef.current = [];
-
-        if (blob.size === 0) {
-          setRecordingStatus("error");
-          setErrorMessage(
-            "No audio was recorded. Please try again."
-          );
-          return;
-        }
-
-        if (blob.size > MAX_AUDIO_BYTES) {
-          setRecordingStatus("error");
-          setErrorMessage(
-            "This recording is larger than 15 MB. Please record again."
-          );
-          return;
-        }
-
-        const url = URL.createObjectURL(blob);
-        audioUrlRef.current = url;
-
-        setAudioBlob(blob);
-        setAudioUrl(url);
-        setRecordingStatus("ready");
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(t => t.stop());
       };
-
-      recorder.start(250);
-
-      setRecordingSeconds(0);
-      setRecordingStatus("recording");
-
-      startTimer();
-    } catch (error) {
-      stopTimer();
-      stopMicrophone();
-
-      setRecordingStatus("error");
-      setErrorMessage(errorText(error));
-    } finally {
-      startingRef.current = false;
+      
+      recorder.start();
+      setIsRecording(true);
+      setSeconds(0);
+      
+      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
+    } catch (err) {
+      alert("Abeg allow microphone access 🙏");
     }
-  }
+  };
 
-  function stopRecording() {
+  const stopRecording = () => {
     if (recorderRef.current?.state === "recording") {
       recorderRef.current.stop();
     }
-  }
-
-  async function submitRecording() {
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (submittingRef.current) return;
-
-    if (!audioBlob) {
-      setErrorMessage(
-        "Please record audio before submitting."
-      );
-      return;
-    }
-
-    if (!selectedText.trim()) {
-      setErrorMessage(
-        "Please provide the text for this recording."
-      );
-      return;
-    }
-
-    if (audioBlob.size > MAX_AUDIO_BYTES) {
-      setErrorMessage(
-        "This recording is larger than 15 MB. Please record again."
-      );
-      return;
-    }
-
-    submittingRef.current = true;
-    setRecordingStatus("uploading");
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        router.replace("/worker-login");
-        return;
-      }
-
-      const formData = new FormData();
-
-      const mimeType = audioBlob.type.toLowerCase();
-
-      const extension =
-        mimeType.includes("mp4") || mimeType.includes("aac")
-          ? "m4a"
-          : mimeType.includes("ogg")
-          ? "ogg"
-          : mimeType.includes("mpeg")
-          ? "mp3"
-          : mimeType.includes("wav")
-          ? "wav"
-          : "webm";
-
-      formData.append(
-        "audio",
-        audioBlob,
-        `recording-${Date.now()}.${extension}`
-      );
-
-      formData.append("text", selectedText.trim());
-      formData.append("language", language);
-      formData.append("isFreeTalk", String(mode === "free"));
-      formData.append(
-        "isWhatsAppGroup",
-        String(isWhatsAppGroup)
-      );
-      formData.append(
-        "durationSeconds",
-        String(recordingSeconds)
-      );
-
-      const response = await fetch("/api/worker-recordings", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: formData,
-      });
-
-      const contentType =
-        response.headers.get("content-type") || "";
-
-      if (!contentType.includes("application/json")) {
-        throw new Error(
-          "The recording API did not return JSON. Check that app/api/worker-recordings/route.ts exists and is deployed."
-        );
-      }
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || "Recording submission failed."
-        );
-      }
-
-      setSuccessMessage(
-        "Recording submitted successfully. Status: Sent to Chairman."
-      );
-
-      setRecordingStatus("submitted");
-
-      stopTimer();
-      stopMicrophone();
-      clearAudioPreview();
-
-      setFreeTalkText("");
-      setIsWhatsAppGroup(false);
-      setRecordingSeconds(0);
-
-      await loadWorkerData();
-    } catch (error) {
-      setRecordingStatus("ready");
-      setErrorMessage(errorText(error));
-    } finally {
-      submittingRef.current = false;
-    }
-  }
-
-  async function signOut() {
-    setErrorMessage("");
-
-    await supabase.auth.signOut();
-
-    setSignedIn(false);
-    setProfile(null);
-    setRecords([]);
-    setAnnouncement(null);
-
-    router.replace("/worker-login");
-  }
-
-  function changeLanguage(value: Language) {
-    setLanguage(value);
-    setTextIndex(0);
-
-    localStorage.setItem("selected_language", value);
-  }
-
-  const today = new Date().toDateString();
-
-  const todayCount = records.filter((record) => {
-    if (!record.created_at) return false;
-
-    return new Date(record.created_at).toDateString() === today;
-  }).length;
-
-  const approvedCount = records.filter(
-    (record) =>
-      record.admin_status?.toLowerCase() === "approved"
-  ).length;
-
-  const pendingCount = records.filter(
-    (record) =>
-      !record.admin_status ||
-      record.admin_status.toLowerCase() === "pending"
-  ).length;
-
-  const rejectedCount = records.filter(
-    (record) =>
-      record.admin_status?.toLowerCase() === "rejected"
-  ).length;
-
-  const wordCount = records.reduce(
-    (total, record) =>
-      total + Math.max(0, Number(record.word_count) || 0),
-    0
-  );
-
-  if (checkingSession) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
-        <p role="status">Checking your worker account...</p>
-      </main>
-    );
-  }
-
-  if (!signedIn || !profile) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
-        <section className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-8 text-center">
-          <h1 className="text-2xl font-bold text-yellow-400">
-            Main Naija Pidgin
-          </h1>
-
-          <p className="mt-3 text-gray-300">
-            Please sign in with your worker account.
-          </p>
-
-          {errorMessage && (
-            <p
-              role="alert"
-              className="mt-4 rounded-lg bg-red-950 p-3 text-sm text-red-200"
-            >
-              {errorMessage}
-            </p>
-          )}
-
-          <Link
-            href="/worker-login"
-            className="mt-6 inline-block rounded-lg bg-yellow-400 px-5 py-3 font-bold text-black"
-          >
-            Worker Login
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  const suspended =
-    profile.status?.trim().toLowerCase() === "suspended";
+    setIsRecording(false);
+    clearInterval(timerRef.current);
+  };
 
   return (
-    <main className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 bg-gray-900">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-widest text-green-400">
-              Main Naija Pidgin
-            </p>
-
-            <h1 className="mt-1 text-2xl font-bold text-yellow-400">
-              Worker Dashboard
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-300">
-              Welcome, {profile.display_name || "Worker"}.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={signOut}
-            className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold hover:bg-gray-800"
-          >
-            Sign Out
-          </button>
+    <main className="min-h-screen bg-[#0a0f0a] text-white p-4 flex justify-center">
+      <div className="w-full max-w-[420px] space-y-5">
+        {/* Header */}
+        <div className="flex justify-between items-center pt-2">
+          <h1 className="font-bold text-lg"><span className="text-green-400">Main</span> Naija Pidgin</h1>
+          <div className="w-8 h-8 rounded-full bg-yellow-400 text-black font-bold flex items-center justify-center">K</div>
         </div>
-      </header>
 
-      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8">
-        {errorMessage && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-200"
-          >
-            {errorMessage}
-          </div>
-        )}
-
-        {successMessage && (
-          <div
-            role="status"
-            className="rounded-xl border border-green-800 bg-green-950 p-4 text-green-200"
-          >
-            {successMessage}
-          </div>
-        )}
-
-        {suspended && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-200"
-          >
-            Your account is suspended. You cannot submit recordings.
-            Contact the Chairman for assistance.
-          </div>
-        )}
-
-        {announcement && (
-          <section className="rounded-2xl border border-yellow-700 bg-yellow-950/40 p-5">
-            <h2 className="text-lg font-bold text-yellow-300">
-              {announcement.title || "Chairman Announcement"}
-            </h2>
-
-            <p className="mt-2 whitespace-pre-wrap text-gray-200">
-              {announcement.message}
-            </p>
-
-            <p className="mt-3 text-xs text-gray-400">
-              {formatDate(announcement.created_at)}
-            </p>
-          </section>
-        )}
-
-        <section>
-          <h2 className="mb-4 text-xl font-bold">
-            Your Statistics
-          </h2>
-
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {[
-              ["Total Recordings", records.length],
-              ["Today", todayCount],
-              ["Approved", approvedCount],
-              ["Pending", pendingCount],
-              ["Rejected", rejectedCount],
-              ["Words Recorded", wordCount],
-            ].map(([label, value]) => (
-              <div
-                key={String(label)}
-                className="rounded-xl border border-gray-800 bg-gray-900 p-4"
-              >
-                <p className="text-xs text-gray-400">{label}</p>
-                <p className="mt-2 text-2xl font-bold text-yellow-400">
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 md:p-7">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-yellow-400">
-              Record Your Voice
-            </h2>
-
-            <p className="mt-2 text-sm text-gray-300">
-              Record clearly and submit your audio for review.
-              Maximum recording time is 60 seconds.
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="language"
-                className="mb-2 block text-sm font-semibold"
-              >
-                Recording Language
-              </label>
-
-              <select
-                id="language"
-                value={language}
-                disabled={isBusy || recordingStatus === "ready" || suspended}
-                onChange={(event) =>
-                  changeLanguage(event.target.value as Language)
-                }
-                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3"
-              >
-                {LANGUAGES.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
+        {/* Welcome Card */}
+        <div className="rounded-[20px] bg-[#151d15] border border-green-900/30 p-5">
+          <h2 className="text-xl font-bold">Welcome, {userName}! 👋</h2>
+          <p className="text-sm text-gray-400 mt-1">Ready to record some Pidgin?</p>
+          <div className="flex gap-3 mt-4">
+            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
+              <p className="text-2xl font-bold text-green-400">12</p>
+              <p className="text-[11px] text-gray-400">RECORDED</p>
             </div>
-
-            <div>
-              <label
-                htmlFor="recordingMode"
-                className="mb-2 block text-sm font-semibold"
-              >
-                Recording Type
-              </label>
-
-              <select
-                id="recordingMode"
-                value={mode}
-                disabled={isBusy || recordingStatus === "ready" || suspended}
-                onChange={(event) => {
-                  setMode(event.target.value as RecordingMode);
-                  setErrorMessage("");
-                }}
-                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3"
-              >
-                <option value="read">Read Provided Text</option>
-                <option value="free">Free Talk</option>
-              </select>
+            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
+              <p className="text-2xl font-bold text-yellow-400">5</p>
+              <p className="text-[11px] text-gray-400">TODAY</p>
+            </div>
+            <div className="flex-1 bg-black/40 rounded-xl p-3 text-center border border-white/5">
+              <p className="text-2xl font-bold text-white">₦2k</p>
+              <p className="text-[11px] text-gray-400">EARNED</p>
             </div>
           </div>
+        </div>
 
-          {mode === "read" ? (
-            <div className="mt-5 rounded-xl border border-gray-700 bg-gray-950 p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-green-400">
-                Text to Read
-              </p>
+        {/* Task Card */}
+        <div className="rounded-[24px] bg-gradient-to-b from-[#1a261a] to-[#131a13] border border-green-500/20 p-6 shadow-[0_0_40px_rgba(34,197,94,0.15)]">
+          <div className="flex justify-between items-center">
+            <span className="text-[11px] tracking-widest text-green-400 font-bold">TODAY'S TASK • #013</span>
+            <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded-full">● Pidgin</span>
+          </div>
 
-              <p className="mt-3 text-lg leading-8">
-                {TEXTS_DATA[language][
-                  textIndex % TEXTS_DATA[language].length
-                ]}
-              </p>
+          <h3 className="text-[22px] font-bold leading-8 mt-4">"{taskText}"</h3>
 
+          <button onClick={speakTask} className="mt-4 w-full flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full py-3 text-sm transition">
+            <span>🔊</span> Listen
+            <span className="flex gap-[3px] ml-2">
+              <span className="w-[3px] h-3 bg-green-400 rounded-full animate-pulse"></span>
+              <span className="w-[3px] h-5 bg-green-400 rounded-full animate-pulse delay-75"></span>
+              <span className="w-[3px] h-3 bg-green-400 rounded-full animate-pulse delay-150"></span>
+            </span>
+          </button>
+
+          {/* BIG MIC BUTTON */}
+          <div className="flex flex-col items-center mt-8">
+            <div className="relative">
+              {isRecording && <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-30"></div>}
+              {isRecording && <div className="absolute -inset-4 bg-green-500/20 rounded-full animate-pulse"></div>}
               <button
-                type="button"
-                disabled={isBusy || recordingStatus === "ready" || suspended}
-                onClick={() =>
-                  setTextIndex(
-                    (previous) =>
-                      (previous + 1) % TEXTS_DATA[language].length
-                  )
-                }
-                className="mt-4 rounded-lg border border-gray-600 px-4 py-2 text-sm hover:bg-gray-800 disabled:opacity-50"
+                onClick={isRecording ? stopRecording : startRecording}
+                className={`relative w-28 h-28 rounded-full flex items-center justify-center text-4xl shadow-[0_0_50px_rgba(34,197,94,0.5)] transition-all active:scale-95 ${isRecording ? 'bg-red-500 shadow-red-500/50' : 'bg-green-500 hover:bg-green-400'}`}
               >
-                Next Text
+                {isRecording ? '■' : '🎤'}
               </button>
             </div>
-          ) : (
-            <div className="mt-5">
-              <label
-                htmlFor="freeTalkText"
-                className="mb-2 block text-sm font-semibold"
-              >
-                What will you talk about?
-              </label>
 
-              <textarea
-                id="freeTalkText"
-                rows={4}
-                value={freeTalkText}
-                disabled={isBusy || recordingStatus === "ready" || suspended}
-                onChange={(event) =>
-                  setFreeTalkText(event.target.value)
-                }
-                placeholder="Enter the topic or text for your Free Talk recording..."
-                className="w-full rounded-lg border border-gray-700 bg-gray-950 px-4 py-3"
-              />
-            </div>
-          )}
+            <p className={`mt-5 font-mono text-3xl font-bold tracking-widest ${isRecording ? 'text-green-400' : 'text-white'}`}>
+              00:{String(seconds).padStart(2,'0')}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">{isRecording ? 'Recording... Tap to stop' : 'Tap to start recording'}</p>
 
-          <label className="mt-5 flex items-start gap-3 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={isWhatsAppGroup}
-              disabled={isBusy || recordingStatus === "ready" || suspended}
-              onChange={(event) =>
-                setIsWhatsAppGroup(event.target.checked)
-              }
-              className="mt-1"
-            />
-
-            <span>This recording is for the WhatsApp group.</span>
-          </label>
-
-          <div className="mt-6 rounded-xl border border-gray-800 bg-gray-950 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm text-gray-400">
-                  Recording Timer
-                </p>
-
-                <p className="mt-1 font-mono text-3xl font-bold text-yellow-400">
-                  {formatTime(recordingSeconds)}
-                </p>
+            {/* Waveform Animation */}
+            {isRecording && (
+              <div className="flex items-center gap-1 mt-4 h-8">
+                {[...Array(12)].map((_,i) => (
+                  <div key={i} className="w-1 bg-green-400 rounded-full animate-[wave_0.5s_ease-in-out_infinite]" style={{height: `${12 + Math.random()*20}px`, animationDelay: `${i*0.05}s`}}></div>
+                ))}
               </div>
-
-              <p className="text-sm text-gray-400">
-                {recordingStatus === "recording"
-                  ? "Recording..."
-                  : recordingStatus === "ready"
-                  ? "Audio ready to submit"
-                  : recordingStatus === "uploading"
-                  ? "Submitting..."
-                  : recordingStatus === "submitted"
-                  ? "Submitted"
-                  : "Ready to record"}
-              </p>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              {recordingStatus !== "recording" ? (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  disabled={
-                    isBusy ||
-                    recordingStatus === "ready" ||
-                    recordingStatus === "submitted" ||
-                    startingRef.current ||
-                    suspended
-                  }
-                  className="rounded-lg bg-green-500 px-5 py-3 font-bold text-black hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Start Recording
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="rounded-lg bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-500"
-                >
-                  Stop Recording
-                </button>
-              )}
-
-              {recordingStatus === "ready" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={submitRecording}
-                    disabled={isBusy || !audioBlob || suspended}
-                    className="rounded-lg bg-yellow-400 px-5 py-3 font-bold text-black hover:bg-yellow-300 disabled:opacity-50"
-                  >
-                    Submit Recording
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorMessage("");
-                      setSuccessMessage("");
-                      resetRecording();
-                    }}
-                    disabled={isBusy}
-                    className="rounded-lg border border-gray-600 px-5 py-3 font-semibold hover:bg-gray-800 disabled:opacity-50"
-                  >
-                    Discard
-                  </button>
-                </>
-              )}
-
-              {recordingStatus === "submitted" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuccessMessage("");
-                    setErrorMessage("");
-                    setRecordingStatus("idle");
-                  }}
-                  className="rounded-lg border border-gray-600 px-5 py-3 font-semibold hover:bg-gray-800"
-                >
-                  Record Another
-                </button>
-              )}
-
-              {recordingStatus === "error" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setErrorMessage("");
-                    setRecordingStatus("idle");
-                    setRecordingSeconds(0);
-                  }}
-                  className="rounded-lg border border-gray-600 px-5 py-3 font-semibold hover:bg-gray-800"
-                >
-                  Try Again
-                </button>
-              )}
-            </div>
+            )}
 
             {audioUrl && (
-              <div className="mt-5">
-                <p className="mb-2 text-sm font-semibold">
-                  Preview Your Recording
-                </p>
-
+              <div className="w-full mt-6">
                 <audio controls src={audioUrl} className="w-full" />
               </div>
             )}
           </div>
-        </section>
 
-        <section className="rounded-2xl border border-gray-800 bg-gray-900 p-5 md:p-7">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-yellow-400">
-                My Recording History
-              </h2>
-
-              <p className="mt-2 text-sm text-gray-400">
-                Submitted recordings and their review status.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => void loadWorkerData()}
-              disabled={loadingData}
-              className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-semibold hover:bg-gray-800 disabled:opacity-50"
-            >
-              {loadingData ? "Refreshing..." : "Refresh"}
-            </button>
+          {/* Bottom Buttons */}
+          <div className="grid grid-cols-2 gap-3 mt-8">
+            <button className="rounded-full bg-white/5 border border-white/10 py-3.5 text-sm font-semibold hover:bg-white/10">Next Task</button>
+            <button className="rounded-full bg-green-500 text-black py-3.5 text-sm font-bold hover:bg-green-400 shadow-[0_0_20px_rgba(34,197,94,0.4)]">Submit ✓</button>
           </div>
+        </div>
 
-          {records.length === 0 ? (
-            <p className="mt-6 rounded-lg bg-gray-950 p-5 text-sm text-gray-400">
-              No recordings have been submitted yet.
-            </p>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {records.map((record) => {
-                const status = (
-                  record.admin_status || "pending"
-                ).toLowerCase();
-
-                const badgeStyle =
-                  STATUS_STYLES[status] ||
-                  "bg-gray-700 text-gray-200";
-
-                return (
-                  <article
-                    key={record.id}
-                    className="rounded-xl border border-gray-800 bg-gray-950 p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <h3 className="font-semibold">
-                          {record.recording_number ||
-                            record.file_name ||
-                            "Voice Recording"}
-                        </h3>
-
-                        <p className="mt-1 text-xs text-gray-400">
-                          {formatDate(record.created_at)}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${badgeStyle}`}
-                      >
-                        {statusLabel(record.admin_status)}
-                      </span>
-                    </div>
-
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-300">
-                      {record.pidgin_text ||
-                        record.transcription ||
-                        "No text was saved for this recording."}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-400">
-                      <span className="rounded bg-gray-800 px-2 py-1">
-                        {record.language || "Unknown language"}
-                      </span>
-
-                      <span className="rounded bg-gray-800 px-2 py-1">
-                        {record.is_free_talk ? "Free Talk" : "Read Text"}
-                      </span>
-
-                      <span className="rounded bg-gray-800 px-2 py-1">
-                        {Number(record.word_count || 0)} words
-                      </span>
-
-                      <span className="rounded bg-gray-800 px-2 py-1">
-                        {Number(record.duration_seconds || 0)} seconds
-                      </span>
-
-                      {record.is_whatsapp_group && (
-                        <span className="rounded bg-green-950 px-2 py-1 text-green-300">
-                          WhatsApp Group
-                        </span>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <footer className="border-t border-gray-800 py-5 text-center text-xs text-gray-500">
-          Main Naija Pidgin · Worker Dashboard
-        </footer>
+        <style>{`@keyframes wave { 0%,100%{transform:scaleY(0.5)} 50%{transform:scaleY(1.5)} }`}</style>
       </div>
     </main>
   );
