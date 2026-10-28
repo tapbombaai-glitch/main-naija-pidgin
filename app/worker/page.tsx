@@ -4,11 +4,12 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../src/lib/supabase";
+import { createClient } from "../../lib/supabase/client";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 const MAX_RECORDING_SECONDS = 60;
@@ -139,6 +140,8 @@ function statusLabel(status?: string | null): string {
 export default function WorkerPage() {
   const router = useRouter();
 
+  const supabase = useMemo(() => createClient(), []);
+
   const activeRef = useRef(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -148,6 +151,7 @@ export default function WorkerPage() {
   );
   const startingRef = useRef(false);
   const audioUrlRef = useRef<string | null>(null);
+  const submittingRef = useRef(false);
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
@@ -244,7 +248,6 @@ export default function WorkerPage() {
         .trim()
         .toLowerCase();
 
-      // Chairman accounts belong in the separate admin area.
       if (normalizedEmail === CHAIRMAN_EMAIL) {
         setSignedIn(false);
         setProfile(null);
@@ -257,7 +260,9 @@ export default function WorkerPage() {
 
       const profileResult = await supabase
         .from("profiles")
-        .select("*")
+        .select(
+          "id,email,display_name,account_number,status,total_words,recordings_count,is_chairman"
+        )
         .eq("id", session.user.id)
         .maybeSingle();
 
@@ -282,6 +287,20 @@ export default function WorkerPage() {
         setAnnouncement(null);
 
         router.replace("/worker-login");
+        return;
+      }
+
+      if (
+        workerProfile.status?.trim().toLowerCase() ===
+        "suspended"
+      ) {
+        setSignedIn(true);
+        setProfile(workerProfile);
+        setRecords([]);
+        setAnnouncement(null);
+        setErrorMessage(
+          "Your account is suspended. Contact the Chairman for assistance."
+        );
         return;
       }
 
@@ -346,7 +365,7 @@ export default function WorkerPage() {
         setCheckingSession(false);
       }
     }
-  }, [router]);
+  }, [router, supabase]);
 
   useEffect(() => {
     activeRef.current = true;
@@ -380,7 +399,7 @@ export default function WorkerPage() {
         audioUrlRef.current = null;
       }
     };
-  }, [loadWorkerData, stopMicrophone, stopTimer]);
+  }, [loadWorkerData, stopMicrophone, stopTimer, supabase]);
 
   function resetRecording() {
     stopTimer();
@@ -425,7 +444,7 @@ export default function WorkerPage() {
       return;
     }
 
-    if (profile.status?.toLowerCase() === "suspended") {
+    if (profile.status?.trim().toLowerCase() === "suspended") {
       setErrorMessage(
         "Your account is suspended. Please contact the Chairman."
       );
@@ -436,7 +455,7 @@ export default function WorkerPage() {
 
     if (!navigator.mediaDevices?.getUserMedia) {
       setErrorMessage(
-        "Your browser does not support microphone recording."
+        "Your browser does not support microphone recording. Use a supported browser over HTTPS."
       );
       return;
     }
@@ -572,6 +591,8 @@ export default function WorkerPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
+    if (submittingRef.current) return;
+
     if (!audioBlob) {
       setErrorMessage(
         "Please record audio before submitting."
@@ -593,6 +614,7 @@ export default function WorkerPage() {
       return;
     }
 
+    submittingRef.current = true;
     setRecordingStatus("uploading");
 
     try {
@@ -652,7 +674,7 @@ export default function WorkerPage() {
 
       if (!contentType.includes("application/json")) {
         throw new Error(
-          "The recording API did not return JSON. Check that app/api/worker-recordings/route.ts is deployed."
+          "The recording API did not return JSON. Check that app/api/worker-recordings/route.ts exists and is deployed."
         );
       }
 
@@ -682,6 +704,8 @@ export default function WorkerPage() {
     } catch (error) {
       setRecordingStatus("ready");
       setErrorMessage(errorText(error));
+    } finally {
+      submittingRef.current = false;
     }
   }
 
@@ -731,14 +755,14 @@ export default function WorkerPage() {
 
   const wordCount = records.reduce(
     (total, record) =>
-      total + Number(record.word_count || 0),
+      total + Math.max(0, Number(record.word_count) || 0),
     0
   );
 
   if (checkingSession) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
-        <p>Checking your worker account...</p>
+        <p role="status">Checking your worker account...</p>
       </main>
     );
   }
@@ -748,7 +772,7 @@ export default function WorkerPage() {
       <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
         <section className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-8 text-center">
           <h1 className="text-2xl font-bold text-yellow-400">
-            German Family
+            Main Naija Pidgin
           </h1>
 
           <p className="mt-3 text-gray-300">
@@ -756,7 +780,10 @@ export default function WorkerPage() {
           </p>
 
           {errorMessage && (
-            <p className="mt-4 rounded-lg bg-red-950 p-3 text-sm text-red-200">
+            <p
+              role="alert"
+              className="mt-4 rounded-lg bg-red-950 p-3 text-sm text-red-200"
+            >
               {errorMessage}
             </p>
           )}
@@ -772,6 +799,9 @@ export default function WorkerPage() {
     );
   }
 
+  const suspended =
+    profile.status?.trim().toLowerCase() === "suspended";
+
   return (
     <main className="min-h-screen bg-gray-950 text-white">
       <header className="border-b border-gray-800 bg-gray-900">
@@ -782,7 +812,7 @@ export default function WorkerPage() {
             </p>
 
             <h1 className="mt-1 text-2xl font-bold text-yellow-400">
-              German Family — Worker Panel
+              Worker Dashboard
             </h1>
 
             <p className="mt-1 text-sm text-gray-300">
@@ -816,6 +846,16 @@ export default function WorkerPage() {
             className="rounded-xl border border-green-800 bg-green-950 p-4 text-green-200"
           >
             {successMessage}
+          </div>
+        )}
+
+        {suspended && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-800 bg-red-950 p-4 text-red-200"
+          >
+            Your account is suspended. You cannot submit recordings.
+            Contact the Chairman for assistance.
           </div>
         )}
 
@@ -886,7 +926,7 @@ export default function WorkerPage() {
               <select
                 id="language"
                 value={language}
-                disabled={isBusy || recordingStatus === "ready"}
+                disabled={isBusy || recordingStatus === "ready" || suspended}
                 onChange={(event) =>
                   changeLanguage(event.target.value as Language)
                 }
@@ -911,7 +951,7 @@ export default function WorkerPage() {
               <select
                 id="recordingMode"
                 value={mode}
-                disabled={isBusy || recordingStatus === "ready"}
+                disabled={isBusy || recordingStatus === "ready" || suspended}
                 onChange={(event) => {
                   setMode(event.target.value as RecordingMode);
                   setErrorMessage("");
@@ -938,7 +978,7 @@ export default function WorkerPage() {
 
               <button
                 type="button"
-                disabled={isBusy || recordingStatus === "ready"}
+                disabled={isBusy || recordingStatus === "ready" || suspended}
                 onClick={() =>
                   setTextIndex(
                     (previous) =>
@@ -963,7 +1003,7 @@ export default function WorkerPage() {
                 id="freeTalkText"
                 rows={4}
                 value={freeTalkText}
-                disabled={isBusy || recordingStatus === "ready"}
+                disabled={isBusy || recordingStatus === "ready" || suspended}
                 onChange={(event) =>
                   setFreeTalkText(event.target.value)
                 }
@@ -977,7 +1017,7 @@ export default function WorkerPage() {
             <input
               type="checkbox"
               checked={isWhatsAppGroup}
-              disabled={isBusy || recordingStatus === "ready"}
+              disabled={isBusy || recordingStatus === "ready" || suspended}
               onChange={(event) =>
                 setIsWhatsAppGroup(event.target.checked)
               }
@@ -1021,7 +1061,8 @@ export default function WorkerPage() {
                     isBusy ||
                     recordingStatus === "ready" ||
                     recordingStatus === "submitted" ||
-                    startingRef.current
+                    startingRef.current ||
+                    suspended
                   }
                   className="rounded-lg bg-green-500 px-5 py-3 font-bold text-black hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1042,7 +1083,7 @@ export default function WorkerPage() {
                   <button
                     type="button"
                     onClick={submitRecording}
-                    disabled={isBusy || !audioBlob}
+                    disabled={isBusy || !audioBlob || suspended}
                     className="rounded-lg bg-yellow-400 px-5 py-3 font-bold text-black hover:bg-yellow-300 disabled:opacity-50"
                   >
                     Submit Recording
@@ -1074,6 +1115,20 @@ export default function WorkerPage() {
                   className="rounded-lg border border-gray-600 px-5 py-3 font-semibold hover:bg-gray-800"
                 >
                   Record Another
+                </button>
+              )}
+
+              {recordingStatus === "error" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage("");
+                    setRecordingStatus("idle");
+                    setRecordingSeconds(0);
+                  }}
+                  className="rounded-lg border border-gray-600 px-5 py-3 font-semibold hover:bg-gray-800"
+                >
+                  Try Again
                 </button>
               )}
             </div>
@@ -1189,7 +1244,7 @@ export default function WorkerPage() {
         </section>
 
         <footer className="border-t border-gray-800 py-5 text-center text-xs text-gray-500">
-          German Family · Worker Panel
+          Main Naija Pidgin · Worker Dashboard
         </footer>
       </div>
     </main>
