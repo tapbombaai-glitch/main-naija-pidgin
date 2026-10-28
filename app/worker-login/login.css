@@ -1,23 +1,103 @@
-.workerLoginPage {
+.loginPage {
   min-height: 100vh;
-  background: radial-gradient(ellipse at top, #0a1a10 0%, #000000 60%);
+  background: radial-gradient(ellipse at top, #1a1505 0%, #000000 60%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   font-family: sans-serif;
 }
-.loginContent { width: 100%; max-width: 420px; }
-.backLink { color: #00d084; text-decoration: none; font-size: 14px; display: inline-block; margin-bottom: 20px; }
-.loginCard { background: rgba(10, 20, 15, 0.8); border: 1px solid rgba(0, 208, 132, 0.3); border-radius: 16px; padding: 32px 24px; backdrop-filter: blur(10px); }
-.loginHeader { text-align: center; margin-bottom: 24px; }
-.micIcon { font-size: 40px; margin-bottom: 10px; }
-.workerLabel { color: #00d084; font-size: 11px; letter-spacing: 2px; font-weight: bold; margin-bottom: 8px; }
-.loginHeader h1 { color: #fff; font-size: 24px; margin: 0 0 8px; }
-.loginHeader p { color: #aaa; font-size: 13px; margin: 0; }
-.inputGroup { margin-bottom: 16px; }
-.inputGroup label { color: #00d084; font-size: 12px; display: block; margin-bottom: 6px; }
-.inputGroup input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #111; color: #fff; outline: none; }
-.inputGroup input:focus { border-color: #00d084; }
-.workerBtn { width: 100%; padding: 14px; background: linear-gradient(135deg, #00d084, #00a86b); color: #000; border: none; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; margin-top: 10px; }
-.loginFooter { text-align: center; margin-top: 20px; color: #666; font-size: 11px; }
+.loginContent {
+  width: 100%;
+  max-width: 420px;
+}
+.backLink {
+  color: #d4af37;
+  text-decoration: none;
+  font-size: 14px;
+  display: inline-block;
+  margin-bottom: 20px;
+}
+.backLink:hover {
+  color: #fff;
+}
+.loginCard {
+  background: rgba(20, 15, 5, 0.9);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 16px;
+  padding: 32px 24px;
+  backdrop-filter: blur(10px);
+}
+.loginHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.crownIcon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+.adminLabel {
+  color: #d4af37;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.loginHeader h1 {
+  color: #fff;
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+.loginHeader p {
+  color: #aaa;
+  font-size: 13px;
+  margin: 0;
+}
+.loginForm {
+  display: flex;
+  flex-direction: column;
+}
+.inputGroup {
+  margin-bottom: 16px;
+}
+.inputGroup label {
+  color: #d4af37;
+  font-size: 12px;
+  display: block;
+  margin-bottom: 6px;
+}
+.inputGroup input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #111;
+  color: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+.inputGroup input:focus {
+  border-color: #d4af37;
+}
+.loginBtn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #d4af37, #b8960c);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+.loginBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.loginFooter {
+  text-align: center;
+  margin-top: 20px;
+  color: #666;
+  font-size: 11px;
+}
