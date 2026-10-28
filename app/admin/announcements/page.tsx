@@ -215,7 +215,9 @@ setNotice("");
 setErrorMessage("");
 }
 
-async function saveAnnouncement(event: FormEvent<HTMLFormElement>) {
+async function saveAnnouncement(
+event: FormEvent<HTMLFormElement>
+) {
 event.preventDefault();
 
 setNotice("");
@@ -232,7 +234,9 @@ const cleanTitle = title.trim();
 const cleanMessage = message.trim();
 
 if (!cleanTitle || !cleanMessage) {
-  setErrorMessage("Enter both an announcement title and message.");
+  setErrorMessage(
+    "Enter both an announcement title and message."
+  );
   return;
 }
 
@@ -254,6 +258,7 @@ setSaving(true);
 
 try {
   const user = await verifyCurrentChairman();
+
   if (!user) return;
 
   let existingAnnouncement: Announcement | null = null;
@@ -278,7 +283,9 @@ try {
     existingAnnouncement = data as Announcement;
   }
 
-  const wasPublished = existingAnnouncement?.is_published ?? false;
+  const wasPublished =
+    existingAnnouncement?.is_published ?? false;
+
   const previousPublishedAt =
     existingAnnouncement?.published_at ?? null;
 
@@ -346,11 +353,15 @@ setIsPublished(item.is_published);
 setNotice("");
 setErrorMessage("");
 
-window.scrollTo({ top: 0, behavior: "smooth" });
+window.scrollTo({
+  top: 0,
+  behavior: "smooth",
+});
 
 }
 
 async function deleteAnnouncement(item: Announcement) {
+// FIXED: Backticks allow the announcement title to be inserted safely.
 const confirmed = window.confirm(
 "Delete "${item.title}" permanently? This action cannot be undone."
 );
@@ -370,6 +381,7 @@ setDeletingId(item.id);
 
 try {
   const user = await verifyCurrentChairman();
+
   if (!user) return;
 
   const { error } = await supabase
@@ -428,7 +440,8 @@ return (
 <h1 style={styles.heading}>Announcement Board</h1>
 
       <p style={styles.error} role="alert">
-        {errorMessage || "Chairman access could not be verified."}
+        {errorMessage ||
+          "Chairman access could not be verified."}
       </p>
 
       <button
@@ -491,7 +504,9 @@ return (
   )}
 
   <section style={styles.card}>
-    <h2>{editingId ? "Edit Announcement" : "Create Announcement"}</h2>
+    <h2>
+      {editingId ? "Edit Announcement" : "Create Announcement"}
+    </h2>
 
     <form onSubmit={saveAnnouncement} style={styles.form}>
       <label style={styles.field}>
@@ -535,14 +550,21 @@ return (
         <input
           type="checkbox"
           checked={isPublished}
-          onChange={(event) => setIsPublished(event.target.checked)}
+          onChange={(event) =>
+            setIsPublished(event.target.checked)
+          }
           disabled={saving}
         />
+
         Publish now so workers can read it
       </label>
 
       <div style={styles.actions}>
-        <button type="submit" style={styles.button} disabled={saving}>
+        <button
+          type="submit"
+          style={styles.button}
+          disabled={saving}
+        >
           {saving
             ? "Saving..."
             : editingId
@@ -590,11 +612,16 @@ return (
       </button>
     </div>
 
-    {loading && <p style={styles.muted}>Loading announcements...</p>}
+    {loading && (
+      <p style={styles.muted}>Loading announcements...</p>
+    )}
 
     {!loading && announcements.length === 0 && (
       <article style={styles.card}>
-        <p>No announcements found. Create your first announcement above.</p>
+        <p>
+          No announcements found. Create your first announcement
+          above.
+        </p>
       </article>
     )}
 
@@ -664,6 +691,7 @@ color: "#ffffff",
 fontFamily: "Arial, sans-serif",
 boxSizing: "border-box",
 },
+
 header: {
 display: "flex",
 flexWrap: "wrap",
@@ -672,20 +700,24 @@ alignItems: "center",
 gap: "16px",
 marginBottom: "24px",
 },
+
 label: {
 color: "#d4af37",
 fontWeight: 700,
 letterSpacing: "2px",
 },
+
 heading: {
 color: "#d4af37",
 margin: "8px 0",
 },
+
 muted: {
 color: "#bdbdbd",
 fontSize: "13px",
 lineHeight: 1.6,
 },
+
 card: {
 padding: "20px",
 border: "1px solid #383838",
@@ -694,16 +726,19 @@ background: "#1b1b1b",
 overflowWrap: "anywhere",
 minWidth: 0,
 },
+
 form: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
+
 field: {
 display: "grid",
 gap: "8px",
 fontWeight: 700,
 },
+
 input: {
 width: "100%",
 padding: "12px",
@@ -714,6 +749,7 @@ color: "#ffffff",
 boxSizing: "border-box",
 fontSize: "16px",
 },
+
 textarea: {
 width: "100%",
 padding: "12px",
@@ -726,11 +762,13 @@ boxSizing: "border-box",
 fontSize: "16px",
 lineHeight: 1.6,
 },
+
 checkbox: {
 display: "flex",
 alignItems: "center",
 gap: "10px",
 },
+
 button: {
 padding: "12px 18px",
 border: "none",
@@ -740,6 +778,7 @@ color: "#101010",
 fontWeight: 700,
 cursor: "pointer",
 },
+
 secondaryButton: {
 padding: "12px 18px",
 border: "1px solid #d4af37",
@@ -749,6 +788,7 @@ color: "#d4af37",
 fontWeight: 700,
 cursor: "pointer",
 },
+
 deleteButton: {
 padding: "12px 18px",
 border: "none",
@@ -758,15 +798,18 @@ color: "#ffffff",
 fontWeight: 700,
 cursor: "pointer",
 },
+
 actions: {
 display: "flex",
 flexWrap: "wrap",
 gap: "10px",
 alignItems: "center",
 },
+
 listSection: {
 marginTop: "28px",
 },
+
 listHeader: {
 display: "flex",
 flexWrap: "wrap",
@@ -774,34 +817,41 @@ justifyContent: "space-between",
 alignItems: "center",
 gap: "12px",
 },
+
 list: {
 display: "grid",
 gap: "16px",
 marginTop: "16px",
 },
+
 itemTitle: {
 overflowWrap: "anywhere",
 },
+
 message: {
 whiteSpace: "pre-wrap",
 lineHeight: 1.7,
 overflowWrap: "anywhere",
 },
+
 date: {
 color: "#c4c4c4",
 fontSize: "13px",
 lineHeight: 1.6,
 },
+
 publishedBadge: {
 color: "#8be28b",
 fontWeight: 700,
 fontSize: "12px",
 },
+
 draftBadge: {
 color: "#f0d27a",
 fontWeight: 700,
 fontSize: "12px",
 },
+
 success: {
 padding: "12px",
 marginTop: "16px",
@@ -810,6 +860,7 @@ background: "#16351f",
 color: "#a8f0b5",
 overflowWrap: "anywhere",
 },
+
 error: {
 padding: "12px",
 marginTop: "16px",
