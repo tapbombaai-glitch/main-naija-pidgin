@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../src/lib/supabase";
+import { createClient } from "../../../lib/supabase/client";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
@@ -29,6 +35,19 @@ type Worker = {
   email?: string | null;
 };
 
+type FilterType = "all" | "pending" | "approved" | "rejected";
+
+function normalizeStatus(
+  value?: string | null
+): "pending" | "approved" | "rejected" {
+  const status = (value || "pending").toLowerCase();
+
+  if (status === "approved") return "approved";
+  if (status === "rejected") return "rejected";
+
+  return "pending";
+}
+
 function formatDate(value?: string | null) {
   if (!value) return "Date unavailable";
 
@@ -39,54 +58,99 @@ function formatDate(value?: string | null) {
     : date.toLocaleString();
 }
 
-function statusLabel(value?: string | null) {
-  const status = (value || "pending").toLowerCase();
+function formatDuration(seconds?: number | null) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(total / 60);
+  const remainingSeconds = total % 60;
 
-  if (status === "approved") return "Approved";
-  if (status === "rejected") return "Rejected";
+  return minutes > 0
+    ? `${minutes}m ${remainingSeconds}s`
+    : `${remainingSeconds}s`;
+}
 
-  return "Pending review";
+function statusClasses(status: string) {
+  if (status === "approved") {
+    return "border-green-700 bg-green-950 text-green-300";
+  }
+
+  if (status === "rejected") {
+    return "border-red-700 bg-red-950 text-red-300";
+  }
+
+  return "border-yellow-700 bg-yellow-950 text-yellow-300";
 }
 
 export default function ChairmanRecordingsPage() {
   const router = useRouter();
 
+  // Create one browser Supabase client for this mounted page.
+  const supabase = useMemo(() => createClient(), []);
+
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
+
   const [records, setRecords] = useState<Recording[]>([]);
   const [workers, setWorkers] = useState<Record<string, Worker>>({});
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [filter, setFilter] = useState("all");
+
+  const [filter, setFilter] = useState<FilterType>("all");
+  const [search, setSearch] = useState("");
+
+  const [refreshNumber, setRefreshNumber] = useState(0);
+
+  const verifyChairman = useCallback(async () => {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error || !data.session) {
+      router.replace("/login");
+      return false;
+    }
+
+    const email = (data.session.user.email || "")
+      .trim()
+      .toLowerCase();
+
+    if (email !== CHAIRMAN_EMAIL) {
+      await supabase.auth.signOut();
+      router.replace("/login");
+      return false;
+    }
+
+    return true;
+  }, [router, supabase]);
 
   const loadRecordings = useCallback(async () => {
     setLoading(true);
     setErrorMessage("");
 
     try {
-      const { data: sessionData, error: sessionError } =
-        await supabase.auth.getSession();
+      const authorized = await verifyChairman();
 
-      if (sessionError || !sessionData.session) {
-        router.replace("/login");
-        return;
-      }
-
-      const email = (sessionData.session.user.email || "")
-        .trim()
-        .toLowerCase();
-
-      if (email !== CHAIRMAN_EMAIL) {
-        await supabase.auth.signOut();
-        router.replace("/login");
-        return;
-      }
+      if (!authorized) return;
 
       const { data, error } = await supabase
         .from("recordings")
         .select(
-          "id,user_id,file_name,audio_path,pidgin_text,transcription,language,word_count,recording_number,is_free_talk,is_whatsapp_group,admin_status,created_at,duration_seconds"
+          [
+            "id",
+            "user_id",
+            "file_name",
+            "audio_path",
+            "pidgin_text",
+            "transcription",
+            "language",
+            "word_count",
+            "recording_number",
+            "is_free_talk",
+            "is_whatsapp_group",
+            "admin_status",
+            "created_at",
+            "duration_seconds",
+          ].join(",")
         )
         .order("created_at", { ascending: false });
 
@@ -97,6 +161,7 @@ export default function ChairmanRecordingsPage() {
       }
 
       const recordingList = (data || []) as Recording[];
+
       setRecords(recordingList);
 
       const workerIds = [
@@ -107,45 +172,49 @@ export default function ChairmanRecordingsPage() {
         ),
       ];
 
-      if (workerIds.length > 0) {
-        const { data: profileData, error: profileError } =
-          await supabase
-            .from("profiles")
-            .select("id,display_name,email")
-            .in("id", workerIds);
-
-        if (profileError) {
-          console.warn(
-            "Worker names could not be loaded:",
-            profileError.message
-          );
-        }
-
-        const workerMap: Record<string, Worker> = {};
-
-        for (const worker of (profileData || []) as Worker[]) {
-          workerMap[worker.id] = worker;
-        }
-
-        setWorkers(workerMap);
-      } else {
+      if (workerIds.length === 0) {
         setWorkers({});
+        return;
       }
+
+      const { data: profileData, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("id,display_name,email")
+          .in("id", workerIds);
+
+      if (profileError) {
+        console.warn(
+          "Could not load worker profiles:",
+          profileError.message
+        );
+
+        setWorkers({});
+        return;
+      }
+
+      const workerMap: Record<string, Worker> = {};
+
+      for (const worker of (profileData || []) as Worker[]) {
+        workerMap[worker.id] = worker;
+      }
+
+      setWorkers(workerMap);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Something went wrong while loading recordings."
+          : "Unable to load recordings."
       );
     } finally {
       setLoading(false);
       setChecking(false);
     }
-  }, [router]);
+  }, [supabase, verifyChairman]);
 
   useEffect(() => {
     void loadRecordings();
-  }, [loadRecordings]);
+  }, [loadRecordings, refreshNumber]);
 
   async function changeStatus(
     recording: Recording,
@@ -154,26 +223,28 @@ export default function ChairmanRecordingsPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    const { data: sessionData, error: sessionError } =
-      await supabase.auth.getSession();
+    if (updatingId !== null) return;
 
-    if (sessionError || !sessionData.session) {
-      router.replace("/login");
+    const authorized = await verifyChairman();
+
+    if (!authorized) return;
+
+    const currentStatus = normalizeStatus(recording.admin_status);
+
+    if (currentStatus === newStatus) {
+      setSuccessMessage(
+        `This recording is already ${newStatus}.`
+      );
       return;
     }
 
-    const email = (sessionData.session.user.email || "")
-      .trim()
-      .toLowerCase();
-
-    if (email !== CHAIRMAN_EMAIL) {
-      await supabase.auth.signOut();
-      router.replace("/login");
-      return;
-    }
+    const recordingName =
+      recording.recording_number ||
+      recording.file_name ||
+      recording.id;
 
     const confirmed = window.confirm(
-      `Are you sure you want to ${newStatus} this recording?`
+      `Are you sure you want to ${newStatus} recording ${recordingName}?`
     );
 
     if (!confirmed) return;
@@ -181,7 +252,11 @@ export default function ChairmanRecordingsPage() {
     setUpdatingId(recording.id);
 
     try {
-      // The database must independently enforce Chairman permissions.
+      /*
+       * Supabase RLS must independently enforce who can
+       * update recordings. The email check in this page
+       * is not a substitute for database authorization.
+       */
       const { data, error } = await supabase
         .from("recordings")
         .update({ admin_status: newStatus })
@@ -197,7 +272,7 @@ export default function ChairmanRecordingsPage() {
 
       if (!data) {
         throw new Error(
-          "The recording was not updated. Check the database permissions."
+          "No recording was updated. Check your Supabase RLS policies and recording ID."
         );
       }
 
@@ -210,65 +285,141 @@ export default function ChairmanRecordingsPage() {
       );
 
       setSuccessMessage(
-        `Recording ${recording.recording_number || recording.id} marked ${newStatus}.`
+        `${recordingName} has been marked ${newStatus}.`
       );
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Unable to update the recording."
+          : "Unable to change recording status."
       );
     } finally {
       setUpdatingId(null);
     }
   }
 
+  const statistics = useMemo(() => {
+    const pending = records.filter(
+      (record) =>
+        normalizeStatus(record.admin_status) === "pending"
+    ).length;
+
+    const approved = records.filter(
+      (record) =>
+        normalizeStatus(record.admin_status) === "approved"
+    ).length;
+
+    const rejected = records.filter(
+      (record) =>
+        normalizeStatus(record.admin_status) === "rejected"
+    ).length;
+
+    const totalWords = records.reduce(
+      (total, record) =>
+        total + Math.max(0, Number(record.word_count) || 0),
+      0
+    );
+
+    return {
+      total: records.length,
+      pending,
+      approved,
+      rejected,
+      totalWords,
+    };
+  }, [records]);
+
+  const filteredRecords = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return records.filter((record) => {
+      const status = normalizeStatus(record.admin_status);
+
+      if (filter !== "all" && status !== filter) {
+        return false;
+      }
+
+      if (!query) return true;
+
+      const worker = record.user_id
+        ? workers[record.user_id]
+        : undefined;
+
+      const searchableText = [
+        record.recording_number,
+        record.file_name,
+        record.pidgin_text,
+        record.transcription,
+        record.language,
+        record.user_id,
+        worker?.display_name,
+        worker?.email,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+  }, [records, workers, filter, search]);
+
   if (checking) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-gray-950 p-6 text-white">
-        Checking Chairman access...
+        <div
+          role="status"
+          className="rounded-xl border border-gray-800 bg-gray-900 p-6 text-center"
+        >
+          <p className="text-lg font-bold text-yellow-400">
+            Main Naija Pidgin
+          </p>
+
+          <p className="mt-3 text-gray-300">
+            Checking Chairman access...
+          </p>
+        </div>
       </main>
     );
   }
 
-  const filteredRecords = records.filter((record) => {
-    if (filter === "all") return true;
-
-    return (
-      (record.admin_status || "pending").toLowerCase() === filter
-    );
-  });
-
   return (
     <main className="min-h-screen bg-gray-950 p-4 text-white md:p-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
+      <div className="mx-auto max-w-7xl">
+        <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm font-bold uppercase tracking-widest text-green-400">
               Main Naija Pidgin
             </p>
 
-            <h1 className="mt-2 text-3xl font-bold text-yellow-400">
-              Water Spine
+            <h1 className="mt-2 text-3xl font-bold text-yellow-400 md:text-4xl">
+              Chairman Recordings
             </h1>
 
-            <p className="mt-2 text-gray-300">
-              Recording Management
+            <p className="mt-2 text-gray-400">
+              Review and manage worker submissions.
+            </p>
+
+            <p className="mt-2 break-all text-xs text-gray-500">
+              Authorized account: {CHAIRMAN_EMAIL}
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <button
+              type="button"
               onClick={() => router.push("/admin/dashboard")}
-              className="rounded-lg border border-gray-600 px-4 py-2"
+              className="rounded-lg border border-gray-700 px-4 py-3 transition hover:bg-gray-800"
             >
               Back to Dashboard
             </button>
 
             <button
-              onClick={() => void loadRecordings()}
+              type="button"
+              onClick={() =>
+                setRefreshNumber((number) => number + 1)
+              }
               disabled={loading}
-              className="rounded-lg bg-yellow-400 px-4 py-2 font-bold text-black disabled:opacity-50"
+              className="rounded-lg bg-yellow-400 px-5 py-3 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Refreshing..." : "Refresh"}
             </button>
@@ -276,186 +427,262 @@ export default function ChairmanRecordingsPage() {
         </header>
 
         {errorMessage && (
-          <div className="mt-6 rounded-lg border border-red-800 bg-red-950 p-4 text-red-200">
-            {errorMessage}
+          <div
+            role="alert"
+            className="mt-6 rounded-xl border border-red-800 bg-red-950 p-4 text-red-200"
+          >
+            <p className="font-bold">Something went wrong</p>
+            <p className="mt-1 break-words">{errorMessage}</p>
           </div>
         )}
 
         {successMessage && (
-          <div className="mt-6 rounded-lg border border-green-800 bg-green-950 p-4 text-green-200">
+          <div
+            role="status"
+            className="mt-6 rounded-xl border border-green-800 bg-green-950 p-4 text-green-200"
+          >
             {successMessage}
           </div>
         )}
 
-        <section className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <section
+          aria-label="Recording statistics"
+          className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-5"
+        >
           {[
-            ["Total", records.length],
-            [
-              "Pending",
-              records.filter(
-                (record) =>
-                  !record.admin_status ||
-                  record.admin_status.toLowerCase() === "pending"
-              ).length,
-            ],
-            [
-              "Approved",
-              records.filter(
-                (record) =>
-                  record.admin_status?.toLowerCase() === "approved"
-              ).length,
-            ],
-            [
-              "Rejected",
-              records.filter(
-                (record) =>
-                  record.admin_status?.toLowerCase() === "rejected"
-              ).length,
-            ],
-          ].map(([label, value]) => (
+            { label: "Total Recordings", value: statistics.total },
+            { label: "Pending", value: statistics.pending },
+            { label: "Approved", value: statistics.approved },
+            { label: "Rejected", value: statistics.rejected },
+            {
+              label: "Total Words",
+              value: statistics.totalWords.toLocaleString(),
+            },
+          ].map((item) => (
             <div
-              key={String(label)}
+              key={item.label}
               className="rounded-xl border border-gray-800 bg-gray-900 p-5"
             >
-              <p className="text-sm text-gray-400">{label}</p>
-              <p className="mt-2 text-3xl font-bold text-yellow-400">
-                {value}
+              <p className="text-sm text-gray-400">
+                {item.label}
+              </p>
+
+              <p className="mt-3 text-2xl font-bold text-yellow-400 md:text-3xl">
+                {item.value}
               </p>
             </div>
           ))}
         </section>
 
-        <section className="mt-8">
-          <label
-            htmlFor="recordingFilter"
-            className="mb-2 block text-sm font-semibold"
-          >
-            Filter recordings
-          </label>
+        <section className="mt-8 grid gap-4 md:grid-cols-[1fr_auto]">
+          <div>
+            <label
+              htmlFor="recordingSearch"
+              className="mb-2 block text-sm font-semibold text-gray-300"
+            >
+              Search recordings
+            </label>
 
-          <select
-            id="recordingFilter"
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            className="w-full max-w-xs rounded-lg border border-gray-700 bg-gray-900 p-3"
-          >
-            <option value="all">All recordings</option>
-            <option value="pending">Pending review</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            <input
+              id="recordingSearch"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search worker, recording ID, language or text..."
+              className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 outline-none transition placeholder:text-gray-600 focus:border-yellow-400"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="recordingFilter"
+              className="mb-2 block text-sm font-semibold text-gray-300"
+            >
+              Filter by status
+            </label>
+
+            <select
+              id="recordingFilter"
+              value={filter}
+              onChange={(event) =>
+                setFilter(event.target.value as FilterType)
+              }
+              className="w-full rounded-xl border border-gray-700 bg-gray-900 p-3 outline-none focus:border-yellow-400"
+            >
+              <option value="all">All recordings</option>
+              <option value="pending">Pending review</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
         </section>
 
-        <section className="mt-6 space-y-4">
-          {filteredRecords.length === 0 ? (
-            <div className="rounded-xl border border-gray-800 bg-gray-900 p-6 text-gray-300">
-              {loading
-                ? "Loading recordings..."
-                : "No recordings found for this filter."}
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-400">
+          <p>
+            Showing {filteredRecords.length} of {records.length} recordings
+          </p>
+
+          {loading && (
+            <p role="status" className="text-yellow-400">
+              Updating recording list...
+            </p>
+          )}
+        </div>
+
+        <section className="mt-4 space-y-5">
+          {!loading && filteredRecords.length === 0 ? (
+            <div className="rounded-xl border border-gray-800 bg-gray-900 p-8 text-center">
+              <p className="text-lg font-bold">
+                No recordings found
+              </p>
+
+              <p className="mt-2 text-gray-400">
+                Try another search or change the status filter.
+              </p>
+
+              {(search || filter !== "all") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch("");
+                    setFilter("all");
+                  }}
+                  className="mt-4 rounded-lg bg-yellow-400 px-4 py-2 font-bold text-black"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             filteredRecords.map((record) => {
-              const status = (
-                record.admin_status || "pending"
-              ).toLowerCase();
+              const status = normalizeStatus(record.admin_status);
 
               const worker = record.user_id
                 ? workers[record.user_id]
                 : undefined;
 
+              const recordingName =
+                record.recording_number ||
+                record.file_name ||
+                record.id;
+
               return (
                 <article
                   key={record.id}
-                  className="rounded-xl border border-gray-800 bg-gray-900 p-5"
+                  className="rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-lg md:p-6"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-bold">
-                        {record.recording_number ||
-                          record.file_name ||
-                          "Voice Recording"}
+                  <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                    <div className="min-w-0">
+                      <h2 className="break-words text-lg font-bold md:text-xl">
+                        {recordingName}
                       </h2>
 
-                      <p className="mt-1 text-sm text-gray-400">
+                      <p className="mt-2 break-words text-sm text-gray-300">
                         Worker:{" "}
                         {worker?.display_name ||
                           worker?.email ||
                           record.user_id ||
-                          "Unknown"}
+                          "Unknown worker"}
                       </p>
 
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formatDate(record.created_at)}
+                      {worker?.email && worker?.display_name && (
+                        <p className="mt-1 break-all text-xs text-gray-500">
+                          {worker.email}
+                        </p>
+                      )}
+
+                      <p className="mt-2 text-xs text-gray-500">
+                        Submitted: {formatDate(record.created_at)}
                       </p>
                     </div>
 
-                    <span className="rounded-full bg-gray-800 px-3 py-1 text-sm">
-                      {statusLabel(record.admin_status)}
+                    <span
+                      className={`w-fit rounded-full border px-3 py-1.5 text-sm font-semibold ${statusClasses(status)}`}
+                    >
+                      {status === "pending"
+                        ? "Pending Review"
+                        : status === "approved"
+                          ? "Approved"
+                          : "Rejected"}
                     </span>
                   </div>
 
-                  <p className="mt-4 whitespace-pre-wrap leading-7 text-gray-200">
-                    {record.pidgin_text ||
-                      record.transcription ||
-                      "No text saved for this recording."}
-                  </p>
+                  <div className="mt-5 rounded-xl border border-gray-800 bg-gray-950 p-4">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                      Recording Text
+                    </p>
 
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-300">
-                    <span className="rounded bg-gray-800 px-3 py-2">
-                      {record.language || "Unknown language"}
+                    <p className="whitespace-pre-wrap break-words leading-7 text-gray-200">
+                      {record.pidgin_text ||
+                        record.transcription ||
+                        "No text saved for this recording."}
+                    </p>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
+                      Language: {record.language || "Unknown"}
                     </span>
 
-                    <span className="rounded bg-gray-800 px-3 py-2">
-                      {record.is_free_talk ? "Free Talk" : "Read Text"}
+                    <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
+                      Type: {record.is_free_talk ? "Free Talk" : "Read Text"}
                     </span>
 
-                    <span className="rounded bg-gray-800 px-3 py-2">
-                      {Number(record.word_count || 0)} words
+                    <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
+                      Words: {Number(record.word_count) || 0}
                     </span>
 
-                    <span className="rounded bg-gray-800 px-3 py-2">
-                      {Number(record.duration_seconds || 0)} seconds
+                    <span className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2">
+                      Duration: {formatDuration(record.duration_seconds)}
                     </span>
 
                     {record.is_whatsapp_group && (
-                      <span className="rounded bg-green-950 px-3 py-2 text-green-300">
+                      <span className="rounded-lg border border-green-800 bg-green-950 px-3 py-2 text-green-300">
                         WhatsApp Group
                       </span>
                     )}
                   </div>
 
-                  {status !== "approved" && (
-                    <button
-                      onClick={() =>
-                        void changeStatus(record, "approved")
-                      }
-                      disabled={updatingId === record.id}
-                      className="mt-5 rounded-lg bg-green-500 px-4 py-3 font-bold text-black disabled:opacity-50"
-                    >
-                      {updatingId === record.id
-                        ? "Updating..."
-                        : "Approve"}
-                    </button>
-                  )}
+                  <div className="mt-6 flex flex-wrap gap-3 border-t border-gray-800 pt-5">
+                    {status !== "approved" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void changeStatus(record, "approved")
+                        }
+                        disabled={updatingId !== null}
+                        className="rounded-lg bg-green-500 px-5 py-3 font-bold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {updatingId === record.id
+                          ? "Updating..."
+                          : "Approve Recording"}
+                      </button>
+                    )}
 
-                  {status !== "rejected" && (
-                    <button
-                      onClick={() =>
-                        void changeStatus(record, "rejected")
-                      }
-                      disabled={updatingId === record.id}
-                      className="ml-3 mt-5 rounded-lg bg-red-600 px-4 py-3 font-bold text-white disabled:opacity-50"
-                    >
-                      {updatingId === record.id
-                        ? "Updating..."
-                        : "Reject"}
-                    </button>
-                  )}
+                    {status !== "rejected" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void changeStatus(record, "rejected")
+                        }
+                        disabled={updatingId !== null}
+                        className="rounded-lg bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {updatingId === record.id
+                          ? "Updating..."
+                          : "Reject Recording"}
+                      </button>
+                    )}
+                  </div>
                 </article>
               );
             })
           )}
         </section>
+
+        <footer className="mt-10 border-t border-gray-800 py-6 text-center text-xs text-gray-500">
+          Main Naija Pidgin · Chairman Recording Management
+        </footer>
       </div>
     </main>
   );
