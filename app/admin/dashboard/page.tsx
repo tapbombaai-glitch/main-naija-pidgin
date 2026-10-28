@@ -19,18 +19,23 @@ export default function ChairmanDashboardPage() {
 
     async function checkChairman() {
       try {
+        // Small delay to allow middleware to save session from login page
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         const { data, error } = await supabase.auth.getUser();
 
         if (error || !data.user) {
-          router.replace("/admin/login");
+          console.log("No Chairman session, going to /login");
+          router.replace("/login");
           return;
         }
 
         const userEmail = (data.user.email ?? "").trim().toLowerCase();
 
         if (userEmail !== CHAIRMAN_EMAIL.toLowerCase()) {
+          console.log("Not Chairman:", userEmail);
           await supabase.auth.signOut();
-          router.replace("/admin/login");
+          router.replace("/login");
           return;
         }
 
@@ -53,13 +58,14 @@ export default function ChairmanDashboardPage() {
 
   async function signOut() {
     await supabase.auth.signOut();
-    router.replace("/admin/login");
+    // Go back to correct Chairman login — /login NOT /admin/login
+    window.location.href = "/login";
   }
 
   if (checking) {
     return (
       <main style={styles.page}>
-        <section style={styles.card}><p>Checking Chairman access...</p></section>
+        <section style={styles.card}><p>Checking Chairman access... 👑</p></section>
       </main>
     );
   }
@@ -90,7 +96,7 @@ export default function ChairmanDashboardPage() {
       <section style={styles.account}>
         <h2>✅ Account verified</h2>
         <p>Signed in as: {email}</p>
-        <p style={styles.note}>Connected to pidgin-voice project</p>
+        <p style={styles.note}>Connected to pidgin-voice project — Chairman session locked!</p>
       </section>
 
       <section style={styles.grid}>
