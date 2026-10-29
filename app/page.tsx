@@ -1,109 +1,131 @@
 "use client";
-import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+import "./home.css";
 
-export default function Home(){
-  const router=useRouter();
-  const [copyOk,setCopyOk]=useState(false);
-  const [playId,setPlayId]=useState<string|null>(null);
-  const audios=useRef<any>({});
-  const demoKey="mnpp_live_a1b2c3d4e5f6_demo_for_display";
-
-  const copy=async()=>{ await navigator.clipboard.writeText(demoKey); setCopyOk(true); setTimeout(()=>setCopyOk(false),2000); };
-
-  const voices=[
-    {id:"lagos", name:"Lagos Male", sub:"Lagos Accent", flag:"🇳🇬", t:"0:12", url:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"},
-    {id:"abuja", name:"Abuja Female", sub:"Calm & Clear", flag:"🇳🇬", t:"0:11", url:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"},
-    {id:"pidgin", name:"Pidgin Narrator", sub:"Natural Pidgin", flag:"🇳🇬", t:"0:14", url:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"},
-    {id:"delta", name:"Delta", sub:"Warri Accent", flag:"🇳🇬", t:"0:13", url:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"},
-  ];
-
-  const togglePlay=(v:any)=>{
-    Object.values(audios.current).forEach((a:any)=>{ if(a){ a.pause(); a.currentTime=0; }});
-    if(playId===v.id){ setPlayId(null); return; }
-    const a=new Audio(v.url); audios.current[v.id]=a; a.play(); setPlayId(v.id); a.onended=()=>setPlayId(null);
-  };
-
-  const payPro=()=>{
-    // @ts-ignore
-    if(typeof window!=="undefined" && window.PaystackPop){
-      const key=process.env.NEXT_PUBLIC_PAYSTACK_KEY||"";
-      if(!key){ alert("Add NEXT_PUBLIC_PAYSTACK_KEY in Render Env"); return; }
-      // @ts-ignore
-      window.PaystackPop.setup({key,email:"customer@mainnaijapidgin.com",amount:500000,currency:"NGN",ref:"MNPP_"+Date.now(),callback:(r:any)=>alert("Success "+r.reference)}).openIframe();
-    } else { alert("Paystack loading... try again"); }
-  };
+export default function Home() {
+  const [copied, setCopied] = useState(false);
+  const apiKey = "mnpp_live_sk_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7";
 
   return (
-  <div className="min-h-screen bg-[#060A06] flex justify-center">
-   <div className="w-full max-w-[400px] px-4 py-6">
-    {/* HEADER EXACT */}
-    <div className="flex gap-3 mb-4">
-      <div className="text-[#00C853] text-[32px] leading-none">🔌</div>
-      <div><h1 className="text-[22px] font-black text-white leading-none">API <span className="text-[#00C853]">Marketplace</span></h1><p className="text-[11px] text-[#6B7280] mt-1">Authentic Naija Pidgin Voices & Datasets</p></div>
-    </div>
-
-    {/* LIVE API KEY - EXACT LIKE SCREENSHOT BUT NO sk_live */}
-    <div className="bg-[#111811] border border-[#1F2F1F] rounded-2xl p-4 mb-3">
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center gap-2 text-[12px] text-gray-300"><span className="w-5 h-5 rounded-full bg-[#1A1A1A] flex items-center justify-center text-[10px]">🔒</span> Live API Key</div>
-        <div className="flex gap-2 items-center"><span className="text-[8px] font-bold px-2.5 py-1 rounded-full bg-[#1A1A1A] border border-[#2A2A2A] text-gray-400">FREE PLAN</span><span className="text-[10px] text-[#00C853] font-bold flex items-center gap-1"><span className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse inline-block"></span> LIVE</span></div>
-      </div>
-      <div onClick={copy} className="cursor-pointer bg-[#080C08] border border-[#1A2A1A] rounded-xl px-4 py-3 font-mono text-[12px] text-gray-500 blur-[3px] hover:blur-0 transition">{demoKey}</div>
-      <div className="text-[9px] text-center text-gray-600 mt-2">{copyOk?"✅ Copied!":"Tap to copy"}</div>
-    </div>
-
-    {/* STATS - EXACT */}
-    <div className="bg-[#111811] border border-[#1F2F1F] rounded-2xl p-3 mb-4 grid grid-cols-3 divide-x divide-[#1F2F1F]">
-      <div className="flex items-center gap-2 px-2"><span className="text-[#00C853]">〰️</span><div><div className="font-black text-white">100</div><div className="text-[8px] text-gray-500 font-bold">FREE VOICES</div></div></div>
-      <div className="flex items-center gap-2 px-3"><span className="text-[#00C853]">🗄️</span><div><div className="font-black text-white">3</div><div className="text-[8px] text-gray-500 font-bold">DATASETS</div></div></div>
-      <div className="flex items-center gap-2 px-3"><span className="text-[#00C853]">〰️</span><div><div className="font-black text-white">99.9%</div><div className="text-[8px] text-gray-500 font-bold">UPTIME</div></div></div>
-    </div>
-
-    {/* PRICING - EXACT */}
-    <div className="mb-4">
-      <h2 className="text-[15px] font-black text-white">Pricing Plans</h2>
-      <p className="text-[11px] text-gray-500 mb-3">Simple. Transparent. Powerful.</p>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-[#111811] border border-[#1F2F1F] rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-2"><span className="w-7 h-7 rounded-lg bg-[#1A2A1A] flex items-center justify-center">🎁</span><span className="text-[#00C853] font-black">Starter</span></div>
-          <div className="text-[12px] font-bold text-white">100 Voices Free</div>
-          <div className="text-[10px] text-gray-500 mt-1">API Key included</div>
-          <button onClick={copy} className="w-full mt-4 border border-[#00C853]/30 text-[#00C853] text-[11px] font-bold py-2.5 rounded-xl flex justify-center gap-2">Get Free Key <span>→</span></button>
-        </div>
-        <div className="relative bg-[#102214] border-2 border-[#00C853] rounded-2xl p-4 shadow-[0_0_20px_rgba(0,200,83,0.3)]">
-          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#00C853] text-black text-[7px] font-black px-2.5 py-1 rounded-full flex items-center gap-1"><span>★</span> MOST POPULAR</div>
-          <div className="flex items-center gap-2 mb-1 mt-2"><span className="w-7 h-7 rounded-lg bg-[#00C853]/20 flex items-center justify-center">👑</span><span className="font-black text-white">Pro</span></div>
-          <div className="text-[11px] text-gray-400">1,000 Voices</div>
-          <div className="text-[22px] font-black text-[#00C853] mt-1">₦5,000</div>
-          <div className="text-[10px] text-gray-500">Full API access</div>
-          <button onClick={payPro} className="w-full mt-3 bg-[#00C853] text-black text-[11px] font-black py-2.5 rounded-xl flex justify-center gap-1">Buy with Paystack <span>🔒</span></button>
-        </div>
-      </div>
-    </div>
-
-    {/* PREVIEW VOICES - EXACT */}
-    <div className="mb-4">
-      <h2 className="text-[14px] font-black text-white flex items-center gap-2">Preview Voices</h2>
-      <p className="text-[11px] text-gray-500 mb-3 flex items-center gap-1">🎧 Listen before you buy</p>
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {voices.map(v=>(
-          <div key={v.id} className="min-w-[135px] bg-[#111811] border border-[#1F2F1F] rounded-xl p-3">
-            <div className="flex items-center gap-1.5 mb-2"><span className="text-[14px]">{v.flag}</span><div><div className="text-[10px] font-bold text-white leading-none">{v.name}</div><div className="text-[8px] text-gray-500">{v.sub}</div></div></div>
-            <div className="h-7 flex items-center gap-[2px] mb-2">{[5,8,4,9,6,7,4,8,6,5].map((h,i)=>(<div key={i} className={`w-[3px] rounded-full ${playId===v.id?"bg-[#00C853]":"bg-[#00C853]/60"}`} style={{height:h*2.2}}/>))}</div>
-            <div className="flex justify-between items-center"><button onClick={()=>togglePlay(v)} className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${playId===v.id?"bg-[#00C853] text-black":"bg-[#00C853]/20 text-[#00C853]"}`}>{playId===v.id?"⏸":"▶"}</button><span className="text-[10px] text-gray-500">{v.t}</span></div>
+    <div className="home">
+      <div className="content" style={{maxWidth:"700px", margin:"0 auto"}}>
+        
+        {/* HEADER */}
+        <div style={{textAlign:"center", padding:"20px 0 10px 0"}}>
+          <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:"8px", fontWeight:"900", fontSize:"14px", letterSpacing:"1px"}}>
+            <span>🇳🇬</span> MAIN NAIJA PIDGIN
           </div>
-        ))}
+          <div style={{marginTop:"10px", display:"inline-flex", alignItems:"center", gap:"6px", background:"#0f2b16", border:"1px solid #1f5a2a", color:"#4ade80", padding:"5px 12px", borderRadius:"20px", fontSize:"10px", fontWeight:"800"}}>
+            <span style={{width:"6px", height:"6px", background:"#22c55e", borderRadius:"50%", display:"inline-block"}}></span> LIVE - NAIJA VOICES
+          </div>
+          <h1 style={{marginTop:"14px", fontSize:"26px", fontWeight:"900"}}>Welcome to <span style={{color:"#facc15"}}>Main Naija Pidgin</span></h1>
+          <p style={{color:"#666", fontSize:"13px", marginTop:"8px"}}>Preserving authentic Nigerian languages — All in one dashboard</p>
+        </div>
+
+        {/* WORKER + CHAIRMAN - BALANCED - 1fr 1fr */}
+        <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px", marginTop:"18px"}}>
+          <div style={{background:"#0f1410", border:"1px solid #1f3a25", borderRadius:"18px", padding:"16px", display:"flex", flexDirection:"column", minHeight:"200px"}}>
+            <div style={{width:"36px", height:"36px", background:"#132a1a", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center"}}>🎙️</div>
+            <h2 style={{fontSize:"16px", fontWeight:"900", color:"white", marginTop:"12px"}}>Worker Panel</h2>
+            <p style={{fontSize:"11px", color:"#666", marginTop:"6px", flex:1}}>Access your recording workspace directly.</p>
+            <Link href="/worker" style={{textDecoration:"none"}}>
+              <div style={{marginTop:"12px", background:"#22c55e", color:"black", padding:"11px", borderRadius:"10px", textAlign:"center", fontWeight:"900", fontSize:"12px"}}>Enter Workspace →</div>
+            </Link>
+          </div>
+          <div style={{background:"#101012", border:"1px solid #2a2a2a", borderRadius:"18px", padding:"16px", display:"flex", flexDirection:"column", minHeight:"200px"}}>
+            <div style={{width:"36px", height:"36px", background:"#1f1a00", borderRadius:"10px", display:"flex", alignItems:"center", justifyContent:"center"}}>👑</div>
+            <h2 style={{fontSize:"16px", fontWeight:"900", color:"white", marginTop:"12px"}}>Chairman Dashboard</h2>
+            <p style={{fontSize:"11px", color:"#666", marginTop:"6px", flex:1}}>Review recordings, manage workers.</p>
+            <Link href="/admin/login" style={{textDecoration:"none"}}>
+              <div style={{marginTop:"12px", background:"#1f1f1f", border:"1px solid #333", color:"white", padding:"11px", borderRadius:"10px", textAlign:"center", fontWeight:"700", fontSize:"12px"}}>Open Chairman Panel →</div>
+            </Link>
+          </div>
+        </div>
+
+        {/* MARKETPLACE API KEY - YOUR CODE + MARKETPLACE KEY ADDED */}
+        <div style={{marginTop:"14px"}}>
+          <div style={{background:"linear-gradient(180deg, #111a12 0%, #0d1210 100%)", border:"1px solid #1f3a25", borderRadius:"20px", padding:"20px"}}>
+            <div style={{display:"flex", gap:"12px", alignItems:"flex-start"}}>
+              <div style={{width:"42px", height:"42px", background:"#1a2a1e", borderRadius:"12px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"20px"}}>🔌</div>
+              <div>
+                <h1 style={{fontSize:"16px", fontWeight:"900", color:"white", margin:0}}>API Marketplace</h1>
+                <p style={{fontSize:"12px", color:"#777", margin:"4px 0 0 0"}}>Build with authentic Naija Pidgin voices & datasets</p>
+              </div>
+            </div>
+            <div style={{marginTop:"18px", background:"#0a100c", border:"1px solid #1e3a25", borderRadius:"16px", padding:"14px"}}>
+              <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <p style={{fontSize:"10px", fontWeight:"800", color:"#777", letterSpacing:"1px", margin:0}}>YOUR MARKETPLACE API KEY</p>
+                <span style={{fontSize:"9px", background:"#102216", color:"#4ade80", padding:"3px 8px", borderRadius:"20px", border:"1px solid #1f5a2a"}}>● LIVE</span>
+              </div>
+              <code style={{display:"block", marginTop:"10px", background:"black", border:"1px solid #1a2a1e", padding:"10px", borderRadius:"8px", color:"#4ade80", fontSize:"11px", wordBreak:"break-all", fontFamily:"monospace"}}>{apiKey}</code>
+              <button onClick={()=>{navigator.clipboard.writeText(apiKey); setCopied(true); setTimeout(()=>setCopied(false),2000)}} 
+                style={{width:"100%", marginTop:"10px", background: copied ? "#22c55e" : "#1a2a1e", color: copied ? "#041208" : "#aaa", border:"1px solid #2a3a2e", padding:"11px", borderRadius:"10px", fontWeight:"800", cursor:"pointer", fontSize:"13px"}}>
+                {copied ? "✓ Copied!" : "Copy API Key"}
+              </button>
+            </div>
+            <div style={{marginTop:"14px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"8px"}}>
+              <div style={{background:"#0f1210", border:"1px solid #1f2320", borderRadius:"14px", padding:"14px 8px", textAlign:"center"}}>
+                <div style={{fontSize:"18px", fontWeight:"900", color:"white"}}>1,000</div>
+                <div style={{fontSize:"8px", color:"#666", fontWeight:"800", marginTop:"2px"}}>FREE<br/>REQUESTS</div>
+              </div>
+              <div style={{background:"#0f1210", border:"1px solid #1f2320", borderRadius:"14px", padding:"14px 8px", textAlign:"center"}}>
+                <div style={{fontSize:"18px", fontWeight:"900", color:"white"}}>3</div>
+                <div style={{fontSize:"8px", color:"#22c55e", fontWeight:"800", marginTop:"2px"}}>DATASETS<br/>LIVE</div>
+              </div>
+              <div style={{background:"#0f1210", border:"1px solid #1f2320", borderRadius:"14px", padding:"14px 8px", textAlign:"center"}}>
+                <div style={{fontSize:"18px", fontWeight:"900", color:"white"}}>99.9%</div>
+                <div style={{fontSize:"8px", color:"#666", fontWeight:"800", marginTop:"2px"}}>UPTIME</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{marginTop:"14px", background:"#0f1210", border:"1px solid #1f2320", borderRadius:"20px", padding:"18px"}}>
+            <h3 style={{fontSize:"14px", fontWeight:"800", color:"white", margin:0}}>Available Endpoints</h3>
+            <div style={{marginTop:"14px", display:"flex", flexDirection:"column", gap:"10px"}}>
+              <div style={{background:"black", border:"1px solid #1a1a1a", padding:"12px 14px", borderRadius:"12px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
+                  <span style={{background:"#22c55e", color:"black", padding:"3px 8px", borderRadius:"6px", fontWeight:"900", fontSize:"9px"}}>GET</span>
+                  <span style={{color:"white", fontSize:"13px", fontFamily:"monospace"}}>/api/voices</span>
+                </div>
+                <span style={{color:"#555", fontSize:"11px"}}>List recordings</span>
+              </div>
+              <div style={{background:"black", border:"1px solid #1a1a1a", padding:"12px 14px", borderRadius:"12px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
+                  <span style={{background:"#22c55e", color:"black", padding:"3px 8px", borderRadius:"6px", fontWeight:"900", fontSize:"9px"}}>GET</span>
+                  <span style={{color:"white", fontSize:"13px", fontFamily:"monospace"}}>/api/datasets</span>
+                </div>
+                <span style={{color:"#555", fontSize:"11px"}}>Pidgin datasets</span>
+              </div>
+              <div style={{background:"black", border:"1px solid #1a1a1a", padding:"12px 14px", borderRadius:"12px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+                <div style={{display:"flex", alignItems:"center", gap:"8px"}}>
+                  <span style={{background:"#c4b5fd", color:"black", padding:"3px 8px", borderRadius:"6px", fontWeight:"900", fontSize:"9px"}}>POST</span>
+                  <span style={{color:"white", fontSize:"13px", fontFamily:"monospace"}}>/api/translate</span>
+                </div>
+                <span style={{color:"#555", fontSize:"11px"}}>Pidgin → English</span>
+              </div>
+            </div>
+            <div style={{marginTop:"16px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px"}}>
+              <Link href="/worker" style={{textDecoration:"none"}}>
+                <div style={{background:"#22c55e", color:"#041208", padding:"13px", borderRadius:"12px", textAlign:"center", fontWeight:"900", fontSize:"13px"}}>Start Building →</div>
+              </Link>
+              <Link href="/marketplace" style={{textDecoration:"none"}}>
+                <div style={{background:"#1a1a1a", border:"1px solid #2a2a2a", color:"white", padding:"13px", borderRadius:"12px", textAlign:"center", fontWeight:"700", fontSize:"13px"}}>View Full Marketplace</div>
+              </Link>
+            </div>
+          </div>
+
+          <div style={{marginTop:"14px", background:"linear-gradient(135deg, #121212 0%, #0f1210 100%)", border:"1px solid #1f2320", borderRadius:"16px", padding:"16px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <div>
+              <p style={{fontSize:"13px", fontWeight:"800", color:"white", margin:0}}>Need more requests?</p>
+              <p style={{fontSize:"11px", color:"#666", margin:"3px 0 0 0"}}>Upgrade to Pro - 50k requests/month</p>
+            </div>
+            <span style={{fontSize:"20px"}}>🚀</span>
+          </div>
+        </div>
+
+        <div style={{marginTop:"18px", textAlign:"center", fontSize:"10px", color:"#333"}}>MAIN NAIJA PIDGIN © 2026 — All in one dashboard ✅</div>
       </div>
     </div>
-
-    <div className="flex justify-between items-center bg-[#111811] border border-[#1F2F1F] rounded-xl px-3 py-3 mb-4 text-[10px] text-gray-400"><span className="flex items-center gap-2"><span className="w-5 h-5 bg-[#1A1A1A] rounded-full flex items-center justify-center">🔒</span> Pay with Card or Bank Transfer via Paystack</span><span className="text-white font-black flex items-center gap-1"><span className="w-5 h-5 bg-white text-black rounded flex items-center justify-center font-black text-[10px]">P</span> paystack</span></div>
-
-    <div className="grid grid-cols-[1.4fr_1fr] gap-3">
-      <button onClick={()=>router.push("/worker")} className="bg-[#00C853] text-black font-black py-3.5 rounded-2xl text-[12px]">Start Building →</button>
-      <button onClick={()=>router.push("/chairman")} className="border border-[#2A2A2A] bg-[#111811] text-white font-bold py-3.5 rounded-2xl text-[12px]">View Docs</button>
-    </div>
-   </div>
-  </div>
   );
-}
+} Upgrade it for me
