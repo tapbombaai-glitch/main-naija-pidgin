@@ -26,7 +26,6 @@ function getExtension(mime: string) {
   if (mime.includes("ogg")) return "ogg";
   if (mime.includes("wav")) return "wav";
   if (mime.includes("mpeg")) return "mp3";
-
   return "webm";
 }
 
@@ -83,13 +82,11 @@ async function authenticateWorker(request: NextRequest) {
 
 function isBlockedStatus(status: unknown) {
   const value = String(status ?? "").toLowerCase();
-
   return ["blocked", "suspended", "disabled"].includes(value);
 }
 
 /**
  * GET /api/worker-recordings
- *
  * Returns only the authenticated worker's recordings.
  */
 export async function GET(request: NextRequest) {
@@ -102,12 +99,11 @@ export async function GET(request: NextRequest) {
 
     const userId = auth.user.id;
 
-    const { data: profile, error: profileError } =
-      await supabaseAdmin
-        .from("profiles")
-        .select("id, display_name, status")
-        .eq("id", userId)
-        .maybeSingle();
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, display_name, status")
+      .eq("id", userId)
+      .maybeSingle();
 
     if (profileError) {
       console.error("Profile lookup failed:", profileError.message);
@@ -137,10 +133,9 @@ export async function GET(request: NextRequest) {
         let audioUrl: string | null = null;
 
         if (recording.audio_path) {
-          const { data, error: signError } =
-            await supabaseAdmin.storage
-              .from(BUCKET)
-              .createSignedUrl(recording.audio_path, 60);
+          const { data, error: signError } = await supabaseAdmin.storage
+            .from(BUCKET)
+            .createSignedUrl(recording.audio_path, 60);
 
           if (!signError && data?.signedUrl) {
             audioUrl = data.signedUrl;
@@ -197,12 +192,11 @@ export async function POST(request: NextRequest) {
 
     const user = auth.user;
 
-    const { data: profile, error: profileError } =
-      await supabaseAdmin
-        .from("profiles")
-        .select("id, status")
-        .eq("id", user.id)
-        .maybeSingle();
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, status")
+      .eq("id", user.id)
+      .maybeSingle();
 
     if (profileError) {
       console.error("Profile lookup failed:", profileError.message);
@@ -218,7 +212,7 @@ export async function POST(request: NextRequest) {
     const audio = formData.get("audio");
     const mode = String(formData.get("mode") || "");
     const language = String(formData.get("language") || "pidgin");
-    const text = String(formData.get("text") || "");
+    const text = String(formData.get("text") || "").trim();
     const duration = Number(formData.get("duration") || 0);
 
     if (!(audio instanceof File)) {
@@ -253,16 +247,119 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      !Number.isFinite(duration) ||
-      duration < 1 ||
-      duration > 3600
-    ) {
+    if (!Number.isFinite(duration) || duration < 1 || duration > 3600) {
       return jsonError("Invalid recording duration.", 400);
     }
 
+    // Count previous recordings for this user (for recording_number)
+    const { count: existingCount, error: countError } = await supabaseAdmin
+      .from("recordings")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if (countError) {
+      console.error("Count failed:", countError.message);
+      return jsonError("Could not prepare recording number.", 500);
+    }
+
+    const recordingNumber = (existingCount || 0) + 1;
     const extension = getExtension(audio.type);
+    const fileName = `\( {Date.now()}- \){randomUUID()}.${extension}`;
 
-    const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
+    // Every file belongs to the authenticated worker only
+    const storagePath = `\( {user.id}/ \){fileName}`;
 
-    // Every file belongs to the
+    const arrayBuffer = await audio.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(storagePath, buffer, {
+        contentType: audio.type || "audio/webm",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Storage upload failed:", uploadError.message);
+      return jsonError("Could not upload your audio. Please try again.", 500);
+    }
+
+    uploadedPath = storagePath;
+
+    const isFreeTalk = mode === "free_talk";
+    const wordCount = text
+      ? text.split(/\s+/).filter(Boolean).length
+      : 0;
+
+    const { data: recording, error: insertError } = await supabaseAdmin
+      .from("recordings")
+      .insert({
+        user_id: user.id,
+        file_name: fileName,
+        audio_path: storagePath,
+        pidgin_text: text || null,
+        transcription: text || null,
+        language: language || "pidgin",
+        word_count: wordCount,
+        recording_number: recordingNumber,
+        is_free_talk: isFreeTalk,
+        is_whatsapp_group: false,
+        admin_status: "pending",
+        duration_seconds: Math.round(duration),
+      })
+      .select(
+        "id, user_id, file_name, audio_path, pidgin_text, transcription, language, word_count, recording_number, is_free_talk, is_whatsapp_group, admin_status, created_at, duration_seconds"
+      )
+      .single();
+
+    if (insertError) {
+      console.error("DB insert failed:", insertError.message);
+
+      // Clean up the uploaded file so we don't leave orphans
+      if (uploadedPath) {
+        await supabaseAdmin.storage.from(BUCKET).remove([uploadedPath]);
+      }
+
+      return jsonError("Could not save your recording. Please try again.", 500);
+    }
+
+    // Optional short-lived signed URL for immediate playback
+    let audioUrl: string | null = null;
+    const { data: signed } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .createSignedUrl(storagePath, 60);
+
+    if (signed?.signedUrl) {
+      audioUrl = signed.signedUrl;
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        recording: {
+          ...recording,
+          audio_url: audioUrl,
+        },
+      },
+      {
+        status: 201,
+        headers: {
+          "Cache-Control": "private, no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Worker recordings POST failed:", error);
+
+    // Best-effort cleanup if we uploaded but crashed later
+    if (uploadedPath) {
+      try {
+        await supabaseAdmin.storage.from(BUCKET).remove([uploadedPath]);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+
+    return jsonError("Unexpected server error.", 500);
+  }
+}
