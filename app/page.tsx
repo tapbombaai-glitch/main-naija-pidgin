@@ -1,33 +1,49 @@
 import Link from "next/link";
 import "./home.css";
 
-export default function HomePage() {
+export default function Home() {
   return (
-    <main className="home">
+    <div className="home">
       <div className="content">
-        <header className="hero">
-          <div className="brand"><span className="brandIcon">🎙️</span> MAIN NAIJA PIDGIN</div>
-          <div className="statusBadge"><span className="statusDot" /> VOICE RECORDING PLATFORM</div>
+        <div className="hero">
+          <div className="brand"><span className="brandIcon">🇳🇬</span> MAIN NAIJA PIDGIN</div>
+          <div className="statusBadge"><span className="statusDot"></span> FRONTEND DEMO</div>
           <h1>Welcome to <span>Main Naija Pidgin</span></h1>
-          <p className="subtitle">Record authentic Nigerian Pidgin voices, submit your recordings, and let the Chairman review your work.</p>
-        </header>
-        <section className="panels">
+          <p className="subtitle">Preserving authentic Nigerian languages through community voice recording.</p>
+        </div>
+
+        <div className="panels">
           <Link href="/admin/login" className="panel chairman">
-            <div className="chairmanIcon">👑</div><div className="chairmanLabel">ADMINISTRATION</div>
-            <h2>Chairman Panel</h2><p>Review recordings, approve submissions, and manage the platform.</p>
-            <span className="chairmanButton">Chairman Login →</span>
+            <div className="chairmanIcon">👑</div>
+            <div className="chairmanLabel">CHAIRMAN PANEL</div>
+            <h2>Chairman Dashboard</h2>
+            <p>Review recordings, manage workers.</p>
+            <div className="chairmanButton"><span>Open Chairman Panel</span><span>→</span></div>
           </Link>
-          <Link href="/worker-login" className="panel worker">
-            <div className="workerTop"><span className="workerIcon">🎙️</span><span className="workerBadge">RECORDING WORKSPACE</span></div>
-            <h2>Worker Panel</h2><p>Listen to assigned sentences, record your voice, review your audio, and submit your recordings to the Chairman.</p>
-            <div className="workerFeatures"><span>🎧 Listen</span><span>🎤 Record</span><span>📤 Submit</span></div>
-            <span className="workerButton">Open Worker Workspace →</span>
-            <div className="workerFootnote">Your recordings go to the Chairman for review.</div>
-          </Link>
-        </section>
-        <section className="apiSection"><div><span className="apiIcon">🔑</span><div><h2>API Marketplace</h2><p>Explore voice API access, available credit packages, and developer documentation.</p></div></div><Link href="/api-keys" className="apiButton">Explore API →</Link></section>
-        <footer className="footer"><span>MAIN NAIJA PIDGIN © 2026</span><span>Built for Nigerian voices 🇳🇬</span></footer>
+
+          <div className="panel worker">
+            <div className="workerTop">
+              <div className="workerIcon">🎙️</div>
+              <div className="workerBadge">RECORDING WORKSPACE</div>
+            </div>
+            <h2>Worker Panel</h2>
+            <p>Login to access your recording facilities.</p>
+            <Link href="/worker/login" style={{textDecoration:'none'}}>
+              <div className="workerButton" style={{justifyContent:'center', marginTop:'24px', cursor:'pointer'}}>
+                Log In →
+              </div>
+            </Link>
+            <div className="workerFootnote">Facilities will appear after login.</div>
+          </div>
+        </div>
+
+        <div className="apiSection">
+          <div><div className="apiIcon">🔌</div><div><h2>API Marketplace</h2><p>Access datasets.</p></div></div>
+          <Link href="/api-docs" className="apiButton"><span>Explore API</span><span>→</span></Link>
+        </div>
+
+        <div className="footer"><span>MAIN NAIJA PIDGIN © 2026</span><span>Built for Nigerian voices 🇳🇬</span></div>
       </div>
-    </main>
+    </div>
   );
 }
