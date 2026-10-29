@@ -114,4 +114,4 @@ export default function Home() {
       </div>
     </div>
   );
-} I hope everything is complete here both what I saw in the video
+} 
