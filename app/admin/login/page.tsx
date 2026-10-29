@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import "./login.css";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
@@ -20,36 +19,43 @@ export default function ChairmanLogin() {
     }
 
     if (email && password) {
-      window.location.href = "/admin/dashboard";
+      window.location.href = "/admin";
     } else {
       setError("Fill email and password");
     }
   };
 
   return (
-    <main className="loginPage">
-      <div className="loginContent">
-        <Link href="/" className="backLink">← Back to Home</Link>
-        <div className="loginCard">
-          <div className="loginHeader">
-            <div className="crownIcon">👑</div>
-            <div className="adminLabel">ADMINISTRATION</div>
-            <h1>Chairman Panel</h1>
-            <p>Chairman only - tapbomba.ai@gmail.com</p>
+    <main style={{ minHeight: "100vh", background: "#000", color: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: "420px" }}>
+        <Link href="/" style={{ color: "#22c55e", fontSize: "14px", textDecoration: "none" }}>← Back to Home</Link>
+        
+        <div style={{ marginTop: "20px", border: "1px solid #222", borderRadius: "16px", padding: "24px", background: "#0a0a0a" }}>
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{ fontSize: "40px" }}>👑</div>
+            <div style={{ color: "#22c55e", fontSize: "12px", letterSpacing: "2px", marginTop: "8px" }}>ADMINISTRATION</div>
+            <h1 style={{ fontSize: "24px", marginTop: "8px" }}>Chairman Panel</h1>
+            <p style={{ color: "#888", fontSize: "13px", marginTop: "4px" }}>Chairman only - tapbomba.ai@gmail.com</p>
           </div>
-          <form onSubmit={handleLogin} className="loginForm">
-            <div className="inputGroup">
-              <label>Chairman Email</label>
-              <input type="email" placeholder="tapbomba.ai@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+
+          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label style={{ fontSize: "13px", color: "#aaa" }}>Chairman Email</label>
+              <input type="email" placeholder="tapbomba.ai@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", marginTop: "6px", padding: "12px", borderRadius: "10px", border: "1px solid #333", background: "#111", color: "white" }} />
             </div>
-            <div className="inputGroup">
-              <label>Password</label>
-              <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div>
+              <label style={{ fontSize: "13px", color: "#aaa" }}>Password</label>
+              <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", marginTop: "6px", padding: "12px", borderRadius: "10px", border: "1px solid #333", background: "#111", color: "white" }} />
             </div>
-            {error && <p style={{color:'#ff4444', background:'#3a1717', padding:'10px', borderRadius:'8px', fontSize:'13px'}}>{error}</p>}
-            <button type="submit" className="loginBtn">Chairman Login →</button>
+
+            {error && <p style={{ color: '#ff5555', background: '#2a1212', padding: '10px', borderRadius: '8px', fontSize: '13px', border: '1px solid #5a2222' }}>{error}</p>}
+
+            <button type="submit" style={{ padding: "14px", background: "#22c55e", color: "black", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
+              Chairman Login →
+            </button>
           </form>
-          <div className="loginFooter">MAIN NAIJA PIDGIN © 2026 - No Supabase needed now</div>
+
+          <div style={{ textAlign: "center", marginTop: "16px", color: "#555", fontSize: "11px" }}>MAIN NAIJA PIDGIN © 2026 - Build Fixed ✅</div>
         </div>
       </div>
     </main>
