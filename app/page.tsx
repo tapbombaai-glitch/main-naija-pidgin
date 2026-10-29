@@ -43,7 +43,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* YOUR MARKETPLACE CODE ADDED INSIDE app/page - SAME AS YOU GAVE ME */}
+        {/* MARKETPLACE API KEY - YOUR CODE + MARKETPLACE KEY ADDED */}
         <div style={{marginTop:"14px"}}>
           <div style={{background:"linear-gradient(180deg, #111a12 0%, #0d1210 100%)", border:"1px solid #1f3a25", borderRadius:"20px", padding:"20px"}}>
             <div style={{display:"flex", gap:"12px", alignItems:"flex-start"}}>
@@ -55,7 +55,7 @@ export default function Home() {
             </div>
             <div style={{marginTop:"18px", background:"#0a100c", border:"1px solid #1e3a25", borderRadius:"16px", padding:"14px"}}>
               <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
-                <p style={{fontSize:"10px", fontWeight:"800", color:"#777", letterSpacing:"1px", margin:0}}>YOUR API KEY</p>
+                <p style={{fontSize:"10px", fontWeight:"800", color:"#777", letterSpacing:"1px", margin:0}}>YOUR MARKETPLACE API KEY</p>
                 <span style={{fontSize:"9px", background:"#102216", color:"#4ade80", padding:"3px 8px", borderRadius:"20px", border:"1px solid #1f5a2a"}}>● LIVE</span>
               </div>
               <code style={{display:"block", marginTop:"10px", background:"black", border:"1px solid #1a2a1e", padding:"10px", borderRadius:"8px", color:"#4ade80", fontSize:"11px", wordBreak:"break-all", fontFamily:"monospace"}}>{apiKey}</code>
