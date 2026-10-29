@@ -1,47 +1,81 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import "./../home.css";
 
-export default function Marketplace() {
-  const [key, setKey] = useState("mnk_live_5X8...9f2a (Demo)");
-  const generate = () => {
-    setKey("mnk_live_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
-  };
+export default function MarketplacePage() {
+  const [copied, setCopied] = useState(false);
+  const apiKey = "mnpp_live_sk_9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8c7";
 
   return (
-    <div style={{minHeight:"100vh", background:"#090b0e", color:"white", padding:"24px"}}>
-      <Link href="/" style={{color:"#22c55e", fontSize:"14px"}}>← Back to Home</Link>
-      
-      <div style={{maxWidth:"700px", margin:"40px auto"}}>
-        <div style={{background:"linear-gradient(145deg,#171a20,#101216)", border:"1px solid #2a2d32", borderRadius:"20px", padding:"32px"}}>
-          <h1 style={{fontSize:"28px", fontWeight:"800"}}>🔌 API Marketplace</h1>
-          <p style={{color:"#888", marginTop:"8px"}}>Access Main Naija Pidgin voice datasets via API.</p>
-
-          <div style={{marginTop:"24px", background:"#101216", border:"1px solid #2a2d32", borderRadius:"12px", padding:"16px"}}>
-            <p style={{fontSize:"12px", color:"#aaa"}}>YOUR API KEY</p>
-            <div style={{display:"flex", gap:"8px", marginTop:"8px"}}>
-              <code style={{flex:1, background:"#0a0c10", padding:"12px", borderRadius:"8px", fontSize:"13px", overflow:"hidden", textOverflow:"ellipsis"}}>{key}</code>
-              <button onClick={()=>navigator.clipboard.writeText(key)} style={{background:"#22c55e", color:"black", border:"none", borderRadius:"8px", padding:"0 16px", fontWeight:"bold"}}>Copy</button>
+    <div className="home">
+      <div className="content" style={{maxWidth:"800px"}}>
+        
+        <div className="hero" style={{paddingBottom:"10px"}}>
+          <Link href="/" style={{color:"#4ade80", textDecoration:"none", fontSize:"14px", fontWeight:"700"}}>← Back to Dashboard</Link>
+          <div style={{marginTop:"18px", display:"flex", alignItems:"center", gap:"14px"}}>
+            <div style={{width:"52px", height:"52px", background:"#132a1a", borderRadius:"16px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"26px"}}>🔌</div>
+            <div>
+              <h1 style={{fontSize:"22px", fontWeight:"900", margin:0}}>API <span>Marketplace</span></h1>
+              <p className="subtitle" style={{marginTop:"4px", fontSize:"13px"}}>Build with authentic Naija Pidgin voices & datasets — Full page</p>
             </div>
-            <button onClick={generate} style={{marginTop:"12px", width:"100%", background:"transparent", border:"1px solid #333", color:"#ccc", borderRadius:"10px", padding:"10px"}}>Generate New Key →</button>
           </div>
-
-          <div style={{marginTop:"24px"}}>
-            <h3>Endpoints</h3>
-            <pre style={{background:"#0a0c10", padding:"16px", borderRadius:"12px", marginTop:"12px", fontSize:"12px", overflow:"auto"}}>
-{`GET /api/v1/recordings
-Header: x-api-key: ${key}
-
-Response:
-{
-  "data": [...],
-  "total": 1240
-}`}
-            </pre>
-          </div>
-
-          <p style={{marginTop:"20px", fontSize:"11px", color:"#555", textAlign:"center"}}>MAIN NAIJA PIDGIN API · 2026</p>
         </div>
+
+        <div style={{marginTop:"20px", background:"linear-gradient(180deg, #101b13 0%, #0a1410 100%)", border:"1px solid #1f4d2a", borderRadius:"24px", padding:"24px"}}>
+          <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+            <p style={{fontSize:"11px", fontWeight:"800", color:"#aaa", letterSpacing:"1px", margin:0}}>YOUR API KEY</p>
+            <span style={{fontSize:"10px", background:"#102216", color:"#4ade80", padding:"4px 10px", borderRadius:"20px", border:"1px solid #1f5a2a"}}>● LIVE</span>
+          </div>
+          <div style={{marginTop:"12px", background:"black", border:"1px solid #1f2f25", borderRadius:"10px", padding:"14px"}}>
+            <code style={{color:"#4ade80", fontSize:"12px", wordBreak:"break-all"}}>{apiKey}</code>
+          </div>
+          <button onClick={()=>{navigator.clipboard.writeText(apiKey); setCopied(true); setTimeout(()=>setCopied(false),2000)}} style={{width:"100%", marginTop:"14px", background: copied ? "#22c55e" : "#1a2a1e", color: copied ? "#041208" : "white", border:"1px solid #2a3a2e", padding:"13px", borderRadius:"12px", fontWeight:"900", cursor:"pointer"}}>
+            {copied ? "✓ Copied to Clipboard!" : "Copy API Key"}
+          </button>
+
+          <div style={{marginTop:"16px", display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"10px"}}>
+            <div style={{background:"#0f1218", border:"1px solid #1f232b", borderRadius:"14px", padding:"16px", textAlign:"center"}}>
+              <div style={{fontSize:"18px", fontWeight:"900"}}>1,000</div><div style={{fontSize:"10px", color:"#888", marginTop:"4px"}}>FREE REQUESTS</div>
+            </div>
+            <div style={{background:"#0f1218", border:"1px solid #1f232b", borderRadius:"14px", padding:"16px", textAlign:"center"}}>
+              <div style={{fontSize:"18px", fontWeight:"900"}}>3</div><div style={{fontSize:"10px", color:"#22c55e", marginTop:"4px", fontWeight:"700"}}>DATASETS LIVE</div>
+            </div>
+            <div style={{background:"#0f1218", border:"1px solid #1f232b", borderRadius:"14px", padding:"16px", textAlign:"center"}}>
+              <div style={{fontSize:"18px", fontWeight:"900"}}>99.9%</div><div style={{fontSize:"10px", color:"#888", marginTop:"4px"}}>UPTIME</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{marginTop:"18px", background:"#0f1218", border:"1px solid #1f232b", borderRadius:"20px", padding:"20px"}}>
+          <h2 style={{fontSize:"16px", fontWeight:"800", margin:0}}>Available Endpoints</h2>
+          <div style={{marginTop:"16px", display:"flex", flexDirection:"column", gap:"10px"}}>
+            <div style={{background:"black", border:"1px solid #1f1f1f", borderRadius:"12px", padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span><span style={{background:"#22c55e", color:"black", padding:"3px 7px", borderRadius:"5px", fontWeight:"900", fontSize:"10px", marginRight:"8px"}}>GET</span><span style={{fontSize:"13px", fontWeight:"600"}}>/api/voices</span></span>
+              <span style={{fontSize:"11px", color:"#666"}}>List recordings</span>
+            </div>
+            <div style={{background:"black", border:"1px solid #1f1f1f", borderRadius:"12px", padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span><span style={{background:"#22c55e", color:"black", padding:"3px 7px", borderRadius:"5px", fontWeight:"900", fontSize:"10px", marginRight:"8px"}}>GET</span><span style={{fontSize:"13px", fontWeight:"600"}}>/api/datasets</span></span>
+              <span style={{fontSize:"11px", color:"#666"}}>Pidgin datasets</span>
+            </div>
+            <div style={{background:"black", border:"1px solid #1f1f1f", borderRadius:"12px", padding:"12px 14px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+              <span><span style={{background:"#c4b5fd", color:"black", padding:"3px 7px", borderRadius:"5px", fontWeight:"900", fontSize:"10px", marginRight:"8px"}}>POST</span><span style={{fontSize:"13px", fontWeight:"600"}}>/api/translate</span></span>
+              <span style={{fontSize:"11px", color:"#666"}}>Pidgin → English</span>
+            </div>
+          </div>
+
+          <div style={{marginTop:"18px", display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px"}}>
+            <Link href="/worker" style={{background:"#22c55e", color:"#041208", padding:"14px", borderRadius:"12px", textAlign:"center", textDecoration:"none", fontWeight:"900", fontSize:"14px"}}>Start Building →</Link>
+            <Link href="/" style={{background:"#1f2a22", color:"white", padding:"14px", borderRadius:"12px", textAlign:"center", textDecoration:"none", fontWeight:"700", fontSize:"14px", border:"1px solid #2a3a2e"}}>View Docs</Link>
+          </div>
+        </div>
+
+        <div style={{marginTop:"18px", background:"linear-gradient(135deg, #101b13 0%, #0f1218 100%)", border:"1px solid #1f3a25", borderRadius:"18px", padding:"18px 20px", display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+          <div><h3 style={{fontSize:"14px", fontWeight:"800", margin:0}}>Need more requests?</h3><p style={{fontSize:"12px", color:"#888", margin:"4px 0 0 0"}}>Upgrade to Pro - 50k requests/month</p></div>
+          <div style={{fontSize:"22px"}}>🚀</div>
+        </div>
+
+        <div className="footer" style={{marginTop:"20px"}}><span>MAIN NAIJA PIDGIN © 2026</span><span>API Marketplace 🇳🇬</span></div>
       </div>
     </div>
   );
