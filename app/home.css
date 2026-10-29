@@ -1,11 +1,10 @@
 import Link from "next/link";
-import "./page.css"; // or import as module if you use module.css
+import "./page.css";
 
 export default function Home() {
   return (
     <div className="home">
       <div className="content">
-        {/* HERO */}
         <div className="hero">
           <div className="brand">
             <span className="brandIcon">🇳🇬</span>
@@ -21,9 +20,7 @@ export default function Home() {
           </p>
         </div>
 
-        {/* PANELS */}
         <div className="panels">
-          {/* Chairman - LEFT - SMALL - UNTOUCHED */}
           <Link href="/admin/login" className="panel chairman">
             <div className="chairmanIcon">👑</div>
             <div className="chairmanLabel">CHAIRMAN PANEL</div>
@@ -35,20 +32,14 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Worker - RIGHT - LARGE - NOW MINIMAL AS YOU WANT */}
           <div className="panel worker">
             <div className="workerTop">
               <div className="workerIcon">🎙️</div>
               <div className="workerBadge">RECORDING WORKSPACE</div>
             </div>
-
-            {/* MINIMAL ONLY */}
             <h2>Worker Panel</h2>
             <p>Login to access your recording facilities and start contributing your voice.</p>
 
-            {/* ❌ DELETED workerFeatures — Listen/Record/Submit REMOVED — As you marked X */}
-
-            {/* ONLY ONE BUTTON - LOGIN */}
             <Link href="/worker/login" className="workerButton" style={{ textDecoration: 'none', marginTop: '24px' }}>
               <span>Log In →</span>
               <span>Click to log in</span>
@@ -60,7 +51,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* API MARKETPLACE - BOTTOM - UNTOUCHED */}
         <div className="apiSection">
           <div>
             <div className="apiIcon">🔌</div>
