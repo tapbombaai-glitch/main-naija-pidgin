@@ -1,283 +1,268 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-
-import { supabaseAdmin } from "../../../lib/supabase-admin";
-import {
-  CHAIRMAN_EMAIL,
-  MAX_AUDIO_BYTES,
-  SUPPORTED_LANGUAGES,
-} from "../../../lib/constants";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { randomUUID } from "crypto";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const STORAGE_BUCKET = "worker-recordings";
-const MAX_RECORDING_SECONDS = 60;
-
-const allowedMimeTypes = new Set([
-  "audio/webm",
-  "audio/webm;codecs=opus",
-  "audio/ogg",
-  "audio/ogg;codecs=opus",
-  "audio/mp4",
-  "audio/mpeg",
-  "audio/wav",
-  "audio/x-wav",
-]);
+const BUCKET = "voices";
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
 function jsonError(message: string, status: number) {
-  return NextResponse.json({ success: false, error: message }, { status });
+  return NextResponse.json(
+    { success: false, error: message },
+    {
+      status,
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    }
+  );
 }
 
-function parseBoolean(value: FormDataEntryValue | null): boolean {
-  return value === "true";
+function getExtension(mime: string) {
+  if (mime.includes("mp4")) return "mp4";
+  if (mime.includes("ogg")) return "ogg";
+  if (mime.includes("wav")) return "wav";
+  if (mime.includes("mpeg")) return "mp3";
+
+  return "webm";
 }
 
-export async function POST(req: NextRequest) {
-  let uploadedFilePath: string | null = null;
+async function authenticateWorker(request: NextRequest) {
+  const authorization = request.headers.get("authorization");
 
+  if (!authorization?.startsWith("Bearer ")) {
+    return {
+      user: null,
+      error: "Please log in before continuing.",
+    };
+  }
+
+  const token = authorization.slice(7).trim();
+
+  if (!token) {
+    return {
+      user: null,
+      error: "Your session is invalid. Please log in again.",
+    };
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    return {
+      user: null,
+      error: "Authentication is not configured.",
+    };
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+
+  const { data, error } = await authClient.auth.getUser(token);
+
+  if (error || !data.user) {
+    return {
+      user: null,
+      error: "Your session has expired. Please log in again.",
+    };
+  }
+
+  return {
+    user: data.user,
+    error: null,
+  };
+}
+
+function isBlockedStatus(status: unknown) {
+  const value = String(status ?? "").toLowerCase();
+
+  return ["blocked", "suspended", "disabled"].includes(value);
+}
+
+/**
+ * GET /api/worker-recordings
+ *
+ * Returns only the authenticated worker's recordings.
+ */
+export async function GET(request: NextRequest) {
   try {
-    // 1. Require a bearer access token.
-    const authHeader = req.headers.get("authorization");
+    const auth = await authenticateWorker(request);
 
-    if (!authHeader?.startsWith("Bearer ")) {
-      return jsonError("Missing authorization token.", 401);
+    if (!auth.user) {
+      return jsonError(auth.error || "Unauthorized", 401);
     }
 
-    const token = authHeader.slice("Bearer ".length).trim();
+    const userId = auth.user.id;
 
-    if (!token) {
-      return jsonError("Missing authorization token.", 401);
+    const { data: profile, error: profileError } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name, status")
+        .eq("id", userId)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error("Profile lookup failed:", profileError.message);
+      return jsonError("Could not load your profile.", 500);
     }
 
-    // 2. Verify the user's token using Supabase Auth.
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Missing public Supabase environment variables.");
-      return jsonError("Authentication service is not configured.", 500);
+    if (!profile || isBlockedStatus(profile.status)) {
+      return jsonError("Your account cannot access recordings.", 403);
     }
 
-    const supabaseUserClient = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
+    const { data: recordings, error } = await supabaseAdmin
+      .from("recordings")
+      .select(
+        "id, user_id, file_name, audio_path, pidgin_text, transcription, language, word_count, recording_number, is_free_talk, is_whatsapp_group, admin_status, created_at, duration_seconds"
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error("Recording lookup failed:", error.message);
+      return jsonError("Could not load your recordings.", 500);
+    }
+
+    const result = await Promise.all(
+      (recordings || []).map(async (recording) => {
+        let audioUrl: string | null = null;
+
+        if (recording.audio_path) {
+          const { data, error: signError } =
+            await supabaseAdmin.storage
+              .from(BUCKET)
+              .createSignedUrl(recording.audio_path, 60);
+
+          if (!signError && data?.signedUrl) {
+            audioUrl = data.signedUrl;
+          }
+        }
+
+        return {
+          ...recording,
+          audio_url: audioUrl,
+        };
+      })
+    );
+
+    return NextResponse.json(
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        success: true,
+        profile,
+        recordings: result,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, no-store",
         },
       }
     );
+  } catch (error) {
+    console.error("Worker recordings GET failed:", error);
+    return jsonError("Unexpected server error.", 500);
+  }
+}
 
-    const {
-      data: { user },
-      error: userError,
-    } = await supabaseUserClient.auth.getUser(token);
+/**
+ * POST /api/worker-recordings
+ *
+ * Uploads an audio file and saves its database record.
+ *
+ * Request: multipart/form-data
+ * Fields:
+ *   audio
+ *   mode
+ *   language
+ *   text
+ *   duration
+ */
+export async function POST(request: NextRequest) {
+  let uploadedPath: string | null = null;
 
-    if (userError || !user) {
-      return jsonError("Your session is invalid or has expired. Please log in again.", 401);
+  try {
+    const auth = await authenticateWorker(request);
+
+    if (!auth.user) {
+      return jsonError(auth.error || "Unauthorized", 401);
     }
 
-    // 3. Prevent the chairman from submitting worker recordings.
-    if (
-      user.email?.trim().toLowerCase() ===
-      CHAIRMAN_EMAIL.trim().toLowerCase()
-    ) {
-      return jsonError("The chairman account cannot submit worker recordings.", 403);
+    const user = auth.user;
+
+    const { data: profile, error: profileError } =
+      await supabaseAdmin
+        .from("profiles")
+        .select("id, status")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error("Profile lookup failed:", profileError.message);
+      return jsonError("Could not verify your worker profile.", 500);
     }
 
-    // 4. Read the submitted form.
-    const formData = await req.formData();
-
-    const audioEntry = formData.get("audio");
-    const textEntry = formData.get("text");
-    const languageEntry = formData.get("language");
-
-    if (
-      !audioEntry ||
-      typeof audioEntry === "string" ||
-      typeof textEntry !== "string"
-    ) {
-      return jsonError("Audio and recording text are required.", 400);
+    if (!profile || isBlockedStatus(profile.status)) {
+      return jsonError("Your account cannot submit recordings.", 403);
     }
 
-    const audioFile = audioEntry;
-    const text = textEntry.trim();
+    const formData = await request.formData();
 
-    if (!text) {
-      return jsonError("Recording text cannot be empty.", 400);
+    const audio = formData.get("audio");
+    const mode = String(formData.get("mode") || "");
+    const language = String(formData.get("language") || "pidgin");
+    const text = String(formData.get("text") || "");
+    const duration = Number(formData.get("duration") || 0);
+
+    if (!(audio instanceof File)) {
+      return jsonError("Select or record an audio file first.", 400);
     }
 
-    if (text.length > 5000) {
-      return jsonError("Recording text is too long.", 400);
+    if (!["free_talk", "read_text"].includes(mode)) {
+      return jsonError("Invalid recording mode.", 400);
     }
 
-    if (audioFile.size <= 0) {
-      return jsonError("The audio file is empty.", 400);
-    }
-
-    if (audioFile.size > MAX_AUDIO_BYTES) {
-      return jsonError("The audio file exceeds the 15 MB limit.", 413);
-    }
-
-    // 5. Validate the audio type.
-    const mimeType = audioFile.type
-      .split(";")[0]
-      .trim()
-      .toLowerCase();
-
-    if (!allowedMimeTypes.has(mimeType)) {
+    if (audio.size === 0 || audio.size > MAX_FILE_SIZE) {
       return jsonError(
-        "Unsupported audio format. Please record using a supported audio format.",
+        "Audio must be greater than 0 bytes and no larger than 25 MB.",
+        400
+      );
+    }
+
+    const allowedTypes = [
+      "audio/webm",
+      "audio/mp4",
+      "audio/ogg",
+      "audio/wav",
+      "audio/mpeg",
+      "audio/x-wav",
+      "application/octet-stream",
+    ];
+
+    if (!allowedTypes.includes(audio.type)) {
+      return jsonError(
+        "Unsupported audio format. Please record again using your browser.",
         415
       );
     }
 
-    // 6. Validate the language.
-    const language =
-      typeof languageEntry === "string" ? languageEntry.trim().toLowerCase() : "pidgin";
-
     if (
-      !SUPPORTED_LANGUAGES.some(
-        (supportedLanguage) => supportedLanguage === language
-      )
+      !Number.isFinite(duration) ||
+      duration < 1 ||
+      duration > 3600
     ) {
-      return jsonError("Unsupported language.", 400);
+      return jsonError("Invalid recording duration.", 400);
     }
 
-    // 7. Read recording metadata.
-    const isFreeTalk = parseBoolean(
-      formData.get("isFreeTalk") ?? formData.get("is_free_talk")
-    );
+    const extension = getExtension(audio.type);
 
-    const isWhatsAppGroup = parseBoolean(
-      formData.get("isWhatsAppGroup") ??
-        formData.get("is_whatsapp_group")
-    );
+    const fileName = `${Date.now()}-${randomUUID()}.${extension}`;
 
-    const durationRaw =
-      formData.get("durationSeconds") ??
-      formData.get("duration_seconds");
-
-    const parsedDuration =
-      typeof durationRaw === "string" ? Number(durationRaw) : 0;
-
-    if (
-      !Number.isFinite(parsedDuration) ||
-      parsedDuration < 0 ||
-      parsedDuration > MAX_RECORDING_SECONDS
-    ) {
-      return jsonError("Recording duration must be between 0 and 60 seconds.", 400);
-    }
-
-    const durationSeconds = Math.floor(parsedDuration);
-
-    // 8. Generate a storage path under this authenticated user's ID.
-    const extensionByMimeType: Record<string, string> = {
-      "audio/webm": "webm",
-      "audio/ogg": "ogg",
-      "audio/mp4": "m4a",
-      "audio/mpeg": "mp3",
-      "audio/wav": "wav",
-      "audio/x-wav": "wav",
-    };
-
-    const extension = extensionByMimeType[mimeType] ?? "webm";
-
-    const randomId = crypto.randomUUID();
-    const filePath = `${user.id}/${Date.now()}-${randomId}.${extension}`;
-
-    // 9. Upload the audio to private Supabase Storage.
-    const audioBuffer = await audioFile.arrayBuffer();
-
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from(STORAGE_BUCKET)
-      .upload(filePath, audioBuffer, {
-        contentType: mimeType,
-        upsert: false,
-      });
-
-    if (uploadError) {
-      console.error("Worker recording storage upload failed:", uploadError.message);
-      return jsonError("Failed to upload the recording. Please try again.", 500);
-    }
-
-    uploadedFilePath = filePath;
-
-    // 10. Insert the recording metadata.
-    const { data: insertedRecording, error: insertError } =
-      await supabaseAdmin
-        .from("worker_recordings")
-        .insert({
-          user_id: user.id,
-          email: user.email ?? null,
-          text,
-          language,
-          storage_path: filePath,
-          duration_seconds: durationSeconds,
-          is_free_talk: isFreeTalk,
-          is_whatsapp_group: isWhatsAppGroup,
-          status: "pending",
-          file_size: audioFile.size,
-          mime_type: mimeType,
-        })
-        .select("id")
-        .single();
-
-    if (insertError) {
-      console.error("Worker recording database insert failed:", insertError.message);
-
-      // 11. Remove the uploaded file if its database record could not be saved.
-      const { error: cleanupError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .remove([filePath]);
-
-      if (cleanupError) {
-        console.error(
-          "Could not remove orphaned recording file:",
-          cleanupError.message
-        );
-      } else {
-        uploadedFilePath = null;
-      }
-
-      return jsonError("Failed to save the recording. Please try again.", 500);
-    }
-
-    uploadedFilePath = null;
-
-    // 12. Return a successful response.
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Recording submitted for chairman review.",
-        recordingId: insertedRecording.id,
-        status: "pending",
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Worker recording API error:", error);
-
-    // Best-effort cleanup if an unexpected error occurs after uploading.
-    if (uploadedFilePath) {
-      const { error: cleanupError } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .remove([uploadedFilePath]);
-
-      if (cleanupError) {
-        console.error(
-          "Unexpected-error cleanup failed:",
-          cleanupError.message
-        );
-      }
-    }
-
-    return jsonError("An unexpected server error occurred.", 500);
-  }
-}
+    // Every file belongs to the
