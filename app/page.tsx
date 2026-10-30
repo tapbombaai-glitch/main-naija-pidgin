@@ -13,29 +13,30 @@ export default function WorkerDashboard() {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<any[]>([]);
-  // ONLY ADD - ADVERT LETTERS
-  const [adIndex, setAdIndex] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // CHANGE HERE - REMOVE PIDGIN SENTENCES, PUT ADVERT WRITINGS YOU CAN READ & SAVE
   const allSentences: Record<string, string[]> = {
-    Pidgin: ["Abeg come help me for here.", "How you dey? I dey come now now.", "Wetin dey happen for Lagos today?", "I no go gree make dem cheat me.", "Oga, how much be this?"],
+    Pidgin: [
+      "Your voice na money! Record Pidgin for MayNaija, collect 30 naira per clip!",
+      "Fifteen seconds equals thirty naira! Talk how you dey, record am, collect!",
+      "Omo no dull! Your accent na asset, MayNaija Pidgin need your original voice!",
+      "Fifty clips per day equals one thousand five hundred naira! Work from phone!",
+      "Chairman dey find voices! Record once, sell forever, chairman approved!",
+      "Naija talk, world listen! Join 500 workers wey dey build Naija voice bank!",
+      "No laptop needed! Just your phone, your voice, your Naija, collect money!",
+      "Help AI understand Naija! Google no sabi Pidgin well, MayNaija dey build am!",
+      "From worker to pro! Level up for MayNaija, pro workers earn fifty thousand weekly!",
+      "Top earner this week don collect twelve thousand five hundred! You fit do pass am!"
+    ],
     Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?"],
     Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni."],
     Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo."],
   };
-
-  // ONLY ADD - ADVERT LETTERS (5 BEST)
-  const adverts = [
-    "🎙️ YOUR VOICE NA MONEY! Record Pidgin/Igbo/Hausa/Yoruba — ₦30 per clip!",
-    "💰 15 SECONDS = ₦30! Talk 'How you dey?' — Record am, collect!",
-    "🔥 OMO NO DULL! Your accent na asset — MayNaija Pidgin need you!",
-    "⚡ 50 CLIPS/DAY = ₦1,500! Work from phone — MayNaija Pidgin dey pay!",
-    "💚 CHAIRMAN DEY FIND VOICES! Record once, sell forever — Chairman approved!"
-  ];
 
   const sentences = allSentences[selectedLang];
 
@@ -44,9 +45,6 @@ export default function WorkerDashboard() {
     if (saved) { try { const p = JSON.parse(saved); setTaskProgress(p.progress); setEarnings(p.earnings); setCurrentSentenceIndex(p.index || 0); } catch {} }
     const files = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
     setSavedFiles(files);
-    // ONLY ADD - ROTATE ADVERT LETTERS
-    const adInt = setInterval(() => setAdIndex(i => (i+1)%adverts.length), 3500);
-    return () => clearInterval(adInt);
   }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
@@ -68,26 +66,20 @@ export default function WorkerDashboard() {
   const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
-  // SAVE TO PHONE FILE + COPY FILE FOR CHAIRMAN - EVERYTHING KEEP!
   const saveAndNext = async () => {
     if (!audioURL) { alert("🎤 Record first!"); return; }
     const blob = await fetch(audioURL).then(r => r.blob());
     const fileName = `recording-${selectedLang}-${Date.now()}.webm`;
-    
-    // 1. DOWNLOAD COPY FILE TO PHONE
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl; a.download = fileName; a.style.display = "none";
     document.body.appendChild(a); a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 500);
-
-    // 2. SAVE TO LIST FOR CHAIRMAN / MARKETPLACE
     const existing = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
     const newFile = { id: Date.now(), lang: selectedLang, sentence: sentences[currentSentenceIndex], fileName, time: new Date().toISOString() };
     existing.unshift(newFile);
     localStorage.setItem("gin_recordings", JSON.stringify(existing.slice(0,100)));
     setSavedFiles(existing.slice(0,100));
-
     const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved + 1 };
     const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
     const nextIndex = (currentSentenceIndex + 1) % sentences.length;
@@ -108,12 +100,6 @@ export default function WorkerDashboard() {
           <div><div style={{ display: "flex", gap: "8px" }}><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: "11px", color: "#aaa" }}>Welcome, <span style={{ color: "white", fontWeight: "800" }}>WORKER-1234{savedFiles.length>0?` - ${savedFiles.length} files saved to phone`:''}</span> <span style={{ color: "#00E676", fontSize: "10px" }}> ● Online</span></div></div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%" }}></div>
         </div>
-
-        {/* ONLY ADD - ADVERT LETTERS BANNER - NOTHING DELETED */}
-        <div style={{ background: "linear-gradient(90deg, #00E676, #00C853)", color: "black", borderRadius: "10px", padding: "9px 10px", marginTop: "6px", fontSize: "10px", fontWeight: "900", textAlign: "center" }}>
-          {adverts[adIndex]}
-        </div>
-
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
           {["Pidgin","Igbo","Hausa","Yoruba"].map(lang=>(
             <button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>
