@@ -1,157 +1,211 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 
 export default function WorkerDashboard() {
-  const router = useRouter();
-  const [workerEmail, setWorkerEmail] = useState("worker@example.com");
-  const [activeTab, setActiveTab] = useState<"home" | "record" | "mywork" | "profile">("home");
   const [isRecording, setIsRecording] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [hasRecording, setHasRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState("");
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [timer, setTimer] = useState(3);
   const [selectedLang, setSelectedLang] = useState("Pidgin");
-
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<any>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const timerIntervalRef = useRef<any>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => {
-    const email = localStorage.getItem("worker_email");
-    // If you no get login page yet, comment this check
-    // const loggedIn = localStorage.getItem("worker_logged_in");
-    // if (!loggedIn) { router.push("/worker/login"); return; }
-    if (email) setWorkerEmail(email);
-  }, [router]);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      chunksRef.current = [];
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        setHasRecording(true);
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      recorder.start();
-      setIsRecording(true);
-      setHasRecording(false);
-      setSeconds(0);
-      setAudioUrl("");
-      timerRef.current = setInterval(() => { setSeconds((prev) => prev + 1); }, 1000);
-    } catch (err) { alert("Please allow microphone access"); }
+  const sentences: Record<string, string> = {
+    Pidgin: "How you dey?\nI dey come now now.",
+    Igbo: "Kedu?\nAna m abịa ugbu a.",
+    Hausa: "Yaya kake?\nIna zuwa yanzu.",
+    Yoruba: "Bawo ni?\nMo n bọ nísinsìnyí.",
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
+  const toggleRecording = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
       setIsRecording(false);
-      clearInterval(timerRef.current);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      return;
     }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      mediaRecorderRef.current = mr;
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        setAudioURL(URL.createObjectURL(blob));
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mr.start();
+      setIsRecording(true);
+      setAudioURL(null);
+      setTimer(0);
+      timerIntervalRef.current = setInterval(() => setTimer(p => p + 1), 1000);
+      if (navigator.vibrate) navigator.vibrate(100);
+    } catch { alert("Allow microphone!"); }
   };
 
-  // FIXED FORMAT
   const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
+    const m = Math.floor(s / 60).toString().padStart(2, "0");
+    const sec = (s % 60).toString().padStart(2, "0");
+    return `${m}:${sec}`;
   };
 
-  const logout = () => {
-    localStorage.removeItem("worker_logged_in");
-    localStorage.removeItem("worker_email");
-    router.push("/");
+  const reRecord = () => {
+    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); }
+    setAudioURL(null); setTimer(0);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
   };
 
-  const stats = { total: 12, pending: 4, approved: 7, rejected: 1 };
-  const recent = [
-    { id: "REC-024", lang: "Pidgin", status: "Pending", date: "Today" },
-    { id: "REC-023", lang: "Hausa", status: "Approved", date: "Yesterday" },
-    { id: "REC-022", lang: "Igbo", status: "Approved", date: "2 days ago" },
-    { id: "REC-021", lang: "Yoruba", status: "Pending", date: "3 days ago" },
-  ];
+  const saveAndNext = () => {
+    if (!audioURL) { alert("Record first!"); return; }
+    const a = document.createElement("a"); a.href = audioURL;
+    a.download = `recording-${selectedLang}-${Date.now()}.webm`; a.click();
+    setAudioURL(null); setTimer(0);
+    alert("Saved! Next task.");
+  };
+
+  useEffect(() => { return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current); streamRef.current?.getTracks().forEach(t => t.stop()); } }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0D12] text-white flex flex-col font-sans">
-      <header className="sticky top-0 z-50 bg-[#0B0D12]/95 backdrop-blur border-b border-[#1F232B] px-4 py-3 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] text-[#D9AE52] font-medium">WORKER WORKSPACE</p>
-          <h1 className="text-base font-bold">Main Naija Pidgin</h1>
+    <div style={{ background: "#080E08", minHeight: "100vh", color: "white", fontFamily: "Inter, sans-serif" }}>
+      <div style={{ maxWidth: "390px", margin: "0 auto", padding: "14px 12px 30px" }}>
+        
+        {/* Header like screenshot */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <h1 style={{ fontSize: "17px", fontWeight: "900", margin: 0 }}>Worker Dashboard</h1>
+              <span style={{ fontSize: "16px" }}>🇳🇬</span>
+            </div>
+            <div style={{ fontSize: "11px", color: "#aaa", marginTop: "2px" }}>
+              Welcome, <span style={{ color: "white", fontWeight: "800" }}>WORKER-1234</span> 
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", marginLeft: "6px" }}>
+                <span style={{ width: "6px", height: "6px", background: "#00E676", borderRadius: "50%", display: "inline-block" }}></span>
+                <span style={{ color: "#00E676", fontSize: "10px" }}>Online</span>
+              </span>
+            </div>
+          </div>
+          <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", marginTop: "6px", boxShadow: "0 0 8px #00E676" }}></div>
         </div>
-        <Link href="/" className="w-9 h-9 rounded-full bg-[#D9AE52] flex items-center justify-center text-black font-bold text-sm">
-          {workerEmail[0].toUpperCase()}
-        </Link>
-      </header>
 
-      <main className="flex-1 overflow-y-auto pb-24 px-4 pt-4">
-        {activeTab === "home" && (
-          <div className="space-y-5">
-            <div><h2 className="text-xl font-bold">How far, Worker 👋</h2><p className="text-sm text-gray-400 mt-1">Your voice dey help build Naija AI</p></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-[#151820] rounded-2xl p-4 border border-[#252A35]"><p className="text-xs text-gray-400">Total</p><p className="text-2xl font-bold text-[#22c55e] mt-1">{stats.total}</p></div>
-              <div className="bg-[#151820] rounded-2xl p-4 border border-[#252A35]"><p className="text-xs text-gray-400">Pending</p><p className="text-2xl font-bold text-orange-400 mt-1">{stats.pending}</p></div>
-              <div className="bg-[#151820] rounded-2xl p-4 border border-[#252A35]"><p className="text-xs text-gray-400">Approved</p><p className="text-2xl font-bold text-purple-400 mt-1">{stats.approved}</p></div>
-              <div className="bg-[#151820] rounded-2xl p-4 border border-[#252A35]"><p className="text-xs text-gray-400">Rejected</p><p className="text-2xl font-bold text-red-400 mt-1">{stats.rejected}</p></div>
-            </div>
-            <button onClick={() => setActiveTab("record")} className="w-full bg-[#22c55e] text-black font-bold py-4 rounded-2xl">🎙️ Start New Recording</button>
-            <div className="bg-[#1A160F] border border-[#3A3020] rounded-2xl p-4">
-              <p className="text-sm font-semibold text-[#D9AE52]">📢 Announcement</p><p className="text-xs text-gray-400 mt-1">Start recording Pidgin, Hausa, Igbo, Yoruba. Max 60 seconds.</p>
-            </div>
-            <div className="space-y-2">{recent.slice(0,3).map(item=>(
-              <div key={item.id} className="bg-[#151820] border border-[#252A35] rounded-xl px-4 py-3 flex justify-between"><div><p className="text-sm font-medium">{item.id}</p><p className="text-xs text-gray-400">{item.lang} • {item.date}</p></div><span className="text-xs px-2.5 py-1 rounded-full bg-orange-900/40 text-orange-400">{item.status}</span></div>
-            ))}</div>
-          </div>
-        )}
-
-        {activeTab === "record" && (
-          <div className="space-y-5">
-            <h2 className="text-xl font-bold">Record Voice</h2>
-            <div className="grid grid-cols-2 gap-2">{["Pidgin","Hausa","Igbo","Yoruba"].map(lang=>(
-              <button key={lang} onClick={()=>setSelectedLang(lang)} className={`py-3 rounded-xl text-sm font-medium border ${selectedLang===lang?"bg-[#22c55e] text-black border-[#22c55e]":"bg-[#151820] border-[#252A35] text-gray-300"}`}>{lang}</button>
-            ))}</div>
-            <div className="bg-[#151820] border border-[#252A35] rounded-3xl p-6 text-center">
-              <div className={`text-4xl font-mono font-bold mb-2 ${isRecording?"text-red-500":"text-white"}`}>{formatTime(seconds)}</div>
-              <div className={`w-24 h-24 rounded-full mx-auto flex items-center justify-center text-4xl mb-6 ${isRecording?"bg-red-500 animate-pulse":"bg-[#22c55e]"}`}>🎤</div>
-              {!isRecording ? (
-                <button onClick={startRecording} className="w-full bg-[#22c55e] text-black font-bold py-4 rounded-2xl">Start Recording</button>
-              ) : (
-                <button onClick={stopRecording} className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl">Stop Recording</button>
-              )}
-              {hasRecording && audioUrl && (
-                <div className="mt-5 space-y-3"><audio controls src={audioUrl} className="w-full"/><div className="flex gap-3"><button onClick={()=>{setHasRecording(false);setAudioUrl("");setSeconds(0);}} className="flex-1 py-3 rounded-xl border border-[#333] text-sm">Again</button><button className="flex-1 py-3 rounded-xl bg-[#22c55e] text-black font-bold text-sm">Submit →</button></div></div>
-              )}
+        {/* Profile Card */}
+        <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "14px", padding: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#0F2A14", border: "1.5px solid #00E676", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>👤</div>
+            <div>
+              <div style={{ fontWeight: "900", fontSize: "12px" }}>WORKER-1234</div>
+              <div style={{ fontSize: "10px", color: "#999", marginTop: "2px", display: "flex", alignItems: "center", gap: "4px" }}>📍 Location: Lagos</div>
+              <div style={{ fontSize: "10px", color: "#999", display: "flex", alignItems: "center", gap: "4px" }}>🎤 Accent: Lagos Pidgin</div>
             </div>
           </div>
-        )}
-
-        {activeTab === "mywork" && (
-          <div className="space-y-4"><h2 className="text-xl font-bold">My Recordings</h2>{recent.map(item=>(
-            <div key={item.id} className="bg-[#151820] border border-[#252A35] rounded-2xl p-4 flex justify-between"><div><p className="font-medium">{item.id}</p><p className="text-sm text-gray-400">{item.lang}</p></div><span className="text-xs px-2.5 py-1 rounded-full bg-green-900/40 text-green-400">{item.status}</span></div>
-          ))}</div>
-        )}
-
-        {activeTab === "profile" && (
-          <div className="space-y-5 text-center pt-4">
-            <div className="w-20 h-20 rounded-full bg-[#D9AE52] mx-auto flex items-center justify-center text-3xl font-bold text-black">{workerEmail[0].toUpperCase()}</div>
-            <h2 className="text-lg font-bold">{workerEmail}</h2>
-            <button onClick={logout} className="w-full py-3.5 rounded-2xl border border-red-900/50 text-red-400">Logout → Dashboard</button>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "#0F2A14", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #1E3A1E" }}>
+              <span style={{ color: "#00E676", fontSize: "14px" }}>★</span>
+            </div>
+            <div style={{ fontSize: "9px", color: "#00E676", fontWeight: "800", marginTop: "3px" }}>Pro<br/>Level</div>
           </div>
-        )}
-      </main>
+        </div>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0F1218] border-t border-[#1F232B] px-2 py-2 flex justify-around">
-        {[{id:"home",label:"Home",icon:"🏠"},{id:"record",label:"Record",icon:"🎙️"},{id:"mywork",label:"My Work",icon:"📁"},{id:"profile",label:"Profile",icon:"👤"}].map(tab=>(
-          <button key={tab.id} onClick={()=>setActiveTab(tab.id as any)} className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl min-w-[70px] ${activeTab===tab.id?"text-[#22c55e]":"text-gray-500"}`}>
-            <span className="text-xl">{tab.icon}</span><span className="text-[11px]">{tab.label}</span>
-          </button>
-        ))}
-      </nav>
+        {/* Language Tabs */}
+        <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
+          {["Pidgin","Igbo","Hausa","Yoruba"].map(lang=>(
+            <button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "9px 0", borderRadius: "8px", fontSize: "11px", fontWeight: "900", border: selectedLang===lang?"none":"1px solid #1E2F1E", background: selectedLang===lang?"#00E676":"#121C12", color: selectedLang===lang?"black":"#aaa" }}>
+              [{lang}]
+            </button>
+          ))}
+        </div>
+
+        {/* Main Task Workspace */}
+        <div style={{ marginTop: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px" }}>
+            <span style={{ color: "#00E676", fontSize: "12px" }}>◉</span>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>Main Task Workspace</span>
+          </div>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: "900" }}>45 <span style={{ fontWeight: "400", color: "#888", fontSize: "12px" }}>/ 500 Recorded</span></div>
+              <div style={{ width: "90px", height: "6px", background: "#1A2A1A", borderRadius: "10px", marginTop: "6px" }}>
+                <div style={{ width: "18%", height: "100%", background: "#00E676", borderRadius: "10px" }}></div>
+              </div>
+            </div>
+            <div style={{ background: "#0A1A0F", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "6px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "10px", color: "#ccc" }}>Today: <span style={{ color: "#00E676", fontWeight: "800" }}>12 / 50</span></span>
+              <span style={{ color: "#00E676" }}>↗</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Recording Studio - EXACT LIKE SCREENSHOT */}
+        <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "14px", padding: "12px", marginTop: "10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "12px" }}>
+            <span style={{ color: "#00E676", fontSize: "12px" }}>🎙️</span>
+            <span style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>Recording Studio</span>
+          </div>
+          
+          <div style={{ textAlign: "center", marginBottom: "16px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p style={{ fontSize: "17px", fontWeight: "900", lineHeight: "22px", whiteSpace: "pre-line", margin: 0 }}>{sentences[selectedLang]}</p>
+          </div>
+
+          {/* Red Record Button */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
+            <button onClick={toggleRecording} style={{ width: "72px", height: "72px", borderRadius: "50%", background: "#E53935", border: "4px solid #7f1d1d", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isRecording ? "0 0 30px rgba(229,57,53,0.8)" : "0 0 18px rgba(229,57,53,0.5)", transition: "all 0.2s" }}>
+              {isRecording ? <div style={{ width: "24px", height: "24px", background: "white", borderRadius: "3px" }}></div> : <div style={{ width: "28px", height: "28px", background: "#7f1d1d", borderRadius: "50%" }}></div>}
+            </button>
+          </div>
+
+          <div style={{ textAlign: "center", fontSize: "12px", fontFamily: "monospace", color: "#ff5252", marginBottom: "12px", fontWeight: "700" }}>{formatTime(timer)} / 00:15</div>
+
+          {/* Waveform + Play */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+            <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#1A2E1A", border: "1px solid #2A4A2A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px" }}>▶</div>
+            <div style={{ flex: 1, height: "24px", display: "flex", alignItems: "center", gap: "2px" }}>
+              {Array.from({ length: 38 }).map((_, i) => (
+                <div key={i} style={{ flex: 1, height: `${4 + Math.random() * 18}px`, background: isRecording || audioURL ? "#00E676" : "#1A3A1A", borderRadius: "2px", opacity: isRecording ? 0.6 + Math.random()*0.4 : 1 }}></div>
+              ))}
+            </div>
+            <div style={{ width: "28px", height: "2px", background: "#00E676", borderRadius: "2px" }}></div>
+          </div>
+
+          {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginBottom: "12px", height: "32px" }} />}
+
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={reRecord} style={{ flex: 1, background: "#1A2E1A", border: "1px solid #2A4A2A", color: "#aaa", padding: "12px", borderRadius: "10px", fontSize: "11px", fontWeight: "800", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>↻ Re-record</button>
+            <button onClick={saveAndNext} style={{ flex: 1.4, background: "#00E676", color: "black", border: "none", padding: "12px", borderRadius: "10px", fontSize: "11px", fontWeight: "900", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>↑ Save & Next</button>
+          </div>
+        </div>
+
+        {/* Earnings Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "10px" }}>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", display: "flex", gap: "6px", alignItems: "center" }}>
+            <div style={{ fontSize: "16px" }}>💰</div>
+            <div><div style={{ fontSize: "8px", color: "#888" }}>Earnings</div><div style={{ fontSize: "12px", fontWeight: "900", color: "#00E676" }}>₦1,250</div></div>
+          </div>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", display: "flex", gap: "6px", alignItems: "center" }}>
+            <div style={{ fontSize: "16px" }}>🕒</div>
+            <div><div style={{ fontSize: "8px", color: "#888" }}>Pending</div><div style={{ fontSize: "12px", fontWeight: "900", color: "#00E676" }}>₦450</div></div>
+          </div>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", display: "flex", gap: "6px", alignItems: "center" }}>
+            <div style={{ fontSize: "16px" }}>✅</div>
+            <div><div style={{ fontSize: "8px", color: "#888" }}>Approved clips</div><div style={{ fontSize: "12px", fontWeight: "900" }}>87</div></div>
+          </div>
+        </div>
+
+        {/* Bottom Nav */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "8px" }}>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+            <span>📊</span><span style={{ fontSize: "10px", color: "#aaa" }}>Earnings</span>
+          </div>
+          <div style={{ background: "#00E676", borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+            <span>👑</span><span style={{ fontSize: "10px", color: "black", fontWeight: "900" }}>Levels</span>
+          </div>
+          <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", gap: "8px", justifyContent: "center" }}>
+            <span>💳</span><span style={{ fontSize: "10px", color: "#aaa" }}>Withdraw</span>
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
