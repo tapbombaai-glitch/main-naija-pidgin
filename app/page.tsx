@@ -21,7 +21,6 @@ export default function Marketplace() {
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"success"|"error">("success");
   const [announces, setAnnounces] = useState<any[]>([]);
-  // ✅ ONLY NEW PART - YOUR LOCAL VOICES
   const [myLocalVoices, setMyLocalVoices] = useState<any[]>([]);
 
   useEffect(() => { loadData(); 
@@ -55,8 +54,6 @@ export default function Marketplace() {
       const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
       if (ann) setAnnounces(ann);
     } catch {}
-
-    // ✅ ONLY NEW - LOAD YOUR 5 RECORDINGS FROM WORKER DASHBOARD
     try {
       const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
       const pidgin = saved.filter((f:any) => f.lang === "Pidgin");
@@ -66,19 +63,24 @@ export default function Marketplace() {
 
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   
-  // ✅ ONLY UPDATED - NOW PLAY YOUR REAL VOICE IF AVAILABLE
+  // ✅ FIXED - PLAY BY NAME SO POSITION NO GO CONFUSE
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); }
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
 
-      // CHECK IF WE HAVE YOUR REAL RECORDING FOR THIS VOICE INDEX
-      const voiceIndex = voices.findIndex((v:any) => v.id === voice.id);
-      const myRecording = myLocalVoices[voiceIndex] || myLocalVoices.find((r:any) => r.sentence?.toLowerCase().includes(voice.name.toLowerCase().split(" ")[0].toLowerCase()));
+      const nameMap: any = {
+        "Lagos Male": 0,
+        "Abuja Female": 1,
+        "Pidgin Narrator": 2,
+        "Delta Warri": 3,
+        "Yoruba Mix": 4
+      };
+      const voiceIndex = nameMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
+      const myRecording = myLocalVoices[voiceIndex];
       
       if (myRecording && myRecording.audioData) {
-        // PLAY YOUR POWERFUL VOICE
         const a = new Audio(myRecording.audioData);
         setAudio(a);
         a.onended = () => setPlayingId(null);
@@ -87,14 +89,11 @@ export default function Marketplace() {
         showToast(`🎧 Playing YOUR voice: ${voice.name}`, "success");
         return;
       }
-
-      // FALLBACK TO ORIGINAL (for Abuja Female if you no get female recording)
       if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
       const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
     } catch { setPlayingId(null); }
   };
 
-  // === FIXED LOGIN SIDE — OPEN BROWSING, LOGIN ONLY ON TAP FOR BOTH FREE + PAYSTACK ===
   const claimFree = async () => {
     if (!user) { 
       showToast("Please login your email - go /login", "error"); 
@@ -138,12 +137,8 @@ export default function Marketplace() {
     <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
       <style>{`
         *{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)}
-        .voice-scroll { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-        @media (max-width: 380px) {
-          .voice-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }
-          .voice-scroll::-webkit-scrollbar { display: none; }
-          .voice-card { min-width: 88px; flex-shrink: 0; }
-        }
+        /* ✅ FIXED - NO MORE CUT, ALL 5 SHOW AT ONCE */
+        .voice-grid-fixed { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
       `}</style>
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType==="error" ? "#FF5252" : "#00E676", color: toastType==="error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 100, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
       
@@ -235,17 +230,18 @@ export default function Marketplace() {
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen {myLocalVoices.length > 0 && <span style={{color:"#00E676", fontSize:"10px"}}>• {myLocalVoices.length} YOUR VOICE READY</span>}</div>
           <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct {myLocalVoices.length > 0 ? "• YOUR VOICE ACTIVE" : ""}</div>
-          <div className="voice-scroll" style={{ marginTop: "10px" }}>
+          {/* ✅ ARRANGED - FIXED GRID, NO SCROLL, NO CUT */}
+          <div className="voice-grid-fixed" style={{ marginTop: "10px" }}>
             {voices.slice(0,5).map((v: any, idx: number) => {
               const hasMyVoice = !!myLocalVoices[idx];
               return (
-              <div key={v.id} onClick={() => playSample(v)} className="voice-card" style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1px solid #00E676" : hasMyVoice ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center", cursor: "pointer", position:"relative" }}>
-                {hasMyVoice && <div style={{position:"absolute", top:"4px", right:"4px", background:"#00E676", color:"black", fontSize:"6px", fontWeight:900, padding:"2px 4px", borderRadius:"10px"}}>YOU</div>}
-                <div style={{ width: "38px", height: "38px", background: playingId === v.id ? "#FF5252" : hasMyVoice ? "#00E676" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "14px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
-                <div style={{ fontSize: "10px", fontWeight: "800", color: "white", marginTop: "7px", lineHeight: "1.1" }}>{v.name}</div>
-                <div style={{ fontSize: "8px", color: hasMyVoice ? "#00E676" : "#999", marginTop: "3px" }}>{hasMyVoice ? "Your Voice" : v.accent.split("-")[0].trim()}</div>
-                <div style={{ marginTop: "8px", display: "flex", justifyContent: "center", gap: "2px", height: "14px", alignItems: "center" }}>
-                  {[...Array(8)].map((_, i) => <div key={i} style={{ width: "2.5px", height: `${4 + (i % 4) * 3}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
+              <div key={v.id} onClick={() => playSample(v)} style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1.5px solid #00E676" : hasMyVoice ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "8px 4px", textAlign: "center", cursor: "pointer", position:"relative", minWidth: 0 }}>
+                {hasMyVoice && <div style={{position:"absolute", top:"3px", right:"3px", background:"#00E676", color:"black", fontSize:"5px", fontWeight:900, padding:"1px 3px", borderRadius:"8px"}}>YOU</div>}
+                <div style={{ width: "36px", height: "36px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "12px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
+                <div style={{ fontSize: "9px", fontWeight: "800", color: "white", marginTop: "6px", lineHeight: "1.1", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{v.name}</div>
+                <div style={{ fontSize: "7px", color: hasMyVoice ? "#00E676" : "#999", marginTop: "2px", fontWeight: hasMyVoice ? 800 : 400 }}>{hasMyVoice ? "Your Voice" : v.accent.split("-")[0].trim()}</div>
+                <div style={{ marginTop: "6px", display: "flex", justifyContent: "center", gap: "2px", height: "12px", alignItems: "center" }}>
+                  {[...Array(6)].map((_, i) => <div key={i} style={{ width: "2px", height: `${3 + (i % 3) * 2}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
                 </div>
               </div>
             )})}
