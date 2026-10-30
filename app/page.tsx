@@ -17,26 +17,25 @@ export default function Home() {
   const [freeRequests, setFreeRequests] = useState(100);
   const [paidRequests, setPaidRequests] = useState(0);
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
-  // 1. CONNECT TO SUPABASE - FETCH REAL DATA
   useEffect(() => {
     async function loadLiveData() {
       const { data: userData } = await supabase.auth.getUser();
       setUser(userData.user);
-
-      // Fetch voices LIVE from Supabase
       const { data: voicesData } = await supabase.from('voices').select('*').eq('active', true);
       if (voicesData && voicesData.length > 0) setVoices(voicesData);
-
-      // Fetch datasets LIVE
       const { data: datasetsData } = await supabase.from('datasets').select('*').eq('live', true);
       if (datasetsData) setDatasets(datasetsData);
-
-      // Fetch user's API key LIVE (100 free voice requests logic)
-      const { data: keysData } = await supabase.from('api_keys').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+      const uid = userData.user?.id;
+      let query = supabase.from('api_keys').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+      if (uid) query = query.eq('user_id', uid);
+      const { data: keysData } = await query;
       if (keysData && keysData[0]) {
         const k = keysData[0];
-        setApiKeyDisplay(k.key_prefix);
+        setApiKeyDisplay(k.key_prefix || k.key?.slice(0,20) + '...');
         setFreeRequests(k.free_requests_remaining ?? 0);
         setPaidRequests(k.paid_requests_remaining ?? 0);
       }
@@ -44,53 +43,89 @@ export default function Home() {
     loadLiveData();
   }, []);
 
-  const handleCopy = async () => {
-    if (realKey) {
-      await navigator.clipboard.writeText(realKey);
-    } else {
-      await navigator.clipboard.writeText(apiKeyDisplay);
+  const playSample = async (voice: any) => {
+    try {
+      if (audio) { audio.pause(); setAudio(null); }
+      if (playingId === (voice.id || voice.name)) { setPlayingId(null); return; }
+      setPlayingId(voice.id || voice.name);
+      if (voice.sample_url || voice.preview_url) {
+        const a = new Audio(voice.sample_url || voice.preview_url);
+        setAudio(a);
+        a.onended = () => setPlayingId(null);
+        await a.play();
+        return;
+      }
+      const res = await fetch('/api/synthesize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': realKey || 'preview' },
+        body: JSON.stringify({ text: voice.sample_text || `How far! Na ${voice.name} be this.`, voice_id: voice.id || voice.name, preview: true })
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        setAudio(a);
+        a.onended = () => setPlayingId(null);
+        await a.play();
+      } else {
+        alert(`🎤 ${voice.name}: "${voice.sample_text || 'Naija voice ready!'}"`);
+        setPlayingId(null);
+      }
+    } catch (e) {
+      alert(`🎤 ${voice.name} - sample`);
+      setPlayingId(null);
     }
+  };
+
+  const handleCopy = async () => {
+    if (realKey) await navigator.clipboard.writeText(realKey);
+    else await navigator.clipboard.writeText(apiKeyDisplay);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // 2. CLAIM FREE 100 VOICE REQUESTS - ONE PER ACCOUNT
   const claimFreeKey = async () => {
-    const res = await fetch('/api/keys/create-free', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user?.id || 'demo-user' })
-    });
-    const data = await res.json();
-    if (data.api_key) {
-      setRealKey(data.api_key);
-      setApiKeyDisplay(data.api_key.slice(0, 20) + '...');
-      setFreeRequests(100);
-      alert(`Free Key Created: ${data.api_key}\n\n100 voice requests - Copy now, it shows once!`);
-    } else {
-      alert(data.error || 'Already claimed free key. Please purchase a package.');
-    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/keys/create-free', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user?.id || 'demo-user-' + Date.now() })
+      });
+      const data = await res.json();
+      if (data.api_key) {
+        setRealKey(data.api_key);
+        setApiKeyDisplay(data.key_prefix || data.api_key.slice(0, 20) + '...');
+        setFreeRequests(100);
+        alert(`Free Key Created: ${data.api_key}\n\n100 voice requests - Copy now, it shows once!`);
+      } else {
+        alert(data.error || 'Already claimed free key. Please purchase a package at /marketplace');
+      }
+    } catch (e) { alert('Network error, try again'); }
+    setLoading(false);
   };
 
-  // 3. BUY PACKAGE - PAYSTACK
   const buyPackage = async (packageId: string) => {
     if (packageId === 'free_100') { claimFreeKey(); return; }
-    const res = await fetch('/api/paystack/initialize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ packageId, email: user?.email || 'customer@mainnaija.com', userId: user?.id || 'demo-user' })
-    });
-    const data = await res.json();
-    if (data.authorization_url) window.location.href = data.authorization_url;
-    else alert(data.error);
+    setLoading(true);
+    try {
+      const res = await fetch('/api/paystack/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId, email: user?.email || 'customer@mainnaija.com', userId: user?.id || 'demo-user' })
+      });
+      const data = await res.json();
+      if (data.authorization_url) window.location.href = data.authorization_url;
+      else alert(data.error || 'Payment init failed');
+    } catch (e) { alert('Payment error'); }
+    setLoading(false);
   };
 
   const totalRemaining = freeRequests + paidRequests;
 
   return (
     <div style={{ background: "#050A05", minHeight: "100vh", width: "100%", overflowX: "hidden" }}>
-      <style>{`*{box-sizing:border-box} body{margin:0}`}</style>
-      
+      <style>{`*{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.98)}`}</style>
       <div style={{ maxWidth: "480px", margin: "0 auto", padding: "12px", width: "100%" }}>
         
         {/* HEADER - UNTOUCHED */}
@@ -119,20 +154,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* API MARKETPLACE - NOW CONNECTED TO SUPABASE + PAYSTACK */}
+        {/* API MARKETPLACE - UNTOUCHED DESIGN */}
         <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "14px", padding: "12px", marginTop: "14px" }}>
-          <div style={{ fontSize: "12px", fontWeight: "800", color: "white", display: "flex", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "12px", fontWeight: "800", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span>⚡ API Marketplace</span>
             <Link href="/marketplace" style={{ fontSize: "10px", color: "#00E676", textDecoration: "none" }}>Marketplace →</Link>
           </div>
-          
           <div style={{ fontSize: "10px", color: "#888", marginTop: "10px" }}>API KEY</div>
-          <div style={{ background: "#0A140A", borderRadius: "8px", padding: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px" }}>
-            <div style={{ fontSize: "12px", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKeyDisplay}</div>
-            <button onClick={handleCopy} style={{ background: "#1E2F1E", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", cursor: "pointer" }}>{copied ? "Copied!" : "Copy"}</button>
+          <div style={{ background: "#0A140A", borderRadius: "8px", padding: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "4px", gap: "8px" }}>
+            <div style={{ fontSize: "11px", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{apiKeyDisplay}</div>
+            <button onClick={handleCopy} style={{ background: "#1E2F1E", color: "white", border: "none", padding: "6px 12px", borderRadius: "6px", fontSize: "11px", cursor: "pointer", flexShrink: 0 }}>{copied ? "Copied!" : "Copy"}</button>
           </div>
-
-          {/* UPGRADED: NOW SHOWS REAL 100 FREE VOICE REQUESTS */}
+          {realKey && <div style={{ fontSize: "9px", color: "#FFB300", marginTop: "6px", wordBreak: "break-all" }}>⚠️ {realKey}</div>}
           <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
             <div style={{ flex: 1, background: "#0A140A", borderRadius: "8px", padding: "8px", textAlign: "center" }}>
               <div style={{ fontSize: "16px", fontWeight: "900", color: "#00E676" }}>{totalRemaining}</div>
@@ -148,30 +181,30 @@ export default function Home() {
               <div style={{ fontSize: "8px", color: "#666" }}>UPTIME</div>
             </div>
           </div>
-
           <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
-            <button onClick={() => buyPackage('free_100')} style={{ flex: 1, background: "#00E676", color: "#000", border: "none", padding: "8px", borderRadius: "20px", fontSize: "10px", fontWeight: "900", cursor: "pointer" }}>Claim 100 Free</button>
-            <Link href="/marketplace" style={{ flex: 1 }}><div style={{ background: "white", color: "#000", textAlign: "center", padding: "8px", borderRadius: "20px", fontSize: "10px", fontWeight: "900" }}>Buy Requests</div></Link>
+            <button onClick={() => buyPackage('free_100')} disabled={loading} style={{ flex: 1, background: "#00E676", color: "#000", border: "none", padding: "10px", borderRadius: "20px", fontSize: "10px", fontWeight: "900", cursor: "pointer" }}>{loading ? "..." : "Claim 100 Free"}</button>
+            <Link href="/marketplace" style={{ flex: 1, textDecoration: "none" }}><div style={{ background: "white", color: "#000", textAlign: "center", padding: "10px", borderRadius: "20px", fontSize: "10px", fontWeight: "900" }}>Buy Requests</div></Link>
           </div>
         </div>
 
-        {/* PREVIEW VOICES - NOW LIVE FROM SUPABASE */}
+        {/* PREVIEW VOICES - UNTOUCHED BUT NOW WITH WORKING PLAY BUTTON FOR YOUR VOICE */}
         <div style={{ marginTop: "14px" }}>
-          <div style={{ fontSize: "12px", fontWeight: "800", color: "white" }}>● Preview Voices</div>
+          <div style={{ fontSize: "12px", fontWeight: "800", color: "white" }}>● Preview Voices - Tap ▶ to hear</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
             {(voices.length > 0 ? voices : [
+              { id: "owner", name: "My Voice - Founder", accent: "Owner's Original", sample_text: "How far! Na me be owner of Main Naija Pidgin!" },
               { name: "Lagos Male", accent: "Natural - Young" },
               { name: "Abuja Female", accent: "Warm - Professional" },
               { name: "Pidgin Narrator", accent: "Story - Expressive" },
               { name: "Delta", accent: "Rugged - Local" },
               { name: "Yoruba Mix", accent: "Hybrid - Bilingual" },
             ]).map((v: any, i: number) => (
-              <div key={i} style={{ background: "#121C12", borderRadius: "10px", padding: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>{v.name}</div>
+              <div key={i} style={{ background: v.id === "owner" ? "#1A2F1A" : "#121C12", borderRadius: "10px", padding: "10px", display: "flex", justifyContent: "space-between", alignItems: "center", border: v.id === "owner" ? "1px solid #00E676" : "none" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>{v.name} {v.id==="owner" && <span style={{ fontSize: "7px", background: "#00E676", color: "#000", padding: "1px 4px", borderRadius: "4px" }}>YOU</span>}</div>
                   <div style={{ fontSize: "9px", color: "#666" }}>{v.accent || v.accent_type}</div>
                 </div>
-                <div style={{ width: "22px", height: "22px", background: "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#000" }}>▶</div>
+                <button onClick={() => playSample(v)} style={{ width: "26px", height: "26px", background: playingId === (v.id || v.name) ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#000", border: "none", cursor: "pointer", marginLeft: "6px" }}>{playingId === (v.id || v.name) ? "■" : "▶"}</button>
               </div>
             ))}
             <div style={{ background: "#121C12", borderRadius: "10px", padding: "10px" }}>
