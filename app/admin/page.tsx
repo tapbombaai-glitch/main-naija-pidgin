@@ -2,19 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  Menu,
-  X,
-  LayoutDashboard,
-  Mic,
-  Users,
-  Megaphone,
-  LogOut,
-  TrendingUp,
-  CheckCircle,
-  Clock,
-  XCircle,
-} from "lucide-react";
 
 export default function ChairmanOverview() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -27,9 +14,9 @@ export default function ChairmanOverview() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="p-2 rounded-lg bg-[#111811] border border-[#1e2a1e] hover:bg-[#162016] transition"
+              className="p-2 rounded-lg bg-[#111811] border border-[#1e2a1e] hover:bg-[#162016] transition text-sm"
             >
-              {menuOpen ? <X size={18} /> : <Menu size={18} />}
+              {menuOpen ? "✕" : "☰"}
             </button>
 
             <div className="flex items-center gap-1.5">
@@ -64,32 +51,28 @@ export default function ChairmanOverview() {
               href="/admin"
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-green-600/15 text-green-500 border-l-2 border-green-500 text-sm font-semibold"
             >
-              <LayoutDashboard size={16} />
-              Overview
+              <span>📊</span> Overview
             </Link>
 
             <Link
               href="/admin/recordings"
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-[#111811] hover:text-white text-sm transition"
             >
-              <Mic size={16} />
-              Recording Review
+              <span>🎙️</span> Recording Review
             </Link>
 
             <Link
               href="/admin/workers"
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-[#111811] hover:text-white text-sm transition"
             >
-              <Users size={16} />
-              Workers
+              <span>👷</span> Workers
             </Link>
 
             <Link
               href="/admin/announcements"
               className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-gray-400 hover:bg-[#111811] hover:text-white text-sm transition"
             >
-              <Megaphone size={16} />
-              Announcements
+              <span>📢</span> Announcements
             </Link>
           </nav>
 
@@ -98,8 +81,7 @@ export default function ChairmanOverview() {
               href="/"
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-500 transition"
             >
-              <LogOut size={15} />
-              Logout
+              <span>→</span> Logout
             </Link>
             <p className="text-[10px] text-gray-600 text-center mt-3">
               tapbomba.ai@gmail.com
@@ -107,7 +89,6 @@ export default function ChairmanOverview() {
           </div>
         </aside>
 
-        {/* Mobile Overlay */}
         {menuOpen && (
           <div
             className="fixed inset-0 bg-black/60 z-30 md:hidden"
@@ -117,7 +98,6 @@ export default function ChairmanOverview() {
 
         {/* MAIN CONTENT */}
         <main className="flex-1 p-4 md:p-6 max-w-5xl mx-auto w-full">
-          {/* Greeting */}
           <div className="mb-6">
             <h2 className="text-xl font-bold flex items-center gap-2">
               Good Morning, Chairman <span>👑</span>
@@ -127,103 +107,56 @@ export default function ChairmanOverview() {
             </p>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
             <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                <Users size={14} />
-                Total Workers
-              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">👷 Total Workers</div>
               <p className="text-2xl font-bold">24</p>
               <p className="text-xs text-green-500 mt-1">↑ Active</p>
             </div>
-
             <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                <Clock size={14} />
-                Pending
-              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">⏳ Pending</div>
               <p className="text-2xl font-bold text-yellow-400">7</p>
               <p className="text-xs text-yellow-500 mt-1">Needs review</p>
             </div>
-
             <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                <CheckCircle size={14} />
-                Approved
-              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">✅ Approved</div>
               <p className="text-2xl font-bold text-green-400">15</p>
               <p className="text-xs text-green-500 mt-1">Live</p>
             </div>
-
             <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
-                <XCircle size={14} />
-                Rejected
-              </div>
+              <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">❌ Rejected</div>
               <p className="text-2xl font-bold text-red-400">2</p>
               <p className="text-xs text-red-500 mt-1">Removed</p>
             </div>
           </div>
 
-          {/* Recording Activity */}
           <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold flex items-center gap-2">
-                <TrendingUp size={16} className="text-green-500" />
-                Recording Activity
-              </h3>
+              <h3 className="text-sm font-semibold flex items-center gap-2">📈 Recording Activity</h3>
               <div className="flex gap-2">
-                <span className="bg-green-600 text-white px-2.5 py-1 rounded-full text-[10px] font-semibold">
-                  This Year
-                </span>
-                <span className="bg-[#1e2a1e] text-gray-500 px-2.5 py-1 rounded-full text-[10px]">
-                  Month
-                </span>
+                <span className="bg-green-600 text-white px-2.5 py-1 rounded-full text-[10px] font-semibold">This Year</span>
+                <span className="bg-[#1e2a1e] text-gray-500 px-2.5 py-1 rounded-full text-[10px]">Month</span>
               </div>
             </div>
-
             <div className="flex items-end gap-2 h-28 overflow-x-auto pb-2">
               {[
-                { m: "Jan", h: 50 },
-                { m: "Feb", h: 30 },
-                { m: "Mar", h: 80 },
-                { m: "Apr", h: 45 },
-                { m: "May", h: 85 },
-                { m: "Jun", h: 25 },
-                { m: "Jul", h: 70 },
-                { m: "Aug", h: 65 },
-                { m: "Sep", h: 55 },
-                { m: "Oct", h: 75 },
-                { m: "Nov", h: 60 },
-                { m: "Dec", h: 90 },
+                { m: "Jan", h: 50 }, { m: "Feb", h: 30 }, { m: "Mar", h: 80 }, { m: "Apr", h: 45 },
+                { m: "May", h: 85 }, { m: "Jun", h: 25 }, { m: "Jul", h: 70 }, { m: "Aug", h: 65 },
+                { m: "Sep", h: 55 }, { m: "Oct", h: 75 }, { m: "Nov", h: 60 }, { m: "Dec", h: 90 },
               ].map((b) => (
-                <div
-                  key={b.m}
-                  className="flex-shrink-0 w-6 flex flex-col items-center gap-1.5"
-                >
-                  <div
-                    className="w-full bg-green-500 rounded-t-md"
-                    style={{ height: `${b.h}%` }}
-                  />
+                <div key={b.m} className="flex-shrink-0 w-6 flex flex-col items-center gap-1.5">
+                  <div className="w-full bg-green-500 rounded-t-md" style={{ height: `${b.h}%` }} />
                   <span className="text-[9px] text-gray-500">{b.m}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Recent Submissions */}
           <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold">Recent Submissions</h3>
-              <Link
-                href="/admin/recordings"
-                className="text-xs text-green-500 font-medium hover:underline"
-              >
-                View All →
-              </Link>
+              <Link href="/admin/recordings" className="text-xs text-green-500 font-medium hover:underline">View All →</Link>
             </div>
-
             <div className="space-y-3">
               {[
                 { id: "Worker-024", lang: "Pidgin", status: "Pending" },
@@ -231,29 +164,5 @@ export default function ChairmanOverview() {
                 { id: "Worker-022", lang: "Igbo", status: "Approved" },
                 { id: "Worker-021", lang: "Yoruba", status: "Pending" },
               ].map((w) => (
-                <div
-                  key={w.id}
-                  className="flex items-center justify-between bg-[#0a0f0a] border border-[#1e2a1e] rounded-xl px-3.5 py-3"
-                >
+                <div key={w.id} className="flex items-center justify-between bg-[#0a0f0a] border border-[#1e2a1e] rounded-xl px-3.5 py-3">
                   <div>
-                    <p className="text-sm font-semibold">{w.id}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{w.lang}</p>
-                  </div>
-                  <span
-                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
-                      w.status === "Pending"
-                        ? "bg-yellow-500/15 text-yellow-400"
-                        : "bg-green-500/15 text-green-400"
-                    }`}
-                  >
-                    {w.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
