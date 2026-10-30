@@ -1,134 +1,112 @@
-"use client";
-import Link from "next/link";
-import { useState } from "react";
+"use client"
+import { useState, useEffect } from "react"
 
-export default function ChairmanOverview() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+export default function ChairmanPanel() {
+  const [activeTab, setActiveTab] = useState("overview")
+  const [workers, setWorkers] = useState([
+    { id: "024", lang: "Pidgin", status: "Pending", name: "Worker-024" },
+    { id: "023", lang: "Hausa", status: "Approved", name: "Worker-023" },
+    { id: "022", lang: "Igbo", status: "Approved", name: "Worker-022" },
+  ])
 
   return (
-    <div className="min-h-screen bg-[#0a0f0a] text-white font-sans">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#0a0f0a]/95 backdrop-blur-md border-b border-[#1e2a1e] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setMenuOpen(!menuOpen)} 
-            className="p-2 rounded-lg bg-[#111811] border border-[#1e2a1e] text-sm"
-          >
-            {menuOpen ? "✕" : "☰"}
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="text-yellow-400">👑</span>
-            <div>
-              <h1 className="text-sm font-bold leading-none">MAIN NAIJA</h1>
-              <p className="text-[9px] text-[#00E676] font-bold tracking-widest mt-1">PIDGIN • CHAIRMAN PANEL</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 hidden sm:block">Chairman</span>
-          <div className="w-8 h-8 rounded-full bg-[#00C853] flex items-center justify-center font-bold text-xs">C</div>
-        </div>
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "system-ui", padding: 0, margin: 0 }}>
+      {/* HEADER */}
+      <header style={{ background: "white", padding: "16px", borderBottom: "1px solid #e2e8f0", position: "sticky", top: 0, zIndex: 10 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>MAIN NAIJA</h1>
+        <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0 0" }}>PIDGIN • CHAIRMAN PANEL</p>
+        <p style={{ fontSize: 12, margin: "8px 0 0 0" }}>tapbomba.ai@gmail.com</p>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className={`fixed md:static top-[57px] left-0 z-40 w-64 h-[calc(100vh-57px)] md:h-auto bg-[#0d140d] border-r border-[#1e2a1e] p-4 flex flex-col transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
-          <nav className="flex flex-col gap-1.5">
-            <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-left ${activeTab === "overview" ? "bg-[#00C853]/15 text-[#00E676] border-l-2 border-[#00C853]" : "text-gray-400 hover:bg-[#111811] hover:text-white"}`}>
-              <span>📊</span> Overview
-            </button>
-            <Link href="/admin/recordings" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-[#111811] hover:text-white">
-              <span>🎙️</span> Recording Review
-            </Link>
-            <Link href="/admin/workers" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-[#111811] hover:text-white">
-              <span>👷</span> Workers
-            </Link>
-            <Link href="/admin/announcements" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-[#111811] hover:text-white">
-              <span>📢</span> Announcements
-            </Link>
-            <Link href="/admin/api" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-[#111811] hover:text-white">
-              <span>🔑</span> API Management
-            </Link>
-          </nav>
-          <div className="mt-auto pt-4 border-t border-[#1e2a1e]">
-            <Link href="/" className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#00C853] text-white text-sm font-bold">
-              Logout →
-            </Link>
-            <p className="text-[10px] text-gray-600 text-center mt-3">tapbomba.ai@gmail.com</p>
-          </div>
-        </aside>
+      {/* TABS - ORGANIZED FOR PHONE */}
+      <div style={{ display: "flex", gap: 8, padding: 12, background: "white", overflowX: "auto", borderBottom: "1px solid #e2e8f0" }}>
+        {[
+          { id: "overview", label: "Overview" },
+          { id: "review", label: "Recording Review" },
+          { id: "workers", label: "Workers" },
+          { id: "api", label: "API Management" },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{
+              padding: "8px 12px", borderRadius: 20, border: "none", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600,
+              background: activeTab === tab.id ? "black" : "#f1f5f9", color: activeTab === tab.id ? "white" : "#334155"
+            }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {menuOpen && <div className="fixed inset-0 bg-black/60 z-30 md:hidden" onClick={() => setMenuOpen(false)} />}
+      {/* CONTENT */}
+      <div style={{ padding: 16 }}>
+        {activeTab === "overview" && (
+          <>
+            <h2 style={{ fontSize: 20, margin: "0 0 4px 0" }}>Good Morning, Chairman 👑</h2>
+            <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 16px 0" }}>Here's what's happening on your platform today.</p>
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6 max-w-5xl">
-          <div className="mb-6">
-            <h2 className="text-xl md:text-2xl font-bold">Good Morning, Chairman 👑</h2>
-            <p className="text-sm text-gray-400 mt-1">Here’s what’s happening on your platform today.</p>
-          </div>
+            {/* STATS GRID - ORGANIZED */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Total Workers</div>
+                <div style={{ fontSize: 22, fontWeight: 800 }}>24</div>
+              </div>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Active today</div>
+                <div style={{ fontSize: 22, fontWeight: 800 }}>7</div>
+              </div>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Pending Review</div>
+                <div style={{ fontSize: 22, fontWeight: 800 }}>7</div>
+              </div>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>Needs action</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#f59e0b" }}>15</div>
+              </div>
+            </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <p className="text-xs text-gray-400">👷 Total Workers</p>
-              <p className="text-2xl font-bold mt-2">24</p>
-              <p className="text-[11px] text-[#00E676] mt-2">↑ Active today</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>✅ Approved</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>15</div>
+              </div>
+              <div style={{ background: "white", padding: 16, borderRadius: 12, border: "1px solid #e2e8f0" }}>
+                <div style={{ fontSize: 11, color: "#64748b" }}>❌ Rejected</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>2</div>
+              </div>
             </div>
-            <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <p className="text-xs text-gray-400">⏳ Pending Review</p>
-              <p className="text-2xl font-bold mt-2 text-yellow-400">7</p>
-              <p className="text-[11px] text-yellow-500 mt-2">Needs action</p>
-            </div>
-            <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <p className="text-xs text-gray-400">✅ Approved</p>
-              <p className="text-2xl font-bold mt-2 text-[#00E676]">15</p>
-              <p className="text-[11px] text-[#00E676] mt-2">Live now</p>
-            </div>
-            <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-              <p className="text-xs text-gray-400">❌ Rejected</p>
-              <p className="text-2xl font-bold mt-2 text-red-400">2</p>
-              <p className="text-[11px] text-red-400 mt-2">Removed</p>
-            </div>
-          </div>
 
-          {/* Chart */}
-          <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold">📈 Recording Activity</h3>
-              <span className="bg-[#00C853] text-white text-[10px] px-3 py-1 rounded-full font-bold">This Year</span>
-            </div>
-            <div className="flex items-end gap-2 h-24">
-              {[50,30,80,45,85,25,70,65,55,75,60,90].map((h,i) => (
-                <div key={i} className="flex-1 bg-[#00E676] rounded-t-md" style={{height: `${h}%`}} />
-              ))}
-            </div>
-            <div className="flex justify-between mt-2 text-[9px] text-gray-600">
-              <span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span><span>Dec</span>
-            </div>
-          </div>
-
-          {/* Recent */}
-          <div className="bg-[#111811] border border-[#1e2a1e] rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold">Recent Submissions</h3>
-              <span className="text-xs text-[#00E676]">View All →</span>
-            </div>
-            <div className="space-y-2">
-              {[
-                { id: "Worker-024", lang: "Pidgin", s: "Pending" },
-                { id: "Worker-023", lang: "Hausa", s: "Approved" },
-                { id: "Worker-022", lang: "Igbo", s: "Approved" },
-              ].map(w => (
-                <div key={w.id} className="flex items-center justify-between bg-[#0a0f0a] border border-[#1e2a1e] rounded-xl px-4 py-3">
-                  <div><p className="text-sm font-bold">{w.id}</p><p className="text-xs text-gray-500">{w.lang}</p></div>
-                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${w.s === "Pending" ? "bg-yellow-500/15 text-yellow-400" : "bg-green-500/15 text-green-400"}`}>{w.s}</span>
+            {/* RECENT SUBMISSIONS */}
+            <div style={{ background: "white", borderRadius: 12, border: "1px solid #e2e8f0", padding: 16 }}>
+              <h3 style={{ fontSize: 14, margin: "0 0 12px 0" }}>Recent Submissions</h3>
+              {workers.map(w => (
+                <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{w.name}</div>
+                    <div style={{ fontSize: 11, color: "#64748b" }}>{w.lang}</div>
+                  </div>
+                  <div style={{
+                    fontSize: 10, padding: "4px 8px", borderRadius: 20, fontWeight: 700,
+                    background: w.status === "Approved" ? "#dcfce7" : "#fef3c7", color: w.status === "Approved" ? "#166534" : "#92400e"
+                  }}>{w.status}</div>
                 </div>
               ))}
             </div>
+          </>
+        )}
+
+        {activeTab === "review" && (
+          <div style={{ textAlign: "center", padding: 40, background: "white", borderRadius: 12 }}>
+            <p>Recording Review - Use your /admin page for approval 👑</p>
+            <a href="/admin" style={{ display: "inline-block", marginTop: 12, padding: "10px 20px", background: "black", color: "white", borderRadius: 8, textDecoration: "none" }}>Go to Admin Approval</a>
           </div>
-        </main>
+        )}
+
+        {activeTab !== "overview" && activeTab !== "review" && (
+          <div style={{ textAlign: "center", padding: 40, background: "white", borderRadius: 12 }}>
+            <h3 style={{ fontSize: 48 }}>🚧</h3>
+            <p>{activeTab} page dey come soon</p>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }
