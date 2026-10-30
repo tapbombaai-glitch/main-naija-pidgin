@@ -1,175 +1,118 @@
 "use client";
-
+import { useState } from "react";
 import Link from "next/link";
 
 export default function Home() {
+  const [copied, setCopied] = useState(false);
+  const apiKey = "mk_live_••••••••••••_naija";
+
   return (
-    <div className="min-h-screen bg-[#0a0f0a] text-white font-sans antialiased">
-      {/* Status bar simulation */}
-      <div className="px-5 pt-3 pb-2 flex justify-between text-xs text-gray-400">
-        <span>1:09 AM</span>
-        <div className="flex gap-1 items-center">
-          <span>LTE</span>
-          <span>•••</span>
-          <span>100</span>
-        </div>
-      </div>
-
-      <div className="px-5 pb-10 max-w-md mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#00C853]/20 flex items-center justify-center text-sm font-bold text-[#00C853]">
-              NP
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold tracking-wide">MAIN NAIJA PIDGIN</h1>
-              <p className="text-[10px] text-gray-400">Today</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-red-400 rounded-full"></span>
-              LIVE
-            </span>
-          </div>
+    <div style={{ background: "#050A05", minHeight: "100vh", width: "100%", overflowX: "hidden" }}>
+      <style>{`*{box-sizing:border-box} body{margin:0}`}</style>
+      
+      <div style={{ maxWidth: "480px", margin: "0 auto", padding: "12px", width: "100%" }}>
+        
+        {/* HEADER */}
+        <div style={{ background: "#1A231A", borderRadius: "14px", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: "900", color: "#00E676", fontSize: "14px", letterSpacing: "0.5px" }}>🇳🇬 MAIN NAIJA PIDGIN</div>
+          <span style={{ background: "#7f1d1d", color: "white", fontSize: "9px", padding: "3px 8px", borderRadius: "20px", fontWeight: "800" }}>● LIVE</span>
         </div>
 
-        {/* Welcome */}
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-1">Welcome to Main Naija Pidgin</h2>
-          <p className="text-sm text-gray-400">
-            Build with pidgin. Deploy fast. Run Naija.
-          </p>
+        <div style={{ marginTop: "16px" }}>
+          <h1 style={{ fontSize: "22px", fontWeight: "900", color: "white", margin: 0, lineHeight: "26px" }}>Welcome to Main Naija Pidgin</h1>
+          <p style={{ color: "#888", fontSize: "12px", marginTop: "6px" }}>Build with pidgin. Deploy fast. Run Naija.</p>
         </div>
 
-        {/* Two Main Cards */}
-        <div className="grid grid-cols-2 gap-3 mb-8">
-          {/* Worker Panel */}
-          <div className="bg-[#111811] border border-[#00C853]/20 rounded-2xl p-4 flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">💼</span>
-              <h3 className="font-semibold text-sm">Worker Panel</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Manage ops & tasks</p>
-            <Link href="/worker-dashboard" className="mt-auto">
-              <button className="w-full bg-[#00C853] text-black text-sm font-semibold py-2.5 rounded-xl">
-                Enter Workspace
-              </button>
+        {/* WORKER + CHAIRMAN - FIXED FOR SMALL PHONE */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "16px", width: "100%" }}>
+          <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "120px" }}>
+            <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>💼 Worker Panel</div>
+            <div style={{ color: "#777", fontSize: "10px", marginTop: "6px", flex: 1 }}>Manage ops & tasks</div>
+            <Link href="/worker" style={{ textDecoration: "none" }}>
+              <div style={{ marginTop: "12px", background: "#00E676", color: "black", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "900", fontSize: "11px" }}>Enter Workspace</div>
             </Link>
           </div>
 
-          {/* Chairman Dashboard */}
-          <div className="bg-[#111811] border border-yellow-500/30 rounded-2xl p-4 flex flex-col">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl">👑</span>
-              <h3 className="font-semibold text-sm">Chairman Dashboard</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Lead & analytics</p>
-            <button className="mt-auto w-full border border-yellow-500/50 text-yellow-400 text-sm font-semibold py-2.5 rounded-xl">
-              Open Dashboard
-            </button>
+          <div style={{ background: "#121C12", border: "1px solid #3A341E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "120px" }}>
+            <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>👑 Chairman Dashboard</div>
+            <div style={{ color: "#777", fontSize: "10px", marginTop: "6px", flex: 1 }}>Lead & analytics</div>
+            <Link href="/admin/login" style={{ textDecoration: "none" }}>
+              <div style={{ marginTop: "12px", background: "transparent", border: "1px solid #FFC107", color: "#FFC107", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "800", fontSize: "11px" }}>Open Dashboard</div>
+            </Link>
           </div>
         </div>
 
-        {/* API Marketplace Section */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-[#00C853]">🛡️</span>
-            <h3 className="font-semibold">API Marketplace</h3>
-          </div>
-
-          <div className="bg-[#111811] border border-[#00C853]/15 rounded-2xl p-4 mb-4">
-            <p className="text-xs text-gray-400 mb-2">API key</p>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-black/40 rounded-lg px-3 py-2.5 font-mono text-sm text-gray-300 truncate">
-                mk_live_••••••••••••_naija
-              </div>
-              <button className="bg-[#00C853]/20 text-[#00C853] px-3 py-2.5 rounded-lg text-xs font-medium">
-                Copy
+        {/* API MARKETPLACE */}
+        <div style={{ marginTop: "20px" }}>
+          <div style={{ fontWeight: "800", color: "white", fontSize: "15px" }}>🛡️ API Marketplace</div>
+          
+          <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "14px", padding: "12px" }}>
+            <div style={{ color: "#777", fontSize: "9px", fontWeight: "800", letterSpacing: "1px" }}>API KEY</div>
+            <div style={{ marginTop: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
+              <div style={{ flex: 1, background: "black", border: "1px solid #222", borderRadius: "8px", padding: "10px", color: "#aaa", fontSize: "11px", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey}</div>
+              <button onClick={()=>{navigator.clipboard.writeText("mk_live_test_key"); setCopied(true); setTimeout(()=>setCopied(false),2000)}} 
+                style={{ background: "#1E3A1E", color: "#00E676", border: "none", padding: "10px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>
+                {copied ? "✓" : "Copy"}
               </button>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-[#111811] border border-[#00C853]/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] text-gray-400 mb-1">FREE REQUESTS</div>
-              <div className="text-sm font-bold text-[#00C853]">2,500/mo</div>
+          <div style={{ marginTop: "10px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
+            <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+              <div style={{ color: "#666", fontSize: "8px", fontWeight: "800" }}>FREE REQUESTS</div>
+              <div style={{ color: "#00E676", fontWeight: "900", fontSize: "12px", marginTop: "4px" }}>2,500/mo</div>
             </div>
-            <div className="bg-[#111811] border border-[#00C853]/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] text-gray-400 mb-1">DATASETS LIVE</div>
-              <div className="text-sm font-bold text-[#00C853]">12</div>
+            <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+              <div style={{ color: "#666", fontSize: "8px", fontWeight: "800" }}>DATASETS LIVE</div>
+              <div style={{ color: "white", fontWeight: "900", fontSize: "14px", marginTop: "4px" }}>12</div>
             </div>
-            <div className="bg-[#111811] border border-[#00C853]/15 rounded-xl p-3 text-center">
-              <div className="text-[10px] text-gray-400 mb-1">UPTIME</div>
-              <div className="text-sm font-bold text-[#00C853]">99.9%</div>
+            <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "12px", padding: "10px", textAlign: "center" }}>
+              <div style={{ color: "#666", fontSize: "8px", fontWeight: "800" }}>UPTIME</div>
+              <div style={{ color: "white", fontWeight: "900", fontSize: "14px", marginTop: "4px" }}>99.9%</div>
             </div>
           </div>
         </div>
 
-        {/* Preview Voices */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg">🎧</span>
-            <h3 className="font-semibold">Preview Voices</h3>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
+        {/* PREVIEW VOICES */}
+        <div style={{ marginTop: "20px" }}>
+          <div style={{ fontWeight: "800", color: "white", fontSize: "14px" }}>🎧 Preview Voices</div>
+          <div style={{ marginTop: "10px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
             {[
-              { name: "Lagos Male", desc: "Natural • Young" },
-              { name: "Abuja Female", desc: "Warm • Professional" },
-              { name: "Pidgin Narrator", desc: "Story • Expressive" },
-              { name: "GET /api/datasets", desc: "Fetch live local datasets" },
-              { name: "Delta", desc: "Rugged • Local" },
-              { name: "Yoruba Mix", desc: "Hybrid • Bilingual" },
-            ].map((voice, i) => (
-              <div
-                key={i}
-                className="bg-[#111811] border border-[#00C853]/15 rounded-xl p-3 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">🇳🇬</span>
-                  <div>
-                    <div className="text-xs font-medium">{voice.name}</div>
-                    <div className="text-[10px] text-gray-400">{voice.desc}</div>
+              { n: "Lagos Male", s: "Natural • Young" },
+              { n: "Abuja Female", s: "Warm • Professional" },
+              { n: "Pidgin Narrator", s: "Story • Expressive" },
+              { n: "Delta", s: "Rugged • Local" },
+              { n: "Yoruba Mix", s: "Hybrid • Bilingual" },
+              { n: "GET /api/datasets", s: "Fetch live local datasets", green: true },
+            ].map((v: any) => (
+              <div key={v.n} style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "12px", padding: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "6px", alignItems: "center", minWidth: 0 }}>
+                  <span style={{ fontSize: "12px" }}>🇳🇬</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: v.green ? "#00E676" : "white", fontSize: "10px", fontWeight: "800", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.n}</div>
+                    <div style={{ color: "#666", fontSize: "8px", marginTop: "2px" }}>{v.s}</div>
                   </div>
                 </div>
-                <button className="w-8 h-8 rounded-full bg-[#00C853]/20 flex items-center justify-center text-[#00C853] text-sm">
-                  ▶
-                </button>
+                <div style={{ width: "24px", height: "24px", background: "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", flexShrink: 0 }}>▶</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Available Endpoints */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-[#00C853]">↔</span>
-            <h3 className="font-semibold">Available Endpoints</h3>
-          </div>
-
-          <div className="bg-[#111811] border border-[#00C853]/15 rounded-2xl p-4 space-y-3 text-sm">
-            <div>
-              <span className="text-[#00C853] font-mono text-xs">GET /api/voices</span>
-              <p className="text-xs text-gray-400">List all available voices</p>
-            </div>
-            <div>
-              <span className="text-yellow-400 font-mono text-xs">POST /api/synthesize</span>
-              <p className="text-xs text-gray-400">Create speech from text (pidgin supported)</p>
-            </div>
-            <div>
-              <span className="text-yellow-400 font-mono text-xs">POST /api/feedback</span>
-              <p className="text-xs text-gray-400">Submit feedback & improve model</p>
-            </div>
+        {/* ENDPOINTS */}
+        <div style={{ marginTop: "20px" }}>
+          <div style={{ fontWeight: "800", color: "white", fontSize: "14px" }}>↔ Available Endpoints</div>
+          <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "14px", padding: "14px" }}>
+            <div style={{ color: "#00E676", fontSize: "11px", fontWeight: "800", fontFamily: "monospace" }}>GET /api/voices</div>
+            <div style={{ color: "#666", fontSize: "10px", marginTop: "2px" }}>List all available voices</div>
+            <div style={{ color: "#FFC107", fontSize: "11px", fontWeight: "800", fontFamily: "monospace", marginTop: "10px" }}>POST /api/synthesize</div>
+            <div style={{ color: "#666", fontSize: "10px", marginTop: "2px" }}>Create speech from text (pidgin supported)</div>
+            <div style={{ color: "#FFC107", fontSize: "11px", fontWeight: "800", fontFamily: "monospace", marginTop: "10px" }}>POST /api/feedback</div>
+            <div style={{ color: "#666", fontSize: "10px", marginTop: "2px" }}>Submit feedback & improve model</div>
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-[10px] text-gray-600 mt-8">
-          Secured • Powered by Naija Cloud • v1.2.0
-        </p>
+        <div style={{ marginTop: "20px", textAlign: "center", color: "#444", fontSize: "9px", paddingBottom: "20px" }}>Secured • Powered by Naija Cloud • v1.2.0</div>
       </div>
     </div>
   );
