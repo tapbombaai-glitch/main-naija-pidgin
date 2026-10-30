@@ -20,8 +20,16 @@ export default function Marketplace() {
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"success"|"error">("success");
+  // === ANNOUNCEMENT BOARD ADDED — NO DELETE ===
+  const [announces, setAnnounces] = useState<any[]>([]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); 
+    // FIX LOGIN LISTENER
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => { listener.subscription.unsubscribe(); };
+  }, []);
   async function loadData() {
     const { data: u } = await supabase.auth.getUser();
     setUser(u?.user || null);
@@ -42,6 +50,11 @@ export default function Marketplace() {
       setApiKey(keys[0].key_prefix); setRealKey(keys[0].key);
       setFreeLeft(keys[0].free_requests_remaining || 0); setPaidLeft(keys[0].paid_requests_remaining || 0);
     }
+    // === LOAD ANNOUNCEMENTS ===
+    try {
+      const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
+      if (ann) setAnnounces(ann);
+    } catch {}
   }
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   const playSample = async (voice: any) => {
@@ -54,7 +67,6 @@ export default function Marketplace() {
     } catch { setPlayingId(null); }
   };
   const claimFree = async () => {
-    // === LOGIN FORMULA ADDED — NO DELETE ===
     if (!user) { showToast("Please login first - go /login", "error"); setTimeout(()=> window.location.href = "/login", 1000); return; }
     setLoading(true);
     try {
@@ -69,7 +81,6 @@ export default function Marketplace() {
   };
   const buy = async (pkg: string) => {
     if (pkg === 'free_100') { claimFree(); return; }
-    // === LOGIN FORMULA ADDED ===
     if (!user) { showToast("Login first to buy", "error"); window.location.href = "/login"; return; }
     setLoading(true);
     try {
@@ -108,7 +119,6 @@ export default function Marketplace() {
             <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            {/* === LOGIN FORMULA — ADDED, NO DELETE === */}
             {user ? (
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
@@ -120,6 +130,20 @@ export default function Marketplace() {
             <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE</div>
           </div>
         </div>
+
+        {/* === ANNOUNCEMENT BOARD — SHOWS WHEN CHAIRMAN POST === */}
+        {announces.length > 0 && (
+          <div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>
+            {announces.map((a: any) => (
+              <div key={a.id} style={{ marginTop: "8px", background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "10px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "900", color: "white" }}>{a.title}</div>
+                <div style={{ fontSize: "11px", color: "#BDBDBD", marginTop: "4px", lineHeight: "1.4" }}>{a.message}</div>
+                <div style={{ fontSize: "8px", color: "#666", marginTop: "6px" }}>{new Date(a.created_at).toLocaleString()} • Chairman</div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}>
           <div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div>
