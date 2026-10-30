@@ -1,195 +1,178 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-export default function ApiMarketplace() {
-  const [playingId, setPlayingId] = useState<string | null>(null);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+export default function Marketplace() {
+  const [user, setUser] = useState<any>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [realKey, setRealKey] = useState("");
+  const [freeLeft, setFreeLeft] = useState(0);
+  const [paidLeft, setPaidLeft] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [apiKey, setApiKey] = useState("sk_live_••••••••••••••••••••");
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [voices, setVoices] = useState<any[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState<"success"|"error">("success");
 
-  // Load Paystack script correctly for Next.js
-  useEffect(() => {
-    if (!document.querySelector('script[src="https://js.paystack.co/v1/inline.js"]')) {
-      const script = document.createElement('script');
-      script.src = "https://js.paystack.co/v1/inline.js";
-      script.async = true;
-      document.body.appendChild(script);
+  useEffect(() => { loadData(); }, []);
+  async function loadData() {
+    const { data: u } = await supabase.auth.getUser();
+    setUser(u?.user || null);
+    const { data: v } = await supabase.from('voices').select('*').eq('active', true).limit(10);
+    if (v && v.length > 0) setVoices(v);
+    else setVoices([
+      { id: "1", name: "Lagos Male", accent: "Natural - Young", sample_text: "How far boss! Lagos male voice dey here, ready to talk." },
+      { id: "2", name: "Abuja Female", accent: "Warm - Professional", sample_text: "Good morning, na Abuja female voice, calm and clear." },
+      { id: "3", name: "Pidgin Narrator", accent: "Story - Expressive", sample_text: "For inside this life, na story dey sweet pass, make I tell you!" },
+      { id: "4", name: "Delta Warri", accent: "Rugged - Local", sample_text: "Warri no dey carry last, you hear? Original Warri voice!" },
+      { id: "5", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_text: "E kaaro! I fit speak Yoruba and pidgin join together." },
+    ]);
+    const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
+    localStorage.setItem('guest_id', guestId);
+    const uid = u?.user?.id || guestId;
+    const { data: keys } = await supabase.from('api_keys').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+    if (keys && keys[0]) {
+      setApiKey(keys[0].key_prefix); setRealKey(keys[0].key);
+      setFreeLeft(keys[0].free_requests_remaining || 0); setPaidLeft(keys[0].paid_requests_remaining || 0);
     }
-    const saved = localStorage.getItem("mp_api_key");
-    if (saved) setApiKey(saved);
-  }, []);
-
-  const voices = [
-    { id: "owner", name: "My Voice - Founder", accent: "Owner's Original", duration: "0:08", audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", badge: "YOU" },
-    { id: "lagos", name: "Lagos Male", accent: "Lagos Accent", duration: "0:12", audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-    { id: "abuja", name: "Abuja Female", accent: "Calm & Clear", duration: "0:11", audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
-    { id: "pidgin", name: "Pidgin Narrator", accent: "Natural Pidgin", duration: "0:14", audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
-    { id: "warri", name: "Delta Warri", accent: "Warri Accent", duration: "0:13", audio: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
-  ];
-
-  const togglePlay = (id: string, url: string) => {
-    // Stop previous
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    if (playingId === id) {
-      setPlayingId(null);
-      return;
-    }
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    audio.play().catch(() => alert("Tap again to play — browser block am"));
-    setPlayingId(id);
-    audio.onended = () => setPlayingId(null);
+  }
+  const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
+  const playSample = async (voice: any) => {
+    try {
+      if (audio) { audio.pause(); }
+      if (playingId === voice.id) { setPlayingId(null); return; }
+      setPlayingId(voice.id);
+      if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
+      const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
+    } catch { setPlayingId(null); }
   };
-
-  // FIXED PAYSTACK - WORKING FOR CHAIRMAN & WORK
-  const payWithPaystack = (amount: number, plan: string) => {
-    const publicKey = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxxxxxxxxxxxxxxxxxxxxx";
-    if (publicKey.includes("xxxx")) {
-      alert("⚠️ Add your real Paystack Public Key in .env.local:\nNEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=pk_live_xxx\n\nThen it will charge ₦" + amount);
-      return;
-    }
-    // @ts-ignore
-    const handler = window.PaystackPop.setup({
-      key: publicKey,
-      email: localStorage.getItem("mp_email") || "customer@mainnaija.com",
-      amount: amount * 100, // Paystack uses kobo
-      currency: "NGN",
-      ref: "NP_" + plan + "_" + Math.floor(Math.random() * 1000000000),
-      metadata: { plan, custom_fields: [{ display_name: "Plan", variable_name: "plan", value: plan }] },
-      callback: function (response: any) {
-        alert("✅ Payment successful! Ref: " + response.reference + " — Chairman go see am for dashboard");
-        // Give Pro key
-        const newKey = `mp_live_${plan}_${Date.now()}_naija`;
-        localStorage.setItem("mp_api_key", newKey);
-        localStorage.setItem("mp_free_left", plan === "pro" ? "1000" : plan === "growth" ? "2000" : "10000");
-        setApiKey(newKey);
-        window.location.href = "/chairman?paid=" + plan;
-      },
-      onClose: function () {
-        console.log("Paystack closed");
-      },
-    });
-    handler.openIframe();
+  const claimFree = async () => {
+    setLoading(true);
+    try {
+      const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
+      localStorage.setItem('guest_id', guestId);
+      const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id || guestId }) });
+      const data = await res.json();
+      if (data.api_key) { setRealKey(data.api_key); setApiKey(data.key_prefix); setFreeLeft(100); showToast("✅ 100 FREE claimed! Key copied!", "success"); navigator.clipboard.writeText(data.api_key); await loadData(); }
+      else showToast(data.error || 'Already claimed', "error");
+    } catch { showToast("Network error - add SUPABASE_SERVICE_KEY for Render", "error"); }
+    setLoading(false);
   };
-
-  const claimFree = () => {
-    const newKey = `mp_live_100_free_${Date.now().toString().slice(-6)}_naija`;
-    localStorage.setItem("mp_api_key", newKey);
-    localStorage.setItem("mp_free_left", "100");
-    setApiKey(newKey);
-    alert("🎉 100 Free Voices Claimed!\nKey: " + newKey);
+  const buy = async (pkg: string) => {
+    if (pkg === 'free_100') { claimFree(); return; }
+    setLoading(true);
+    try {
+      const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
+      const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user?.email || 'customer@mainnaija.com', userId: user?.id || guestId }) });
+      const data = await res.json();
+      if (data.authorization_url) window.location.href = data.authorization_url;
+      else showToast(data.error || 'Paystack init failed', "error");
+    } catch { showToast("Connection failed", "error"); }
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0f0a] to-[#0d1a0d] text-white font-sans antialiased">
-      <div className="px-5 pt-3 pb-1 flex justify-between text-xs text-gray-400">
-        <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-        <div className="flex gap-1 items-center"><span>LTE</span><span>•••</span><span>37%</span></div>
-      </div>
-
-      <div className="px-5 pb-8 max-w-md mx-auto">
-        {/* Header with Home link */}
-        <div className="flex items-center justify-between mb-6 mt-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#00C853]/20 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-[#00C853]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">API <span className="text-[#00C853]">Marketplace</span></h1>
-              <p className="text-xs text-gray-400">Authentic Naija Pidgin Voices & Datasets</p>
-            </div>
+    <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
+      <style>{`
+        *{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)}
+        .voice-scroll { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        @media (max-width: 380px) {
+          .voice-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }
+          .voice-scroll::-webkit-scrollbar { display: none; }
+          .voice-card { min-width: 88px; flex-shrink: 0; }
+        }
+      `}</style>
+      {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType==="error" ? "#FF5252" : "#00E676", color: toastType==="error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 100, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
+      
+      <div style={{ maxWidth: "420px", margin: "0 auto", border: "2px solid #1A231A", borderRadius: "28px", background: "#050A05", padding: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 2px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ background: "white", borderRadius: "4px", width: "28px", height: "20px", display: "flex", overflow: "hidden" }}><div style={{ flex: 1, background: "#008751" }}></div><div style={{ flex: 1, background: "white" }}></div><div style={{ flex: 1, background: "#008751" }}></div></div>
+            <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
-          <Link href="/" className="text-xs text-[#00C853]">Home</Link>
+          <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE MARKETPLACE</div>
         </div>
 
-        {/* Live API Key Card */}
-        <div className="bg-[rgba(17,24,17,0.8)] backdrop-blur-md border border-[rgba(0,200,83,0.15)] rounded-2xl p-4 mb-5">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2 text-sm text-gray-300">🔒 Live API Key</div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs bg-[#00C853]/20 text-[#00C853] px-2 py-0.5 rounded-full font-medium">FREE PLAN</span>
-              <span className="flex items-center gap-1 text-xs text-[#00C853]"><span className="w-2 h-2 bg-[#00C853] rounded-full animate-pulse"></span> LIVE</span>
-            </div>
+        <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}>
+          <div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div>
+          <div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase</div>
+        </div>
+
+        <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}>
+            <div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div>
+            <button onClick={() => { if(realKey){ navigator.clipboard.writeText(realKey); showToast("Key copied!"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button>
           </div>
-          <div className="bg-black/40 rounded-xl px-4 py-3 font-mono text-sm text-gray-400 tracking-wider flex justify-between items-center">
-            <span className="truncate">{apiKey}</span>
-            <button onClick={() => { navigator.clipboard.writeText(apiKey); alert("Copied!"); }} className="ml-2 text-[#00C853] text-xs">Copy</button>
+          <div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD" }}>
+            <span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span>
+            <span><b style={{ color: "white" }}>{paidLeft}</b> Paid Left</span>
+            <span style={{ color: "#333" }}>|</span>
+            <span><b style={{ color: "#00E676" }}>99.9%</b> Uptime</span>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-[rgba(17,24,17,0.8)] border border-[rgba(0,200,83,0.15)] rounded-xl p-3 text-center"><div className="text-[#00C853] text-lg font-bold">100</div><div className="text-[10px] text-gray-400 uppercase">Free Voices</div></div>
-          <div className="bg-[rgba(17,24,17,0.8)] border border-[rgba(0,200,83,0.15)] rounded-xl p-3 text-center"><div className="text-[#00C853] text-lg font-bold">5</div><div className="text-[10px] text-gray-400 uppercase">Voices</div></div>
-          <div className="bg-[rgba(17,24,17,0.8)] border border-[rgba(0,200,83,0.15)] rounded-xl p-3 text-center"><div className="text-[#00C853] text-lg font-bold">99.9%</div><div className="text-[10px] text-gray-400 uppercase">Uptime</div></div>
-        </div>
-
-        {/* Pricing Plans */}
-        <div className="mb-6">
-          <h2 className="text-sm font-semibold mb-1">Pricing Plans</h2>
-          <p className="text-xs text-gray-400 mb-4">Simple. Transparent. Powerful.</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[rgba(17,24,17,0.8)] border border-[rgba(0,200,83,0.15)] rounded-2xl p-4 flex flex-col">
-              <div className="flex items-center gap-2 mb-2"><span className="text-xl">🎁</span><span className="font-semibold text-[#00C853]">Starter</span></div>
-              <div className="text-lg font-bold mb-1">100 Voices Free</div>
-              <div className="text-xs text-gray-400 mb-4">API Key included</div>
-              <button onClick={claimFree} className="mt-auto w-full border border-[#00C853]/50 text-[#00C853] text-sm font-medium py-2.5 rounded-xl hover:bg-[#00C853]/10 transition">Get Free Key →</button>
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div>
+          <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}>
+            <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div>
+              <div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div>
+              <div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div>
+              <button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button>
             </div>
-            <div className="relative rounded-2xl p-4 flex flex-col bg-gradient-to-b from-[#00C853]/20 to-[#00C853]/5 border-2 border-[#00C853]">
-              <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-[#00C853] text-black text-[10px] font-bold px-2.5 py-0.5 rounded-full">★ MOST POPULAR</div>
-              <div className="flex items-center gap-2 mb-2 mt-1"><span className="text-xl">👑</span><span className="font-semibold text-[#00C853]">Pro</span></div>
-              <div className="text-lg font-bold">1,000 Voices</div>
-              <div className="text-2xl font-bold text-[#00C853] mb-1">₦5,000</div>
-              <div className="text-xs text-gray-400 mb-4">Full API access</div>
-              <button onClick={() => payWithPaystack(5000, 'pro')} className="mt-auto w-full bg-[#00C853] text-black text-sm font-bold py-2.5 rounded-xl hover:bg-[#00C853]/90 transition">Buy with Paystack 🔒</button>
+            <div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div>
+                <div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div>
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div>
+              <button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
             </div>
-            <div className="bg-[rgba(17,24,17,0.8)] border border-white/10 rounded-2xl p-4 flex flex-col">
-              <div className="text-sm font-semibold">Growth</div>
-              <div className="text-lg font-bold">2,000 Voices</div>
-              <div className="text-xl font-bold text-white mb-3">₦10,000</div>
-              <button onClick={() => payWithPaystack(10000, 'growth')} className="mt-auto w-full border border-white/20 text-sm py-2.5 rounded-xl hover:bg-white/10">Buy with Paystack</button>
+            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div>
+              <div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div>
+              <button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button>
             </div>
-            <div className="bg-[rgba(17,24,17,0.8)] border border-white/10 rounded-2xl p-4 flex flex-col">
-              <div className="text-sm font-semibold">Scale</div>
-              <div className="text-lg font-bold">10,000 Voices</div>
-              <div className="text-xl font-bold text-white mb-3">₦50,000</div>
-              <button onClick={() => payWithPaystack(50000, 'scale')} className="mt-auto w-full border border-white/20 text-sm py-2.5 rounded-xl hover:bg-white/10">Buy with Paystack</button>
+            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div>
+              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div>
+              <button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
             </div>
           </div>
         </div>
 
-        {/* Preview Voices - YOUR DESIGN STILL, BUT PLAY NOW WORKS */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3"><span className="text-lg">🎧</span><div><h2 className="text-sm font-semibold">Preview Voices - Tap ▶</h2><p className="text-xs text-gray-400">Listen before you buy — 100% Naija accent</p></div></div>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
-            {voices.map((voice) => (
-              <div key={voice.id} className={`min-w-[145px] backdrop-blur-md border rounded-xl p-3 flex-shrink-0 ${voice.id==='owner' ? 'bg-[#00C853]/10 border-[#00C853]' : 'bg-[rgba(17,24,17,0.8)] border-[rgba(0,200,83,0.15)]'}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">🇳🇬</span>
-                  <div><div className="text-xs font-medium flex gap-1">{voice.name} {voice.id==='owner' && <span className="text-[7px] bg-[#00C853] text-black px-1 rounded">YOU</span>}</div><div className="text-[10px] text-gray-400">{voice.accent}</div></div>
-                </div>
-                <div className="h-6 flex items-center gap-0.5 mb-2">{[3,5,2,4,3,5].map((h,i)=>(<div key={i} className={`w-1 rounded-full ${playingId===voice.id ? 'bg-[#00C853] animate-pulse' : 'bg-[#00C853]/60'}`} style={{height: `${h*4}px`}}/>))}</div>
-                <div className="flex items-center justify-between">
-                  <button onClick={() => togglePlay(voice.id, voice.audio)} className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${playingId===voice.id ? "bg-[#FF5252] text-white" : "bg-[#00C853]/20 text-[#00C853]"}`}>{playingId===voice.id ? "■" : "▶"}</button>
-                  <span className="text-[10px] text-gray-400">{voice.duration}</span>
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen</div>
+          <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct</div>
+          {/* FIXED FOR SMALL PHONE: flex scroll on <380px */}
+          <div className="voice-scroll" style={{ marginTop: "10px" }}>
+            {voices.slice(0,5).map((v: any) => (
+              <div key={v.id} onClick={() => playSample(v)} className="voice-card" style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ width: "38px", height: "38px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "14px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
+                <div style={{ fontSize: "10px", fontWeight: "800", color: "white", marginTop: "7px", lineHeight: "1.1" }}>{v.name}</div>
+                <div style={{ fontSize: "8px", color: "#999", marginTop: "3px" }}>{v.accent.split("-")[0].trim()}</div>
+                <div style={{ marginTop: "8px", display: "flex", justifyContent: "center", gap: "2px", height: "14px", alignItems: "center" }}>
+                  {[...Array(8)].map((_, i) => <div key={i} style={{ width: "2.5px", height: `${4 + (i % 4) * 3}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-6 px-1">
-          <div className="flex items-center gap-1.5">🔒 Pay with Card or Bank Transfer via Paystack</div><span className="font-semibold text-[#00C853]">paystack</span>
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/chairman" className="flex-1 bg-[#00C853] text-black font-bold py-3.5 rounded-2xl text-sm hover:bg-[#00C853]/90 transition text-center">Chairman Dashboard →</Link>
-          <Link href="/workspace" className="px-5 border border-gray-600 text-gray-300 font-medium py-3.5 rounded-2xl text-sm hover:bg-white/5 transition text-center">Worker Panel</Link>
-        </div>
+        <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts</div>
       </div>
     </div>
   );
