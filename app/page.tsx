@@ -57,39 +57,42 @@ export default function Marketplace() {
     try {
       const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
       let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
-      pidgin.sort((a:any,b:any) => (a.id||0) - (b.id||0));
+      pidgin.sort((a:any,b:any) => (a.id||0) - (b.id||0)); // ✅ Chairman order #1-#5 by timestamp
       if (pidgin.length > 0) setMyLocalVoices(pidgin);
     } catch {}
   }
 
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   
-  // ✅ YOUR VOICE BACK - PROPERLY ARRANGED #1-#5
+  // ✅ CHAIRMAN VOICE LOCKED #1-#5 - YOUR 5 VOICES - 71,68,54,53,82kB
   const playSample = async (voice: any) => {
     try {
-      if (audio) { audio.pause(); }
+      if (audio) { audio.pause(); audio.currentTime = 0; setAudio(null); }
+      window.speechSynthesis?.cancel();
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
 
-      const nameMap: any = {
-        "Lagos Male": 0,      // YOUR #1 - 71.27kB (769161)
-        "Abuja Female": 1,    // YOUR #2 - 68.21kB (7954287)
-        "Pidgin Narrator": 2, // YOUR #3 - 54.55kB (8091009)
-        "Delta Warri": 3,     // YOUR #4 - 53.42kB (8272564)
-        "Yoruba Mix": 4       // YOUR #5 - 82.23kB (8544627)
+      // ✅ CHAIRMAN ORDER - LOCKED AS YOU SENT
+      const chairmanMap: any = {
+        "Lagos Male": 0,      // #1 71.27kB - 7691661.webm - 2:41PM
+        "Abuja Female": 1,    // #2 68.21kB - 7954287.webm - 2:44PM
+        "Pidgin Narrator": 2, // #3 54.55kB - 8091009.webm - 2:48PM
+        "Delta Warri": 3,     // #4 53.42kB - 8272564.webm - 2:51PM
+        "Yoruba Mix": 4       // #5 82.23kB - 8544627.webm - 2:55PM
       };
-      const voiceIndex = nameMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
-      const myRecording = myLocalVoices[voiceIndex];
+      const idx = chairmanMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
+      const chairmanVoice = myLocalVoices[idx];
       
-      if (myRecording && myRecording.audioData) {
-        const a = new Audio(myRecording.audioData);
+      if (chairmanVoice && chairmanVoice.audioData) {
+        const a = new Audio(chairmanVoice.audioData);
         setAudio(a);
         a.onended = () => setPlayingId(null);
         a.onerror = () => setPlayingId(null);
         await a.play();
-        showToast(`🎧 #${voiceIndex+1} ${voice.name} - YOUR VOICE`, "success");
+        showToast(`🎧 Chairman #${idx+1} ${voice.name} - YOUR VOICE`, "success");
         return;
       }
+      // Fallback only if chairman voice no dey
       if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
       const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
     } catch { setPlayingId(null); }
@@ -143,7 +146,7 @@ export default function Marketplace() {
         <div style={{ marginTop: "14px" }}><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div><div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}><div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div><div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div><div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div><button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button></div><div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}><div style={{ display: "flex", justifyContent: "space-between" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div><div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div></div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div><button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div><div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div><button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div><button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div></div></div>
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen {myLocalVoices.length > 0 && <span style={{color:"#00E676", fontSize:"10px"}}>• {myLocalVoices.length} YOUR VOICE READY</span>}</div>
-          <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct {myLocalVoices.length > 0 ? "• YOUR VOICE ACTIVE" : ""}</div>
+          <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct {myLocalVoices.length > 0 ? "• CHAIRMAN VOICE ACTIVE" : ""}</div>
           <div className="voice-grid-fixed" style={{ marginTop: "10px" }}>
             {voices.slice(0,5).map((v: any, idx: number) => {
               const hasMyVoice = !!myLocalVoices[idx];
@@ -152,7 +155,7 @@ export default function Marketplace() {
                 {hasMyVoice && <div style={{position:"absolute", top:"3px", right:"3px", background:"#00E676", color:"black", fontSize:"5px", fontWeight:900, padding:"1px 3px", borderRadius:"8px"}}>YOU</div>}
                 <div style={{ width: "36px", height: "36px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "12px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
                 <div style={{ fontSize: "9px", fontWeight: "800", color: "white", marginTop: "6px", lineHeight: "1.1", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{v.name}</div>
-                <div style={{ fontSize: "7px", color: hasMyVoice ? "#00E676" : "#999", marginTop: "2px", fontWeight: hasMyVoice ? 800 : 400 }}>{hasMyVoice ? "Your Voice" : v.accent.split("-")[0].trim()}</div>
+                <div style={{ fontSize: "7px", color: hasMyVoice ? "#00E676" : "#999", marginTop: "2px", fontWeight: hasMyVoice ? 800 : 400 }}>{hasMyVoice ? "Chairman" : v.accent.split("-")[0].trim()}</div>
                 <div style={{ marginTop: "6px", display: "flex", justifyContent: "center", gap: "2px", height: "12px", alignItems: "center" }}>
                   {[...Array(6)].map((_, i) => <div key={i} style={{ width: "2px", height: `${3 + (i % 3) * 2}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
                 </div>
@@ -161,7 +164,7 @@ export default function Marketplace() {
           </div>
         </div>
         <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
-        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap {myLocalVoices.length > 0 ? `• ${myLocalVoices.length} Your Voice Active` : ""}</div>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap {myLocalVoices.length > 0 ? `• ${myLocalVoices.length} Chairman Voice Active` : ""}</div>
       </div>
     </div>
   );
