@@ -13,6 +13,8 @@ export default function WorkerDashboard() {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<any[]>([]);
+  // ONLY ADD - ADVERT LETTERS
+  const [adIndex, setAdIndex] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -26,6 +28,15 @@ export default function WorkerDashboard() {
     Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo."],
   };
 
+  // ONLY ADD - ADVERT LETTERS (5 BEST)
+  const adverts = [
+    "🎙️ YOUR VOICE NA MONEY! Record Pidgin/Igbo/Hausa/Yoruba — ₦30 per clip!",
+    "💰 15 SECONDS = ₦30! Talk 'How you dey?' — Record am, collect!",
+    "🔥 OMO NO DULL! Your accent na asset — MayNaija Pidgin need you!",
+    "⚡ 50 CLIPS/DAY = ₦1,500! Work from phone — MayNaija Pidgin dey pay!",
+    "💚 CHAIRMAN DEY FIND VOICES! Record once, sell forever — Chairman approved!"
+  ];
+
   const sentences = allSentences[selectedLang];
 
   useEffect(() => {
@@ -33,6 +44,9 @@ export default function WorkerDashboard() {
     if (saved) { try { const p = JSON.parse(saved); setTaskProgress(p.progress); setEarnings(p.earnings); setCurrentSentenceIndex(p.index || 0); } catch {} }
     const files = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
     setSavedFiles(files);
+    // ONLY ADD - ROTATE ADVERT LETTERS
+    const adInt = setInterval(() => setAdIndex(i => (i+1)%adverts.length), 3500);
+    return () => clearInterval(adInt);
   }, []);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
@@ -94,6 +108,12 @@ export default function WorkerDashboard() {
           <div><div style={{ display: "flex", gap: "8px" }}><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: "11px", color: "#aaa" }}>Welcome, <span style={{ color: "white", fontWeight: "800" }}>WORKER-1234{savedFiles.length>0?` - ${savedFiles.length} files saved to phone`:''}</span> <span style={{ color: "#00E676", fontSize: "10px" }}> ● Online</span></div></div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%" }}></div>
         </div>
+
+        {/* ONLY ADD - ADVERT LETTERS BANNER - NOTHING DELETED */}
+        <div style={{ background: "linear-gradient(90deg, #00E676, #00C853)", color: "black", borderRadius: "10px", padding: "9px 10px", marginTop: "6px", fontSize: "10px", fontWeight: "900", textAlign: "center" }}>
+          {adverts[adIndex]}
+        </div>
+
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
           {["Pidgin","Igbo","Hausa","Yoruba"].map(lang=>(
             <button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>
@@ -123,7 +143,6 @@ export default function WorkerDashboard() {
           </div>
         </div>
 
-        {/* FILES SAVED TO PHONE FOR CHAIRMAN - COPY FILE LIST - AS YOUR VIDEO */}
         {savedFiles.length > 0 && (
           <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", marginTop: "10px" }}>
             <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676", marginBottom: "6px" }}>📂 {savedFiles.length} Files Saved to Phone for Chairman</div>
