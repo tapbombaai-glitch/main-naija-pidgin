@@ -54,17 +54,19 @@ export default function Marketplace() {
       const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
       if (ann) setAnnounces(ann);
     } catch {}
+    // ✅ FIXED ONLY THIS PART - NO MORE lang FILTER
     try {
       const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-      let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
-      pidgin.sort((a:any,b:any) => (a.id||0) - (b.id||0)); // ✅ Chairman order #1-#5 by timestamp
-      if (pidgin.length > 0) setMyLocalVoices(pidgin);
+      // Old: let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
+      let myVoices = saved.filter((f:any) => f.audioData); // Chairman - any voice with audio
+      myVoices.sort((a:any,b:any) => (a.id||0) - (b.id||0));
+      if (myVoices.length > 0) setMyLocalVoices(myVoices);
     } catch {}
   }
 
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   
-  // ✅ CHAIRMAN VOICE LOCKED #1-#5 - YOUR 5 VOICES - 71,68,54,53,82kB
+  // ✅ CHAIRMAN VOICE LOCKED #1-#5 - YOUR 5 VOICES - 71,68,54,53,82kB - SAME AS YOUR OWN
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); audio.currentTime = 0; setAudio(null); }
@@ -72,13 +74,12 @@ export default function Marketplace() {
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
 
-      // ✅ CHAIRMAN ORDER - LOCKED AS YOU SENT
       const chairmanMap: any = {
-        "Lagos Male": 0,      // #1 71.27kB - 7691661.webm - 2:41PM
-        "Abuja Female": 1,    // #2 68.21kB - 7954287.webm - 2:44PM
-        "Pidgin Narrator": 2, // #3 54.55kB - 8091009.webm - 2:48PM
-        "Delta Warri": 3,     // #4 53.42kB - 8272564.webm - 2:51PM
-        "Yoruba Mix": 4       // #5 82.23kB - 8544627.webm - 2:55PM
+        "Lagos Male": 0,
+        "Abuja Female": 1,
+        "Pidgin Narrator": 2,
+        "Delta Warri": 3,
+        "Yoruba Mix": 4
       };
       const idx = chairmanMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
       const chairmanVoice = myLocalVoices[idx];
@@ -92,7 +93,6 @@ export default function Marketplace() {
         showToast(`🎧 Chairman #${idx+1} ${voice.name} - YOUR VOICE`, "success");
         return;
       }
-      // Fallback only if chairman voice no dey
       if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
       const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
     } catch { setPlayingId(null); }
