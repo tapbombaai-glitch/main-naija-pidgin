@@ -8,9 +8,10 @@ export default function WorkerDashboard() {
   const [selectedLang, setSelectedLang] = useState("Pidgin");
   const [activeBottom, setActiveBottom] = useState("Levels");
   const [showModal, setShowModal] = useState<string | null>(null);
-  const [earnings] = useState({ total: 1250, pending: 450, approved: 87 });
+  const [earnings, setEarnings] = useState({ total: 1250, pending: 450, approved: 87 });
   const [taskProgress, setTaskProgress] = useState({ total: 45, today: 12 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -18,13 +19,31 @@ export default function WorkerDashboard() {
   const streamRef = useRef<MediaStream | null>(null);
 
   const allSentences: Record<string, string[]> = {
-    Pidgin: ["How you dey? I dey come now now.", "Abeg come help me for here.", "Wetin dey happen for Lagos today?", "I no go gree make dem cheat me."],
-    Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?", "Agaghi m ekwe ka ha ghogbuo m."],
-    Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni.", "Me ke faruwa?", "Ba zan yarda su yaudare ni ba."],
-    Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo.", "Kini n sele?", "Mi o ni gba ki won tan mi."],
+    Pidgin: ["How you dey? I dey come now now.", "Abeg come help me for here.", "Wetin dey happen for Lagos today?", "I no go gree make dem cheat me.", "Oga, how much be this?", "Make we go market tomorrow morning.", "My pikin dey school for Port Harcourt."],
+    Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?", "Agaghi m ekwe ka ha ghogbuo m.", "Oga, ego ole ka nke a bu?", "Anyi ga-aga ahia echi."],
+    Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni.", "Me ke faruwa?", "Ba zan yarda su yaudare ni ba.", "Oga, nawa ne wannan?", "Mu je kasuwa gobe."],
+    Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo.", "Kini n sele?", "Mi o ni gba ki won tan mi.", "Oga, elo ni eyi?", "Jeka lo si oja laaro."],
   };
 
   const sentences = allSentences[selectedLang];
+
+  // LOAD PROGRESS FROM PHONE
+  useEffect(() => {
+    const saved = localStorage.getItem("naija_progress");
+    if (saved) {
+      try {
+        const p = JSON.parse(saved);
+        setTaskProgress(p.progress);
+        setEarnings(p.earnings);
+        setCurrentSentenceIndex(p.index || 0);
+      } catch {}
+    }
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -66,15 +85,67 @@ export default function WorkerDashboard() {
     if (timerRef.current) clearInterval(timerRef.current);
   };
 
-  const saveAndNext = () => {
+  // UPGRADED SAVE & NEXT - NOW TEXT GO CHANGE + CHAIRMAN CONNECTION
+  const saveAndNext = async () => {
     if (!audioURL) { alert("🎤 Abeg record first before saving!"); return; }
+
+    // 1. Download to phone
     const a = document.createElement("a");
     a.href = audioURL;
     a.download = `recording-${selectedLang}-${Date.now()}.webm`;
     a.click();
-    setTaskProgress(p => ({ total: p.total + 1, today: p.today + 1 }));
-    setCurrentSentenceIndex(prev => (prev + 1) % sentences.length);
-    setAudioURL(null); setTimer(0);
+
+    // 2. Save for Chairman Dashboard (localStorage + API ready)
+    const recordingData = {
+      id: Date.now(),
+      worker_id: "WORKER-1234",
+      lang: selectedLang,
+      sentence: sentences[currentSentenceIndex],
+      audio: audioURL,
+      time: new Date().toISOString(),
+      earnings: 30,
+    };
+    
+    // Save to localStorage for Chairman to see
+    const existing = JSON.parse(localStorage.getItem("naija_recordings") || "[]");
+    existing.unshift(recordingData);
+    localStorage.setItem("naija_recordings", JSON.stringify(existing.slice(0, 100)));
+
+    // Try to send to Chairman API if e dey
+    try {
+      const blob = await fetch(audioURL).then(r => r.blob());
+      const fd = new FormData();
+      fd.append("file", blob);
+      fd.append("data", JSON.stringify(recordingData));
+      fetch("/api/recordings", { method: "POST", body: fd }).catch(()=>{});
+    } catch {}
+
+    // 3. Update money and progress
+    const newEarnings = { 
+      total: earnings.total + 30, 
+      pending: earnings.pending + 30, 
+      approved: earnings.approved + 1 
+    };
+    const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
+    const nextIndex = (currentSentenceIndex + 1) % sentences.length;
+
+    setEarnings(newEarnings);
+    setTaskProgress(newProgress);
+    setCurrentSentenceIndex(nextIndex);
+    
+    // Save progress
+    localStorage.setItem("naija_progress", JSON.stringify({
+      progress: newProgress,
+      earnings: newEarnings,
+      index: nextIndex,
+      lang: selectedLang
+    }));
+
+    setAudioURL(null); 
+    setTimer(0);
+    
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+    showToast(`✅ Saved! ₦30 added. Next work: ${sentences[nextIndex].slice(0,20)}...`);
   };
 
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach(t => t.stop()); }; }, []);
@@ -82,9 +153,9 @@ export default function WorkerDashboard() {
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
+      {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 100, boxShadow: "0 4px 20px rgba(0,230,118,0.5)" }}>{toast}</div>}
+      
       <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
-        
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <div><div style={{ display: "flex", alignItems: "center", gap: "8px" }}><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: "11px", color: "#aaa", marginTop: "2px" }}>Welcome, <span style={{ color: "white", fontWeight: "800" }}>WORKER-1234</span> <span style={{ color: "#00E676", fontSize: "10px" }}> ● Online</span></div></div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", boxShadow: "0 0 8px #00E676" }}></div>
@@ -132,7 +203,7 @@ export default function WorkerDashboard() {
 
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", border: "1px solid #2A4A2A", color: "#ccc", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "800" }}>↻ Re-record</button>
-            <button onClick={saveAndNext} style={{ flex: 1.5, background: "#00E676", color: "black", border: "none", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "900" }}>Save & Next →</button>
+            <button onClick={saveAndNext} style={{ flex: 1.5, background: audioURL ? "#00E676" : "#1A3A1A", color: audioURL ? "black" : "#666", border: "none", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "900" }}>Save & Next →</button>
           </div>
         </div>
 
@@ -158,17 +229,16 @@ export default function WorkerDashboard() {
         </div>
       </div>
 
-      {/* ALL MODALS WORKING */}
       {showModal && (
         <div onClick={()=>setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", zIndex: 50 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background: "#121C12", border: "1px solid #00E676", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "340px" }}>
-            {showModal==="earnings" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>💰 Earnings</div><div style={{ fontSize: "32px", fontWeight: "900", color: "#00E676", marginTop: "12px" }}>₦{earnings.total.toLocaleString()}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Total: 45 recordings<br/>Rate: ₦30 per clip<br/>Next payout: Friday</div></>}
-            {showModal==="pending" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>🕐 Pending</div><div style={{ fontSize: "32px", fontWeight: "900", color: "#FFC107", marginTop: "12px" }}>₦{earnings.pending}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>15 clips under review<br/>Usually approved in 24hrs</div></>}
-            {showModal==="approved" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>✅ Approved Clips</div><div style={{ fontSize: "32px", fontWeight: "900", marginTop: "12px" }}>{earnings.approved}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>87 clips approved<br/>Quality score: 4.8/5.0</div></>}
-            {showModal==="levels" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👑 Pro Level</div><div style={{ fontSize: "12px", color: "#00E676", marginTop: "8px", fontWeight: "800" }}>You are Pro Level Worker!</div><div style={{ background: "#000", height: "8px", borderRadius: "10px", marginTop: "12px" }}><div style={{ width: "70%", height: "100%", background: "#00E676", borderRadius: "10px" }}></div></div><div style={{ fontSize: "10px", color: "#888", marginTop: "6px" }}>70% to Master Level (500 clips)</div></>}
-            {showModal==="withdraw" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>💳 Withdraw</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Available: ₦1,250<br/>Min withdrawal: ₦1,000</div><button onClick={()=>{alert("Withdraw request sent!"); setShowModal(null);}} style={{ width: "100%", marginTop: "14px", background: "#00E676", color: "black", border: "none", padding: "12px", borderRadius: "10px", fontWeight: "900" }}>Withdraw ₦1,250</button></>}
-            {showModal==="profile" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👤 WORKER-1234</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>📍 Lagos<br/>🎤 Lagos Pidgin<br/>⭐ Pro Level<br/>📅 Joined: Oct 2024</div></>}
-            {showModal==="crown" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👑 Leaderboard</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Your rank: #12<br/>Top worker: 892 clips<br/>Keep recording to rank up!</div></>}
+            {showModal==="earnings" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>💰 Earnings</div><div style={{ fontSize: "32px", fontWeight: "900", color: "#00E676", marginTop: "12px" }}>₦{earnings.total.toLocaleString()}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Total: {taskProgress.total} recordings<br/>Rate: ₦30 per clip<br/>Next payout: Friday</div></>}
+            {showModal==="pending" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>🕐 Pending</div><div style={{ fontSize: "32px", fontWeight: "900", color: "#FFC107", marginTop: "12px" }}>₦{earnings.pending}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Pending review<br/>Usually approved in 24hrs</div></>}
+            {showModal==="approved" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>✅ Approved Clips</div><div style={{ fontSize: "32px", fontWeight: "900", marginTop: "12px" }}>{earnings.approved}</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Quality score: 4.8/5.0</div></>}
+            {showModal==="levels" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👑 Pro Level</div><div style={{ fontSize: "12px", color: "#00E676", marginTop: "8px", fontWeight: "800" }}>You are Pro Level Worker!</div><div style={{ background: "#000", height: "8px", borderRadius: "10px", marginTop: "12px" }}><div style={{ width: `${(taskProgress.total/500)*100}%`, height: "100%", background: "#00E676", borderRadius: "10px" }}></div></div><div style={{ fontSize: "10px", color: "#888", marginTop: "6px" }}>{taskProgress.total}/500 to Master Level</div></>}
+            {showModal==="withdraw" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>💳 Withdraw</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Available: ₦{earnings.total.toLocaleString()}<br/>Min: ₦1,000</div><button onClick={()=>{alert("Withdraw request sent!"); setShowModal(null);}} style={{ width: "100%", marginTop: "14px", background: "#00E676", color: "black", border: "none", padding: "12px", borderRadius: "10px", fontWeight: "900" }}>Withdraw ₦{earnings.total.toLocaleString()}</button></>}
+            {showModal==="profile" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👤 WORKER-1234</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>📍 Lagos<br/>🎤 {selectedLang}<br/>⭐ Pro Level<br/>🎙️ {taskProgress.total} recordings saved</div></>}
+            {showModal==="crown" && <><div style={{ fontSize: "18px", fontWeight: "900" }}>👑 Leaderboard</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Your rank: #12<br/>Top: 892 clips<br/>Keep recording to rank up!</div></>}
             <button onClick={()=>setShowModal(null)} style={{ width: "100%", marginTop: "16px", background: "#222", color: "white", border: "none", padding: "10px", borderRadius: "10px", fontWeight: "800" }}>Close</button>
           </div>
         </div>
