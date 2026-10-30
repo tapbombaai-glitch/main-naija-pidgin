@@ -56,7 +56,6 @@ export default function Marketplace() {
     } catch {}
     try {
       const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-      // ✅ ONLY CHANGE 1: SORT BY ID TO MATCH YOUR #1-#5 ORDER (769161 -> 8544627)
       let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
       pidgin.sort((a:any,b:any) => (a.id||0) - (b.id||0));
       if (pidgin.length > 0) setMyLocalVoices(pidgin);
@@ -65,25 +64,19 @@ export default function Marketplace() {
 
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   
-  // ✅ ONLY CHANGE 2: VOICE ARRANGED PROPERLY BY YOUR #1-#5 FILES
+  // ✅ YOUR VOICE BACK - PROPERLY ARRANGED #1-#5
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); }
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
 
-      // ✅ YOUR EXACT ARRANGEMENT - BASED ON YOUR 5 FILES YOU SENT
-      // #1 Lagos Male 71.27kB (769161) = index 0
-      // #2 Abuja Female 68.21kB (7954287) = index 1
-      // #3 Pidgin Narrator 54.55kB (8091009) = index 2
-      // #4 Delta Warri 53.42kB (8272564) = index 3
-      // #5 Yoruba Mix 82.23kB (8544627) = index 4
       const nameMap: any = {
-        "Lagos Male": 0,
-        "Abuja Female": 1,
-        "Pidgin Narrator": 2,
-        "Delta Warri": 3,
-        "Yoruba Mix": 4
+        "Lagos Male": 0,      // YOUR #1 - 71.27kB (769161)
+        "Abuja Female": 1,    // YOUR #2 - 68.21kB (7954287)
+        "Pidgin Narrator": 2, // YOUR #3 - 54.55kB (8091009)
+        "Delta Warri": 3,     // YOUR #4 - 53.42kB (8272564)
+        "Yoruba Mix": 4       // YOUR #5 - 82.23kB (8544627)
       };
       const voiceIndex = nameMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
       const myRecording = myLocalVoices[voiceIndex];
@@ -103,11 +96,7 @@ export default function Marketplace() {
   };
 
   const claimFree = async () => {
-    if (!user) { 
-      showToast("Please login your email - go /login", "error"); 
-      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
-      return; 
-    }
+    if (!user) { showToast("Please login your email - go /login", "error"); setTimeout(()=> window.location.href = "/login?next=/", 1200); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
@@ -120,11 +109,7 @@ export default function Marketplace() {
 
   const buy = async (pkg: string) => {
     if (pkg === 'free_100') { claimFree(); return; }
-    if (!user) { 
-      showToast("Please login your email - go /login", "error"); 
-      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
-      return; 
-    }
+    if (!user) { showToast("Please login your email - go /login", "error"); setTimeout(()=> window.location.href = "/login?next=/", 1200); return; }
     setLoading(true);
     try {
       const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user.email, userId: user.id }) });
@@ -135,21 +120,12 @@ export default function Marketplace() {
     setLoading(false);
   };
 
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    showToast("Logged out", "success");
-  };
+  const logout = async () => { await supabase.auth.signOut(); setUser(null); showToast("Logged out", "success"); };
 
   return (
     <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
-      <style>{`
-        *{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)}
-        /* ✅ FIXED - NO MORE CUT, ALL 5 SHOW AT ONCE */
-        .voice-grid-fixed { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-      `}</style>
+      <style>{`*{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)} .voice-grid-fixed { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }`}</style>
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType==="error" ? "#FF5252" : "#00E676", color: toastType==="error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 100, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
-      
       <div style={{ maxWidth: "420px", margin: "0 auto", border: "2px solid #1A231A", borderRadius: "28px", background: "#050A05", padding: "12px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 2px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -157,88 +133,17 @@ export default function Marketplace() {
             <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-            {user ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
-                <button onClick={logout} style={{ background: "#1A231A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "8px", padding: "4px 8px", borderRadius: "20px" }}>⎋ Logout</button>
-              </div>
-            ) : (
-              <Link href="/login" style={{ background: "#00E676", color: "black", fontSize: "9px", fontWeight: "900", padding: "6px 10px", borderRadius: "20px", textDecoration: "none" }}>Login</Link>
-            )}
+            {user ? (<div style={{ display: "flex", alignItems: "center", gap: "6px" }}><div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div><button onClick={logout} style={{ background: "#1A231A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "8px", padding: "4px 8px", borderRadius: "20px" }}>⎋ Logout</button></div>) : (<Link href="/login" style={{ background: "#00E676", color: "black", fontSize: "9px", fontWeight: "900", padding: "6px 10px", borderRadius: "20px", textDecoration: "none" }}>Login</Link>)}
             <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE</div>
           </div>
         </div>
-
-        {announces.length > 0 && (
-          <div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>
-            {announces.map((a: any) => (
-              <div key={a.id} style={{ marginTop: "8px", background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "10px" }}>
-                <div style={{ fontSize: "12px", fontWeight: "900", color: "white" }}>{a.title}</div>
-                <div style={{ fontSize: "11px", color: "#BDBDBD", marginTop: "4px", lineHeight: "1.4" }}>{a.message}</div>
-                <div style={{ fontSize: "8px", color: "#666", marginTop: "6px" }}>{new Date(a.created_at).toLocaleString()} • Chairman</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}>
-          <div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div>
-          <div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase {user && <span style={{ color: "#00E676" }}>• {user.email}</span>}</div>
-        </div>
-
-        <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}>
-            <div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div>
-            <button onClick={() => { if(realKey){ navigator.clipboard.writeText(realKey); showToast("Key copied!"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button>
-          </div>
-          <div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD" }}>
-            <span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span>
-            <span><b style={{ color: "white" }}>{paidLeft}</b> Paid Left</span>
-            <span style={{ color: "#333" }}>|</span>
-            <span><b style={{ color: "#00E676" }}>99.9%</b> Uptime</span>
-          </div>
-        </div>
-
-        <div style={{ marginTop: "14px" }}>
-          <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div>
-          <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}>
-            <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div>
-              <div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div>
-              <div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div>
-              <button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button>
-            </div>
-            <div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div>
-                <div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div>
-              </div>
-              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div>
-              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div>
-              <button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
-            </div>
-            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
-              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div>
-              <div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div>
-              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div>
-              <button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button>
-            </div>
-            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
-              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div>
-              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div>
-              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div>
-              <button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
-            </div>
-          </div>
-        </div>
-
+        {announces.length > 0 && (<div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}><div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>{announces.map((a: any) => (<div key={a.id} style={{ marginTop: "8px", background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "10px" }}><div style={{ fontSize: "12px", fontWeight: "900", color: "white" }}>{a.title}</div><div style={{ fontSize: "11px", color: "#BDBDBD", marginTop: "4px", lineHeight: "1.4" }}>{a.message}</div><div style={{ fontSize: "8px", color: "#666", marginTop: "6px" }}>{new Date(a.created_at).toLocaleString()} • Chairman</div></div>))}</div>)}
+        <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div><div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase {user && <span style={{ color: "#00E676" }}>• {user.email}</span>}</div></div>
+        <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}><div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}><div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div><button onClick={() => { if(realKey){ navigator.clipboard.writeText(realKey); showToast("Key copied!"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button></div><div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD" }}><span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span><span><b style={{ color: "white" }}>{paidLeft}</b> Paid Left</span><span style={{ color: "#333" }}>|</span><span><b style={{ color: "#00E676" }}>99.9%</b> Uptime</span></div></div>
+        <div style={{ marginTop: "14px" }}><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div><div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}><div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div><div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div><div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div><button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button></div><div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}><div style={{ display: "flex", justifyContent: "space-between" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div><div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div></div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div><button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div><div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div><button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div><button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div></div></div>
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen {myLocalVoices.length > 0 && <span style={{color:"#00E676", fontSize:"10px"}}>• {myLocalVoices.length} YOUR VOICE READY</span>}</div>
           <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct {myLocalVoices.length > 0 ? "• YOUR VOICE ACTIVE" : ""}</div>
-          {/* ✅ ARRANGED - FIXED GRID, NO SCROLL, NO CUT */}
           <div className="voice-grid-fixed" style={{ marginTop: "10px" }}>
             {voices.slice(0,5).map((v: any, idx: number) => {
               const hasMyVoice = !!myLocalVoices[idx];
@@ -255,7 +160,6 @@ export default function Marketplace() {
             )})}
           </div>
         </div>
-
         <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
         <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap {myLocalVoices.length > 0 ? `• ${myLocalVoices.length} Your Voice Active` : ""}</div>
       </div>
