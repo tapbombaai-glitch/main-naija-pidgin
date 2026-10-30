@@ -56,20 +56,28 @@ export default function Marketplace() {
     } catch {}
     try {
       const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-      const pidgin = saved.filter((f:any) => f.lang === "Pidgin");
+      // ✅ ONLY CHANGE 1: SORT BY ID TO MATCH YOUR #1-#5 ORDER (769161 -> 8544627)
+      let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
+      pidgin.sort((a:any,b:any) => (a.id||0) - (b.id||0));
       if (pidgin.length > 0) setMyLocalVoices(pidgin);
     } catch {}
   }
 
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
   
-  // ✅ FIXED - PLAY BY NAME SO POSITION NO GO CONFUSE
+  // ✅ ONLY CHANGE 2: VOICE ARRANGED PROPERLY BY YOUR #1-#5 FILES
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); }
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
 
+      // ✅ YOUR EXACT ARRANGEMENT - BASED ON YOUR 5 FILES YOU SENT
+      // #1 Lagos Male 71.27kB (769161) = index 0
+      // #2 Abuja Female 68.21kB (7954287) = index 1
+      // #3 Pidgin Narrator 54.55kB (8091009) = index 2
+      // #4 Delta Warri 53.42kB (8272564) = index 3
+      // #5 Yoruba Mix 82.23kB (8544627) = index 4
       const nameMap: any = {
         "Lagos Male": 0,
         "Abuja Female": 1,
@@ -86,7 +94,7 @@ export default function Marketplace() {
         a.onended = () => setPlayingId(null);
         a.onerror = () => setPlayingId(null);
         await a.play();
-        showToast(`🎧 Playing YOUR voice: ${voice.name}`, "success");
+        showToast(`🎧 #${voiceIndex+1} ${voice.name} - YOUR VOICE`, "success");
         return;
       }
       if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
