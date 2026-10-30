@@ -19,18 +19,19 @@ export default function WorkerDashboard() {
   const timerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // ✅ FIXED ONLY PIDGIN ADVERTS TO 1500 DAILY - NO STRUCTURE DELETED
   const allSentences: Record<string, string[]> = {
     Pidgin: [
-      "Your voice na money! Record Pidgin for MayNaija, collect 30 naira per clip!",
-      "Earn 1500 naira daily! Fifteen seconds equals thirty naira! Just talk for phone!",
-      "Omo no dull! Your accent na asset, MayNaija need your original voice!",
-      "Fifty clips per day equals one thousand five hundred naira! Work from phone!",
-      "Chairman dey find voices! Record once, sell forever, chairman approved!",
-      "Naija talk, world listen! Join 500 workers wey dey build Naija voice bank!",
-      "No laptop needed! Just your phone, your voice, your Naija, collect money!",
-      "Help AI understand Naija! Google no sabi Pidgin well, MayNaija dey build am!",
-      "From worker to pro! Level up for MayNaija, pro workers earn fifty thousand weekly!",
-      "Top earner this week don collect twelve thousand five hundred! You fit do pass am!"
+      "Earn 1500 naira daily! Your voice na money! Record Pidgin for MayNaija!",
+      "Earn 1500 naira daily! Fifteen seconds equals daily cash! Just talk for phone!",
+      "Omo no dull! Earn 1500 naira daily! Your accent na asset for MayNaija!",
+      "Earn 1500 naira daily! Fifty clips per day na 1500 naira! Work from phone!",
+      "Chairman dey find voices! Earn 1500 naira daily! Record once, collect daily!",
+      "Naija talk, world listen! Join 500 workers wey dey earn 1500 naira daily!",
+      "No laptop needed! Just your phone, your voice, earn 1500 naira daily!",
+      "Help AI understand Naija! Google no sabi Pidgin well, earn 1500 naira daily!",
+      "From worker to pro! Level up for MayNaija, pro earn 50000 weekly! Start 1500 daily!",
+      "Top earner this week don collect 12500! You fit earn 1500 daily pass am!"
     ],
     Igbo: ["Kedu? Ana m abia ugbu a", "Biko nyere m aka", "Kedu ihe na eme?"],
     Hausa: ["Yaya kake? Ina zuwa yanzu", "Don Allah ka taimake ni"],
