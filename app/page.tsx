@@ -54,6 +54,8 @@ export default function Marketplace() {
     } catch { setPlayingId(null); }
   };
   const claimFree = async () => {
+    // === LOGIN FORMULA ADDED — NO DELETE ===
+    if (!user) { showToast("Please login first - go /login", "error"); setTimeout(()=> window.location.href = "/login", 1000); return; }
     setLoading(true);
     try {
       const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
@@ -67,6 +69,8 @@ export default function Marketplace() {
   };
   const buy = async (pkg: string) => {
     if (pkg === 'free_100') { claimFree(); return; }
+    // === LOGIN FORMULA ADDED ===
+    if (!user) { showToast("Login first to buy", "error"); window.location.href = "/login"; return; }
     setLoading(true);
     try {
       const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
@@ -76,6 +80,12 @@ export default function Marketplace() {
       else showToast(data.error || 'Paystack init failed', "error");
     } catch { showToast("Connection failed", "error"); }
     setLoading(false);
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    showToast("Logged out", "success");
   };
 
   return (
@@ -97,12 +107,23 @@ export default function Marketplace() {
             <div style={{ background: "white", borderRadius: "4px", width: "28px", height: "20px", display: "flex", overflow: "hidden" }}><div style={{ flex: 1, background: "#008751" }}></div><div style={{ flex: 1, background: "white" }}></div><div style={{ flex: 1, background: "#008751" }}></div></div>
             <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
-          <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE MARKETPLACE</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {/* === LOGIN FORMULA — ADDED, NO DELETE === */}
+            {user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
+                <button onClick={logout} style={{ background: "#1A231A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "8px", padding: "4px 8px", borderRadius: "20px" }}>⎋ Logout</button>
+              </div>
+            ) : (
+              <Link href="/login" style={{ background: "#00E676", color: "black", fontSize: "9px", fontWeight: "900", padding: "6px 10px", borderRadius: "20px", textDecoration: "none" }}>Login</Link>
+            )}
+            <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE</div>
+          </div>
         </div>
 
         <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}>
           <div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div>
-          <div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase</div>
+          <div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase {user && <span style={{ color: "#00E676" }}>• {user.email}</span>}</div>
         </div>
 
         <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
@@ -156,7 +177,6 @@ export default function Marketplace() {
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen</div>
           <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct</div>
-          {/* FIXED FOR SMALL PHONE: flex scroll on <380px */}
           <div className="voice-scroll" style={{ marginTop: "10px" }}>
             {voices.slice(0,5).map((v: any) => (
               <div key={v.id} onClick={() => playSample(v)} className="voice-card" style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center", cursor: "pointer" }}>
@@ -172,7 +192,7 @@ export default function Marketplace() {
         </div>
 
         <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
-        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts</div>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"}</div>
       </div>
     </div>
   );
