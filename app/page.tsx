@@ -23,26 +23,40 @@ export default function Home() {
           <p style={{ color: "#888", fontSize: "12px", marginTop: "6px" }}>Build with pidgin. Deploy fast. Run Naija.</p>
         </div>
 
-        {/* WORKER + CHAIRMAN - FIXED FOR SMALL PHONE */}
+        {/* WORKER + CHAIRMAN - FIXED INSIDE - NO DELETE */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "16px", width: "100%" }}>
-          <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "120px" }}>
-            <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>💼 Worker Panel</div>
-            <div style={{ color: "#777", fontSize: "10px", marginTop: "6px", flex: 1 }}>Manage ops & tasks</div>
-            <Link href="/worker" style={{ textDecoration: "none" }}>
-              <div style={{ marginTop: "12px", background: "#00E676", color: "black", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "900", fontSize: "11px" }}>Enter Workspace</div>
+          {/* WORKER PANEL - FIXED */}
+          <div style={{ background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "130px", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>💼 Worker Panel</div>
+              <div style={{ color: "#777", fontSize: "10px", marginTop: "6px" }}>Manage ops & tasks</div>
+              <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+                <span style={{ fontSize: "8px", background: "#00E67620", color: "#00E676", padding: "2px 6px", borderRadius: "4px", fontWeight: "800" }}>45 Tasks</span>
+                <span style={{ fontSize: "8px", background: "#1A231A", color: "#888", padding: "2px 6px", borderRadius: "4px" }}>● Online</span>
+              </div>
+            </div>
+            <Link href="/worker" style={{ textDecoration: "none", display: "block", width: "100%" }}>
+              <div style={{ marginTop: "12px", background: "#00E676", color: "black", padding: "11px", borderRadius: "10px", textAlign: "center", fontWeight: "900", fontSize: "11px", cursor: "pointer" }}>Enter Workspace →</div>
             </Link>
           </div>
 
-          <div style={{ background: "#121C12", border: "1px solid #3A341E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "120px" }}>
-            <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>👑 Chairman Dashboard</div>
-            <div style={{ color: "#777", fontSize: "10px", marginTop: "6px", flex: 1 }}>Lead & analytics</div>
-            <Link href="/admin/login" style={{ textDecoration: "none" }}>
-              <div style={{ marginTop: "12px", background: "transparent", border: "1px solid #FFC107", color: "#FFC107", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "800", fontSize: "11px" }}>Open Dashboard</div>
+          {/* CHAIRMAN DASHBOARD - FIXED */}
+          <div style={{ background: "#121C12", border: "1px solid #3A341E", borderRadius: "16px", padding: "14px", display: "flex", flexDirection: "column", minHeight: "130px", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: "800", color: "white", fontSize: "13px" }}>👑 Chairman Dashboard</div>
+              <div style={{ color: "#777", fontSize: "10px", marginTop: "6px" }}>Lead & analytics</div>
+              <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+                <span style={{ fontSize: "8px", background: "#FFC10720", color: "#FFC107", padding: "2px 6px", borderRadius: "4px", fontWeight: "800" }}>12 Workers</span>
+                <span style={{ fontSize: "8px", background: "#1A231A", color: "#888", padding: "2px 6px", borderRadius: "4px" }}>Admin</span>
+              </div>
+            </div>
+            <Link href="/admin/login" style={{ textDecoration: "none", display: "block", width: "100%" }}>
+              <div style={{ marginTop: "12px", background: "transparent", border: "1.5px solid #FFC107", color: "#FFC107", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "800", fontSize: "11px", cursor: "pointer" }}>Open Dashboard →</div>
             </Link>
           </div>
         </div>
 
-        {/* API MARKETPLACE */}
+        {/* API MARKETPLACE - KEPT SAME */}
         <div style={{ marginTop: "20px" }}>
           <div style={{ fontWeight: "800", color: "white", fontSize: "15px" }}>🛡️ API Marketplace</div>
           
@@ -51,7 +65,7 @@ export default function Home() {
             <div style={{ marginTop: "8px", display: "flex", gap: "8px", alignItems: "center" }}>
               <div style={{ flex: 1, background: "black", border: "1px solid #222", borderRadius: "8px", padding: "10px", color: "#aaa", fontSize: "11px", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey}</div>
               <button onClick={()=>{navigator.clipboard.writeText("mk_live_test_key"); setCopied(true); setTimeout(()=>setCopied(false),2000)}} 
-                style={{ background: "#1E3A1E", color: "#00E676", border: "none", padding: "10px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>
+                style={{ background: "#1E3A1E", color: "#00E676", border: "none", padding: "10px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}>
                 {copied ? "✓" : "Copy"}
               </button>
             </div>
@@ -73,7 +87,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* PREVIEW VOICES */}
+        {/* PREVIEW VOICES - KEPT SAME */}
         <div style={{ marginTop: "20px" }}>
           <div style={{ fontWeight: "800", color: "white", fontSize: "14px" }}>🎧 Preview Voices</div>
           <div style={{ marginTop: "10px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
@@ -93,13 +107,13 @@ export default function Home() {
                     <div style={{ color: "#666", fontSize: "8px", marginTop: "2px" }}>{v.s}</div>
                   </div>
                 </div>
-                <div style={{ width: "24px", height: "24px", background: "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", flexShrink: 0 }}>▶</div>
+                <button onClick={()=>{ const u = new SpeechSynthesisUtterance(v.n); speechSynthesis.speak(u); }} style={{ width: "24px", height: "24px", background: "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", flexShrink: 0, border: "none", cursor: "pointer" }}>▶</button>
               </div>
             ))}
           </div>
         </div>
 
-        {/* ENDPOINTS */}
+        {/* ENDPOINTS - KEPT SAME */}
         <div style={{ marginTop: "20px" }}>
           <div style={{ fontWeight: "800", color: "white", fontSize: "14px" }}>↔ Available Endpoints</div>
           <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #1E3A1E", borderRadius: "14px", padding: "14px" }}>
