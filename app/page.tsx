@@ -20,16 +20,15 @@ export default function Marketplace() {
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"success"|"error">("success");
-  // === ANNOUNCEMENT BOARD ADDED — NO DELETE ===
   const [announces, setAnnounces] = useState<any[]>([]);
 
   useEffect(() => { loadData(); 
-    // FIX LOGIN LISTENER
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
     });
     return () => { listener.subscription.unsubscribe(); };
   }, []);
+
   async function loadData() {
     const { data: u } = await supabase.auth.getUser();
     setUser(u?.user || null);
@@ -50,13 +49,14 @@ export default function Marketplace() {
       setApiKey(keys[0].key_prefix); setRealKey(keys[0].key);
       setFreeLeft(keys[0].free_requests_remaining || 0); setPaidLeft(keys[0].paid_requests_remaining || 0);
     }
-    // === LOAD ANNOUNCEMENTS ===
     try {
       const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
       if (ann) setAnnounces(ann);
     } catch {}
   }
+
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
+  
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); }
@@ -66,26 +66,34 @@ export default function Marketplace() {
       const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
     } catch { setPlayingId(null); }
   };
+
+  // === FIXED LOGIN SIDE — OPEN BROWSING, LOGIN ONLY ON TAP FOR BOTH FREE + PAYSTACK ===
   const claimFree = async () => {
-    if (!user) { showToast("Please login first - go /login", "error"); setTimeout(()=> window.location.href = "/login", 1000); return; }
+    if (!user) { 
+      showToast("Please login your email - go /login", "error"); 
+      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
+      return; 
+    }
     setLoading(true);
     try {
-      const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
-      localStorage.setItem('guest_id', guestId);
-      const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user?.id || guestId }) });
+      const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
       const data = await res.json();
       if (data.api_key) { setRealKey(data.api_key); setApiKey(data.key_prefix); setFreeLeft(100); showToast("✅ 100 FREE claimed! Key copied!", "success"); navigator.clipboard.writeText(data.api_key); await loadData(); }
       else showToast(data.error || 'Already claimed', "error");
     } catch { showToast("Network error - add SUPABASE_SERVICE_KEY for Render", "error"); }
     setLoading(false);
   };
+
   const buy = async (pkg: string) => {
     if (pkg === 'free_100') { claimFree(); return; }
-    if (!user) { showToast("Login first to buy", "error"); window.location.href = "/login"; return; }
+    if (!user) { 
+      showToast("Please login your email - go /login", "error"); 
+      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
+      return; 
+    }
     setLoading(true);
     try {
-      const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
-      const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user?.email || 'customer@mainnaija.com', userId: user?.id || guestId }) });
+      const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user.email, userId: user.id }) });
       const data = await res.json();
       if (data.authorization_url) window.location.href = data.authorization_url;
       else showToast(data.error || 'Paystack init failed', "error");
@@ -131,7 +139,6 @@ export default function Marketplace() {
           </div>
         </div>
 
-        {/* === ANNOUNCEMENT BOARD — SHOWS WHEN CHAIRMAN POST === */}
         {announces.length > 0 && (
           <div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>
@@ -216,7 +223,7 @@ export default function Marketplace() {
         </div>
 
         <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
-        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"}</div>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap</div>
       </div>
     </div>
   );
