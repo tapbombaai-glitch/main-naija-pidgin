@@ -1,6 +1,10 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 
+// ===== CHAIRMAN ONLY FLAG - SET FALSE TO REMOVE LATER =====
+const ENABLE_CHAIRMAN_EXPORT = true;
+// ============================================================
+
 export default function WorkerDashboard() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
@@ -39,10 +43,16 @@ export default function WorkerDashboard() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
       streamRef.current = stream;
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+      // CHAIRMAN ONLY - Use mp4 for WhatsApp acceptance
+      const mime = MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "audio/webm;codecs=opus";
+      const mr = new MediaRecorder(stream, { mimeType: mime });
       mediaRecorderRef.current = mr; audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach(t => t.stop()); };
+      mr.onstop = () => { 
+        const blob = new Blob(audioChunksRef.current, { type: mr.mimeType }); 
+        setAudioURL(URL.createObjectURL(blob)); 
+        stream.getTracks().forEach(t => t.stop()); 
+      };
       mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0);
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
     } catch { alert("Abeg allow microphone!"); }
@@ -51,20 +61,30 @@ export default function WorkerDashboard() {
   const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
-  // SAVE TO PHONE FILE - WORKING!
+  // ===== CHAIRMAN ONLY - SAVE TO PHONE FILE - REMOVE LATER =====
   const saveAndNext = async () => {
     if (!audioURL) { alert("🎤 Record first!"); return; }
     const blob = await fetch(audioURL).then(r => r.blob());
-    const fileName = `recording-${selectedLang}-${Date.now()}.webm`;
+    const ext = blob.type.includes("mp4") ? "m4a" : "mp3"; // WhatsApp accept m4a/mp3
+    const fileName = `recording-${selectedLang}-${Date.now()}.${ext}`;
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl; a.download = fileName; a.style.display = "none";
     document.body.appendChild(a); a.click();
     setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 500);
 
+    // Save metadata for chairman marketplace
     const existing = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-    existing.unshift({ id: Date.now(), lang: selectedLang, sentence: sentences[currentSentenceIndex], fileName, time: new Date().toISOString() });
-    localStorage.setItem("gin_recordings", JSON.stringify(existing.slice(0,100)));
+    existing.unshift({ id: Date.now(), lang: selectedLang, sentence: sentences[currentSentenceIndex], fileName, fileType: blob.type, time: new Date().toISOString(), worker: "WORKER-1234" });
+    localStorage.setItem("gin_recordings", JSON.stringify(existing.slice(0,200)));
+
+    // Try share sheet for WhatsApp
+    try {
+      const file = new File([blob], fileName, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: fileName, text: `GIN ${selectedLang}: ${sentences[currentSentenceIndex]}` });
+      }
+    } catch {}
 
     const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved + 1 };
     const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
@@ -72,8 +92,29 @@ export default function WorkerDashboard() {
     setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
     localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
     setAudioURL(null); setTimer(0);
-    showToast(`✅ SAVED TO PHONE: ${fileName} ₦30`);
+    showToast(`✅ SAVED: ${fileName} ₦30`);
   };
+
+  const exportForChairman = () => {
+    const all = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
+    if(all.length === 0) { alert("No files yet, record first!"); return; }
+    const meta = all.map((f:any,i:number) => ({
+      id: i+1,
+      marketplace_file: `marketplace_${f.lang.toLowerCase()}_${i+1}.mp3`,
+      original_file: f.fileName,
+      lang: f.lang,
+      sentence: f.sentence,
+      worker: f.worker,
+      time: f.time
+    }));
+    const blob = new Blob([JSON.stringify(meta, null, 2)], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "gin-chairman-marketplace-pack.json";
+    a.click();
+    showToast(`📦 ${all.length} files metadata exported for Chairman!`);
+  };
+  // ===== END CHAIRMAN ONLY =====
 
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
   useEffect(() => { setCurrentSentenceIndex(0); setAudioURL(null); setTimer(0); }, [selectedLang]);
@@ -113,6 +154,12 @@ export default function WorkerDashboard() {
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", border: "1px solid #2A4A2A", color: "#ccc", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "800" }}>↻ Re-record</button>
             <button onClick={saveAndNext} style={{ flex: 1.5, background: "#00E676", color: "black", border: "none", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "900" }}>Save & Next →</button>
           </div>
+          {/* CHAIRMAN ONLY EXPORT - REMOVE LATER */}
+          {ENABLE_CHAIRMAN_EXPORT && (
+            <button onClick={exportForChairman} style={{width:"100%", marginTop:"10px", background:"transparent", border:"1px dashed #00E676", color:"#00E676", padding:"10px", borderRadius:"10px", fontSize:"10px", fontWeight:"800"}}>
+              📦 EXPORT FOR CHAIRMAN / MARKETPLACE (Temporary)
+            </button>
+          )}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "10px" }}>
           <div onClick={()=>setShowModal("earnings")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "9px", color: "#888" }}>💳 Earnings</div><div style={{ fontSize: "16px", fontWeight: "900", marginTop: "4px" }}>₦{earnings.total.toLocaleString()}</div></div>
