@@ -1,264 +1,171 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-export default function WorkerDashboard() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioURL, setAudioURL] = useState<string | null>(null);
-  const [timer, setTimer] = useState(0);
-  const [selectedLang, setSelectedLang] = useState("Pidgin");
-  const [showModal, setShowModal] = useState<string | null>(null);
-  const [activeBottom, setActiveBottom] = useState("Levels");
-  const [earnings, setEarnings] = useState({ total: 1760, pending: 960, approved: 104 });
-  const [taskProgress, setTaskProgress] = useState({ total: 63, today: 30 });
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [showBankForm, setShowBankForm] = useState(false);
-  const [bankDetails, setBankDetails] = useState({ fullName: "", phone: "", bankName: "Opay", accountNumber: "", accountName: "" });
-  // 📢 FIX - ANNOUNCEMENT BOARD WITH COUNT
-  const [showAnnouncement, setShowAnnouncement] = useState(false);
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+export default function Marketplace() {
+  const [user, setUser] = useState<any>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [realKey, setRealKey] = useState("");
+  const [freeLeft, setFreeLeft] = useState(0);
+  const [paidLeft, setPaidLeft] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [voices, setVoices] = useState<any[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState<"success"|"error">("success");
+  const [announces, setAnnounces] = useState<any[]>([]);
+  const [myLocalVoices, setMyLocalVoices] = useState<any[]>([]);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<any>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const allSentences: Record<string, string[]> = {
-    Pidgin: ["How you dey? I dey come now","Abeg help me, I no sabi road","Wetin dey happen for here?","I wan chop, I dey hungry","Good morning, how your night be?","How far? Make we go together","No vex, traffic hold me for road","Wetin you talk? Repeat am again","My name na Emeka, I dey stay Lagos","I dey go market now, you dey come?","Omo this Naija sun too hot today","Abeg shift small, make I pass","I don tire, work too much today","Shey you don chop? Food don ready","For inside this life, na patience","You sabi this place? I be new here","Come make we gist small","I wan buy fuel, where station dey?","NEPA don take light again","How your family? Dem dey fine?"],
-    Igbo: ["Kedu ka i mere?","Ana m abia ugbu a","Biko nyere m aka","Kedu ihe na eme?","Ututu oma"],
-    Hausa: ["Yaya kake? Ina kwana?","Ina zuwa yanzu","Don Allah ka taimake ni","Me ke faruwa?","Ina jin yunwa"],
-    Yoruba: ["Bawo ni? Mo wa daadaa","Mo n bo nisisinyi","Ejo e ran mi lowo","Kini n sele?","Ebi n pa mi"],
-  };
-
-  const sentences = allSentences[selectedLang];
-
-  useEffect(() => {
-    const saved = localStorage.getItem("naija_progress");
-    if (saved) { try { const p = JSON.parse(saved); setTaskProgress(p.progress); setEarnings(p.earnings); setCurrentSentenceIndex(p.index||0); } catch {} }
-    const savedBank = localStorage.getItem("gin_bank");
-    if (savedBank) { try { setBankDetails(JSON.parse(savedBank)); } catch {} }
-    // Load announcements for count button - 1 msg=1, 2 msgs=2
-    const fetchAnn = async () => {
-      try {
-        const { data } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(20);
-        if (data) {
-          setAnnouncements(data);
-          const read = JSON.parse(localStorage.getItem("gin_read_ann") || "[]");
-          const unread = data.filter((a:any) => !read.includes(a.id)).length;
-          setUnreadCount(unread);
-        }
-      } catch {}
-    };
-    fetchAnn();
-    const id = setInterval(fetchAnn, 30000);
-    return () => clearInterval(id);
+  useEffect(() => { loadData(); 
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => { listener.subscription.unsubscribe(); };
   }, []);
 
-  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); };
-
-  const toggleRecording = async () => {
-    if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
+  async function loadData() {
+    const { data: u } = await supabase.auth.getUser();
+    setUser(u?.user || null);
+    const { data: v } = await supabase.from('voices').select('*').eq('active', true).limit(10);
+    if (v && v.length > 0) setVoices(v);
+    else setVoices([
+      { id: "1", name: "Lagos Male", accent: "Natural - Young", sample_text: "How far boss! Lagos male voice dey here, ready to talk." },
+      { id: "2", name: "Abuja Female", accent: "Warm - Professional", sample_text: "Good morning, na Abuja female voice, calm and clear." },
+      { id: "3", name: "Pidgin Narrator", accent: "Story - Expressive", sample_text: "For inside this life, na story dey sweet pass, make I tell you!" },
+      { id: "4", name: "Delta Warri", accent: "Rugged - Local", sample_text: "Warri no dey carry last, you hear? Original Warri voice!" },
+      { id: "5", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_text: "E kaaro! I fit speak Yoruba and pidgin join together." },
+    ]);
+    const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
+    localStorage.setItem('guest_id', guestId);
+    const uid = u?.user?.id || guestId;
+    const { data: keys } = await supabase.from('api_keys').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+    if (keys && keys[0]) {
+      setApiKey(keys[0].key_prefix); setRealKey(keys[0].key);
+      setFreeLeft(keys[0].free_requests_remaining || 0); setPaidLeft(keys[0].paid_requests_remaining || 0);
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      audioChunksRef.current = [];
-      let mime = "audio/webm";
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mime = "audio/webm;codecs=opus";
-      else if (MediaRecorder.isTypeSupported("audio/mp4")) mime = "audio/mp4";
-      const mr = new MediaRecorder(stream, { mimeType: mime });
-      mediaRecorderRef.current = mr;
-      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: mime });
-        const url = URL.createObjectURL(blob);
-        console.log("Recording done, url:", url, "size:", blob.size);
-        setAudioURL(url);
-        stream.getTracks().forEach(t => t.stop());
+      const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
+      if (ann) setAnnounces(ann);
+    } catch {}
+    // ✅ FIXED ONLY THIS PART - NO MORE lang FILTER
+    try {
+      const saved = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
+      // Old: let pidgin = saved.filter((f:any) => f.lang === "Pidgin");
+      let myVoices = saved.filter((f:any) => f.audioData); // Chairman - any voice with audio
+      myVoices.sort((a:any,b:any) => (a.id||0) - (b.id||0));
+      if (myVoices.length > 0) setMyLocalVoices(myVoices);
+    } catch {}
+  }
+
+  const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
+  
+  // ✅ CHAIRMAN VOICE LOCKED #1-#5 - YOUR 5 VOICES - 71,68,54,53,82kB - SAME AS YOUR OWN
+  const playSample = async (voice: any) => {
+    try {
+      if (audio) { audio.pause(); audio.currentTime = 0; setAudio(null); }
+      window.speechSynthesis?.cancel();
+      if (playingId === voice.id) { setPlayingId(null); return; }
+      setPlayingId(voice.id);
+
+      const chairmanMap: any = {
+        "Lagos Male": 0,
+        "Abuja Female": 1,
+        "Pidgin Narrator": 2,
+        "Delta Warri": 3,
+        "Yoruba Mix": 4
       };
-      mr.start();
-      setIsRecording(true);
-      setAudioURL(null);
-      setTimer(0);
-      timerRef.current = setInterval(() => {
-        setTimer((p) => {
-          if (p >= 14) {
-            mr.stop();
-            setIsRecording(false);
-            clearInterval(timerRef.current);
-            return 15;
-          }
-          return p + 1;
-        });
-      }, 1000);
-    } catch (e) { alert("Abeg allow microphone! Go phone settings allow mic for Chrome"); console.log(e); }
+      const idx = chairmanMap[voice.name] ?? voices.findIndex((v:any) => v.id === voice.id);
+      const chairmanVoice = myLocalVoices[idx];
+      
+      if (chairmanVoice && chairmanVoice.audioData) {
+        const a = new Audio(chairmanVoice.audioData);
+        setAudio(a);
+        a.onended = () => setPlayingId(null);
+        a.onerror = () => setPlayingId(null);
+        await a.play();
+        showToast(`🎧 Chairman #${idx+1} ${voice.name} - YOUR VOICE`, "success");
+        return;
+      }
+      if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
+      const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
+    } catch { setPlayingId(null); }
   };
 
-  const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
-  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
-
-  const saveAndNext = async () => {
-    console.log("Save clicked, audioURL:", audioURL, "timer:", timer);
-    if (!audioURL) { showToastMsg("⚠️ Record first! Click red button and talk"); return; }
-    if (taskProgress.today >= 50) { showToastMsg("You don finish 50 today!"); return; }
-    setIsUploading(true);
+  const claimFree = async () => {
+    if (!user) { showToast("Please login your email - go /login", "error"); setTimeout(()=> window.location.href = "/login?next=/", 1200); return; }
+    setLoading(true);
     try {
-      const blob = await fetch(audioURL).then(r => r.blob());
-      const fileName = `WORKER-1234/${selectedLang}_${Date.now()}.webm`;
-      if (supabaseUrl && supabaseKey && !supabaseUrl.includes("YOUR_PROJECT") && supabaseUrl.startsWith("https")) {
-        showToastMsg("Uploading to Supabase... ⏳");
-        const { error: upErr } = await supabase.storage.from("voice-clips").upload(fileName, blob, { contentType: "audio/webm" });
-        if (upErr) throw upErr;
-        const { data: urlData } = supabase.storage.from("voice-clips").getPublicUrl(fileName);
-        const { error: dbErr } = await supabase.from("recordings").insert([{ language: selectedLang, text: sentences[currentSentenceIndex], audio_url: urlData.publicUrl, file_name: fileName, duration: timer, earnings: 50, worker_id: "WORKER-1234" }]);
-        if (dbErr) throw dbErr;
-      }
-      const newEarnings = { total: earnings.total + 15, pending: earnings.pending + 15, approved: earnings.approved + 1 };
-      const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
-      const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-      setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-      localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-      setAudioURL(null); setTimer(0);
-      showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Voice go Supabase!`);
-    } catch (err: any) {
-      console.error(err);
-      showToastMsg("❌ Save fail: " + err.message + " - But we go save locally");
-      const newEarnings = { total: earnings.total + 15, pending: earnings.pending + 15, approved: earnings.approved + 1 };
-      const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
-      const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-      setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-      localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-      setAudioURL(null); setTimer(0);
-    } finally { setIsUploading(false); }
+      const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
+      const data = await res.json();
+      if (data.api_key) { setRealKey(data.api_key); setApiKey(data.key_prefix); setFreeLeft(100); showToast("✅ 100 FREE claimed! Key copied!", "success"); navigator.clipboard.writeText(data.api_key); await loadData(); }
+      else showToast(data.error || 'Already claimed', "error");
+    } catch { showToast("Network error - add SUPABASE_SERVICE_KEY for Render", "error"); }
+    setLoading(false);
   };
 
-  // FIXED - WITHDRAW NOW CHECK BANK DETAILS FIRST
-  const handleBottomClick = (id: string, label: string) => {
-    if (id === "withdraw") {
-      const savedBank = localStorage.getItem("gin_bank");
-      if (!savedBank || JSON.parse(savedBank).accountNumber === "") {
-        setShowBankForm(true);
-      } else {
-        setBankDetails(JSON.parse(savedBank));
-        setActiveBottom(label);
-        setShowModal(id);
-      }
-    } else {
-      setActiveBottom(label);
-      setShowModal(id);
-    }
+  const buy = async (pkg: string) => {
+    if (pkg === 'free_100') { claimFree(); return; }
+    if (!user) { showToast("Please login your email - go /login", "error"); setTimeout(()=> window.location.href = "/login?next=/", 1200); return; }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user.email, userId: user.id }) });
+      const data = await res.json();
+      if (data.authorization_url) window.location.href = data.authorization_url;
+      else showToast(data.error || 'Paystack init failed', "error");
+    } catch { showToast("Connection failed", "error"); }
+    setLoading(false);
   };
 
-  const saveBankAndContinue = async () => {
-    if (!bankDetails.accountNumber || !bankDetails.accountName) { alert("Fill account number and account name"); return; }
-    localStorage.setItem("gin_bank", JSON.stringify(bankDetails));
-    try { await supabase.from("workers").upsert([{ worker_id: "WORKER-1234", full_name: bankDetails.fullName, phone: bankDetails.phone, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName }], { onConflict: "worker_id" }); } catch {}
-    setShowBankForm(false);
-    setActiveBottom("Withdraw");
-    setShowModal("withdraw");
-    showToastMsg("✅ Bank saved!");
-  };
-
-  const markAnnRead = () => {
-    localStorage.setItem("gin_read_ann", JSON.stringify(announcements.map((a:any)=>a.id)));
-    setUnreadCount(0);
-    setShowAnnouncement(false);
-  };
+  const logout = async () => { await supabase.auth.signOut(); setUser(null); showToast("Logged out", "success"); };
 
   return (
-    <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
-      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: 20, fontSize: 12, fontWeight: 900, zIndex: 100, maxWidth: 300, textAlign: "center" }}>{toast}</div>}
-      <div style={{ maxWidth: 390, margin: "0 auto", padding: 10, paddingBottom: 90 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><div><div style={{ display: "flex", gap: 8 }}><h1 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: 11, color: "#aaa" }}>Welcome, WORKER-1234 <span style={{ color: "#00E676", fontSize: 10 }}> ● Online</span></div></div><div style={{ width: 10, height: 10, background: "#00E676", borderRadius: 50 }}></div></div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0B1A0B", border: "1px solid #1E2F1E", borderRadius: 20, padding: "8px 10px", marginBottom: 10 }}><div style={{ width: 36, height: 36, background: "#00E676", color: "#000", borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>W</div><div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 800 }}>WORKER-1234</div><div style={{ fontSize: 9, color: "#888" }}>Location: Lagos • Accent: Lagos Pidgin</div></div><div style={{ background: "#1A2F1A", border: "1px solid #00E676", color: "#00E676", fontSize: 9, fontWeight: 800, padding: "4px 8px", borderRadius: 12 }}>★ Pro Level</div></div>
-
-        {/* 📢 FIXED ANNOUNCEMENT BOARD - BUTTON WITH COUNT */}
-        <button onClick={() => setShowAnnouncement(true)} style={{ width: "100%", background: "#0F1F0F", border: "1.5px solid #FFC107", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ background: "#FFC107", width: 32, height: 32, borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>📢{unreadCount>0 && <div style={{ position: "absolute", top: -6, right: -6, background: "#E53935", color: "white", fontSize: 9, fontWeight: 900, width: 16, height: 16, borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</div>}</div>
-            <div style={{ textAlign: "left" }}><div style={{ fontSize: 12, fontWeight: 900, color: "white" }}>Announcement Board</div><div style={{ fontSize: 9, color: "#aaa" }}>{unreadCount>0 ? `🔴 ${unreadCount} new message${unreadCount>1?'s':''} - Click to read` : announcements.length>0 ? `✅ ${announcements.length} message${announcements.length>1?'s':''} - Check your message` : "✅ Check your message"}</div></div>
+    <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
+      <style>{`*{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)} .voice-grid-fixed { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }`}</style>
+      {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType==="error" ? "#FF5252" : "#00E676", color: toastType==="error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 100, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
+      <div style={{ maxWidth: "420px", margin: "0 auto", border: "2px solid #1A231A", borderRadius: "28px", background: "#050A05", padding: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 2px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ background: "white", borderRadius: "4px", width: "28px", height: "20px", display: "flex", overflow: "hidden" }}><div style={{ flex: 1, background: "#008751" }}></div><div style={{ flex: 1, background: "white" }}></div><div style={{ flex: 1, background: "#008751" }}></div></div>
+            <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
-          <div style={{ background: unreadCount>0 ? "#FFC107" : "#1E2F1E", color: unreadCount>0 ? "black" : "#FFC107", padding: "4px 8px", borderRadius: 10, fontSize: 10, fontWeight: 900 }}>{unreadCount>0 ? `${unreadCount} new` : "Open →"}</div>
-        </button>
-
-        <div style={{ display: "flex", gap: 6, marginTop: 12 }}>{["Pidgin","Igbo","Hausa","Yoruba"].map(lang=><button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: 20, fontSize: 11, fontWeight: 900, border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>)}</div>
-        <div style={{ marginTop: 14 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, fontWeight: 800 }}>Main Task Workspace</span><span style={{ fontSize: 10, color: "#888" }}>{taskProgress.total}/500 Total | Today {taskProgress.today}/50</span></div><div style={{ width: "100%", height: 6, background: "#1A2A1A", borderRadius: 10, marginTop: 4 }}><div style={{ width: `${(taskProgress.total/500)*100}%`, height: "100%", background: "#00E676" }}></div></div><div style={{ textAlign: "right", fontSize: 9, color: "#00E676", marginTop: 2 }}>Today: {taskProgress.today} / 50 ↗</div></div>
-        <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: 16, padding: 14, marginTop: 10 }}>
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}><span style={{ fontSize: 11, fontWeight: 800 }}>🎙️ Recording Studio</span><span style={{ fontSize: 10, color: "#888" }}> - {selectedLang} - {currentSentenceIndex+1}/{sentences.length}</span></div>
-          <div style={{ textAlign: "center", minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><p style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}><button onClick={toggleRecording} disabled={isUploading} style={{ width: 72, height: 72, borderRadius: 50, background: isRecording?"#CC0000":"#E53935", border: "4px solid #7f1d1d", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isRecording ? "0 0 20px #FF0000" : "none" }}>{isRecording ? <div style={{ width: 22, height: 22, background: "white", borderRadius: 3 }}></div> : <div style={{ width: 26, height: 26, background: "#7f1d1d", borderRadius: 50 }}></div>}</button></div>
-          <div style={{ textAlign: "center", fontSize: 13, color: "#ff5252", fontFamily: "monospace", fontWeight: 700, marginBottom: 6 }}>{formatTime(timer)} / 00:15</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}><div style={{ width: 28, height: 28, borderRadius: 50, background: "#1A2F1A", display: "flex", alignItems: "center", justifyContent: "center" }}>▶</div><div style={{ flex: 1, height: 22, display: "flex", alignItems: "center", gap: 2 }}>{Array.from({ length: 30 }).map((_, i) => (<div key={i} style={{ flex: 1, height: isRecording || audioURL ? `${4 + Math.random()*18}px` : "3px", background: audioURL ? "#00E676" : isRecording ? "#FF5555" : "#1E2F1E", borderRadius: 2 }} />))}</div><div style={{ width: 60, height: 4, background: "#1E2F1E", borderRadius: 10 }}><div style={{ width: `${(timer/15)*100}%`, height: "100%", background: "#00E676", borderRadius: 10 }}></div></div></div>
-          {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "8px 0", height: 32 }} />}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={reRecord} disabled={isUploading} style={{ flex: 1, background: "#1E2F1E", border: "1px solid #2A4A2A", color: "#ccc", padding: 13, borderRadius: 12, fontSize: 12, fontWeight: 800 }}>↻ Re-record</button>
-            <button onClick={saveAndNext} disabled={isUploading} style={{ flex: 1.5, background: isUploading ? "#FFC107" : audioURL ? "#00E676" : "#333", color: audioURL ? "black" : "#888", border: "none", padding: 13, borderRadius: 12, fontSize: 12, fontWeight: 900 }}>{isUploading ? "⏳ Uploading..." : audioURL ? "✅ Save & Next →" : "Save & Next"}</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {user ? (<div style={{ display: "flex", alignItems: "center", gap: "6px" }}><div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div><button onClick={logout} style={{ background: "#1A231A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "8px", padding: "4px 8px", borderRadius: "20px" }}>⎋ Logout</button></div>) : (<Link href="/login" style={{ background: "#00E676", color: "black", fontSize: "9px", fontWeight: "900", padding: "6px 10px", borderRadius: "20px", textDecoration: "none" }}>Login</Link>)}
+            <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 12 }}>
-          <div onClick={()=>setShowModal("earnings")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 9, color: "#888" }}>💳 Earnings</div><div style={{ fontSize: 16, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div></div>
-          <div onClick={()=>setShowModal("pending")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 9, color: "#FFC107" }}>🕐 Pending</div><div style={{ fontSize: 16, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>
-          <div onClick={()=>setShowModal("approved")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 9, color: "#888" }}>✅ Approved</div><div style={{ fontSize: 16, fontWeight: 900 }}>{earnings.approved} clips</div></div>
+        {announces.length > 0 && (<div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}><div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>{announces.map((a: any) => (<div key={a.id} style={{ marginTop: "8px", background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "10px" }}><div style={{ fontSize: "12px", fontWeight: "900", color: "white" }}>{a.title}</div><div style={{ fontSize: "11px", color: "#BDBDBD", marginTop: "4px", lineHeight: "1.4" }}>{a.message}</div><div style={{ fontSize: "8px", color: "#666", marginTop: "6px" }}>{new Date(a.created_at).toLocaleString()} • Chairman</div></div>))}</div>)}
+        <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div><div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase {user && <span style={{ color: "#00E676" }}>• {user.email}</span>}</div></div>
+        <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}><div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}><div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div><button onClick={() => { if(realKey){ navigator.clipboard.writeText(realKey); showToast("Key copied!"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button></div><div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD" }}><span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span><span><b style={{ color: "white" }}>{paidLeft}</b> Paid Left</span><span style={{ color: "#333" }}>|</span><span><b style={{ color: "#00E676" }}>99.9%</b> Uptime</span></div></div>
+        <div style={{ marginTop: "14px" }}><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div><div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}><div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div><div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div><div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div><button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button></div><div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}><div style={{ display: "flex", justifyContent: "space-between" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div><div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div></div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div><button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div><div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div><button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button></div><div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div><div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div><div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div><button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button></div></div></div>
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen {myLocalVoices.length > 0 && <span style={{color:"#00E676", fontSize:"10px"}}>• {myLocalVoices.length} YOUR VOICE READY</span>}</div>
+          <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct {myLocalVoices.length > 0 ? "• CHAIRMAN VOICE ACTIVE" : ""}</div>
+          <div className="voice-grid-fixed" style={{ marginTop: "10px" }}>
+            {voices.slice(0,5).map((v: any, idx: number) => {
+              const hasMyVoice = !!myLocalVoices[idx];
+              return (
+              <div key={v.id} onClick={() => playSample(v)} style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1.5px solid #00E676" : hasMyVoice ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "8px 4px", textAlign: "center", cursor: "pointer", position:"relative", minWidth: 0 }}>
+                {hasMyVoice && <div style={{position:"absolute", top:"3px", right:"3px", background:"#00E676", color:"black", fontSize:"5px", fontWeight:900, padding:"1px 3px", borderRadius:"8px"}}>YOU</div>}
+                <div style={{ width: "36px", height: "36px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "12px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
+                <div style={{ fontSize: "9px", fontWeight: "800", color: "white", marginTop: "6px", lineHeight: "1.1", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{v.name}</div>
+                <div style={{ fontSize: "7px", color: hasMyVoice ? "#00E676" : "#999", marginTop: "2px", fontWeight: hasMyVoice ? 800 : 400 }}>{hasMyVoice ? "Chairman" : v.accent.split("-")[0].trim()}</div>
+                <div style={{ marginTop: "6px", display: "flex", justifyContent: "center", gap: "2px", height: "12px", alignItems: "center" }}>
+                  {[...Array(6)].map((_, i) => <div key={i} style={{ width: "2px", height: `${3 + (i % 3) * 2}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
+                </div>
+              </div>
+            )})}
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>{[{ label: "Earnings", icon: "📊", id: "earnings" },{ label: "Levels", icon: "👑", id: "levels", active: true },{ label: "Withdraw", icon: "💳", id: "withdraw" }].map(item=><button key={item.id} onClick={()=>handleBottomClick(item.id, item.label)} style={{ background: item.active || activeBottom===item.label ? "#00E676" : "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: "12px 4px", color: item.active || activeBottom===item.label ? "#000" : "#888", fontWeight: 800, fontSize: 12 }}>{item.icon} {item.label}</button>)}</div>
+        <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap {myLocalVoices.length > 0 ? `• ${myLocalVoices.length} Chairman Voice Active` : ""}</div>
       </div>
-
-      {/* 📢 ANNOUNCEMENT POPUP - SAME PATTERN LIKE BANK DETAILS */}
-      {showAnnouncement && (
-        <div style={{ position: "fixed", inset: 0, background: "#000000DD", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }}>
-          <div style={{ background: "#0F1F0F", border: "1.5px solid #FFC107", borderRadius: 16, padding: 16, width: "100%", maxWidth: 360, maxHeight: "80vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div style={{ fontSize: 16, fontWeight: 900 }}>📢 Announcements ({announcements.length})</div><button onClick={() => setShowAnnouncement(false)} style={{ background: "#1E2F1E", border: "none", color: "white", width: 28, height: 28, borderRadius: 50 }}>✕</button></div>
-            <div style={{ fontSize: 10, color: "#888", marginBottom: 10 }}>Check your message - if 1 message enter show 1, if 2 enter show 2 like button you want</div>
-            {announcements.length===0 && <div style={{ textAlign: "center", padding: 20, color: "#888", fontSize: 12 }}>No message yet - Chairman go send here!</div>}
-            {announcements.map((a:any) => (<div key={a.id} style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: 10, padding: 10, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between" }}><div style={{ fontSize: 12, fontWeight: 800 }}>{a.title}</div><div style={{ fontSize: 8, color: "#888" }}>{new Date(a.created_at).toLocaleDateString()}</div></div><div style={{ fontSize: 11, color: "#ccc", marginTop: 6 }}>{a.message}</div></div>))}
-            <button onClick={markAnnRead} style={{ width: "100%", background: "#FFC107", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, fontSize: 13, marginTop: 8, color: "black" }}>👇 Mark as Read - Close (Go Down)</button>
-          </div>
-        </div>
-      )}
-
-      {/* 🏦 FIXED ACCOUNT DETAILS */}
-      {showBankForm && (
-        <div style={{ position: "fixed", inset: 0, background: "#000000DD", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 70 }}>
-          <div style={{ background: "#0F1F0F", border: "1.5px solid #00E676", borderRadius: 16, padding: 16, width: "100%", maxWidth: 360 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><b>🏦 Add Account Details</b><button onClick={()=>setShowBankForm(false)} style={{ background: "#1E2F1E", border: "none", color: "white", width: 28, height: 28, borderRadius: 50 }}>✕</button></div>
-            <div style={{ fontSize: 10, color: "#888", marginBottom: 10 }}>Chairman go see am for Supabase to pay you</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <input placeholder="Full Name" value={bankDetails.fullName} onChange={e=>setBankDetails({...bankDetails, fullName: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
-              <input placeholder="Phone" value={bankDetails.phone} onChange={e=>setBankDetails({...bankDetails, phone: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
-              <select value={bankDetails.bankName} onChange={e=>setBankDetails({...bankDetails, bankName: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }}>
-                <option>Opay</option><option>Moniepoint</option><option>PalmPay</option><option>Kuda</option><option>First Bank</option><option>GTB</option><option>Access</option><option>UBA</option><option>Zenith</option>
-              </select>
-              <input placeholder="Account Number" value={bankDetails.accountNumber} onChange={e=>setBankDetails({...bankDetails, accountNumber: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
-              <input placeholder="Account Name" value={bankDetails.accountName} onChange={e=>setBankDetails({...bankDetails, accountName: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
-              <button onClick={saveBankAndContinue} style={{ background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 4, color: "black" }}>💾 Save & Continue to Withdraw</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showModal && (
-        <div onClick={()=>setShowModal(null)} style={{ position: "fixed", inset: 0, background: "#000000BB", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background: "#0F1F0F", border: "1px solid #1E2F1E", borderRadius: 16, padding: 20, width: "100%", maxWidth: 360 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><b style={{ textTransform: "capitalize" }}>{showModal}</b><button onClick={()=>setShowModal(null)} style={{ background: "none", border: "none", color: "#888", fontSize: 18 }}>✕</button></div>
-            {showModal==="earnings" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div><div style={{ fontSize: 10, color: "#888", marginTop: 8, background: "#1A2A1A", padding: 8, borderRadius: 8 }}>Bank: {bankDetails.bankName} - {bankDetails.accountNumber || "Not set - Click Withdraw to add"}</div></div>}
-            {showModal==="pending" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>}
-            {showModal==="approved" && <div><div style={{ fontSize: 28, fontWeight: 900 }}>{earnings.approved} clips</div></div>}
-            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available to withdraw</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><div style={{ fontSize: 10, color: "#aaa", background: "#1A2A1A", padding: 8, borderRadius: 8, marginTop: 8 }}>To: {bankDetails.bankName} - {bankDetails.accountNumber}<br/>{bankDetails.accountName}</div><button style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button><button onClick={()=>{ setShowModal(null); setShowBankForm(true); }} style={{ marginTop: 8, background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: "10px 20px", width: "100%", color: "#aaa", fontSize: 11 }}>✏️ Change Account</button></div>}
-            {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50<br/>Bank: {bankDetails.accountNumber ? "✅ Saved" : "❌ Not saved - Click Withdraw"}</div>}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
