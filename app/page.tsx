@@ -1,169 +1,230 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-export default function WorkerDashboard() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioURL, setAudioURL] = useState<string | null>(null);
-  const [timer, setTimer] = useState(0);
-  const [selectedLang, setSelectedLang] = useState("Pidgin");
-  const [showModal, setShowModal] = useState<string | null>(null);
-  const [activeBottom, setActiveBottom] = useState("Levels");
-  const [earnings, setEarnings] = useState({ total: 1250, pending: 450, approved: 87 });
-  const [taskProgress, setTaskProgress] = useState({ total: 46, today: 13 });
-  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
-  const [savedFiles, setSavedFiles] = useState<any[]>([]);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<any>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+export default function Marketplace() {
+  const [user, setUser] = useState<any>(null);
+  const [apiKey, setApiKey] = useState("");
+  const [realKey, setRealKey] = useState("");
+  const [freeLeft, setFreeLeft] = useState(0);
+  const [paidLeft, setPaidLeft] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [voices, setVoices] = useState<any[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState<"success"|"error">("success");
+  const [announces, setAnnounces] = useState<any[]>([]);
 
-  // ✅ FIXED ONLY PIDGIN ADVERTS TO 1500 DAILY - NO STRUCTURE DELETED
-  const allSentences: Record<string, string[]> = {
-    Pidgin: [
-      "Earn 1500 naira daily! Your voice na money! Record Pidgin for MayNaija!",
-      "Earn 1500 naira daily! Fifteen seconds equals daily cash! Just talk for phone!",
-      "Omo no dull! Earn 1500 naira daily! Your accent na asset for MayNaija!",
-      "Earn 1500 naira daily! Fifty clips per day na 1500 naira! Work from phone!",
-      "Chairman dey find voices! Earn 1500 naira daily! Record once, collect daily!",
-      "Naija talk, world listen! Join 500 workers wey dey earn 1500 naira daily!",
-      "No laptop needed! Just your phone, your voice, earn 1500 naira daily!",
-      "Help AI understand Naija! Google no sabi Pidgin well, earn 1500 naira daily!",
-      "From worker to pro! Level up for MayNaija, pro earn 50000 weekly! Start 1500 daily!",
-      "Top earner this week don collect 12500! You fit earn 1500 daily pass am!"
-    ],
-    Igbo: ["Kedu? Ana m abia ugbu a", "Biko nyere m aka", "Kedu ihe na eme?"],
-    Hausa: ["Yaya kake? Ina zuwa yanzu", "Don Allah ka taimake ni"],
-    Yoruba: ["Bawo ni? Mo n bo nisisinyi", "Ejo e ran mi lowo"],
-  };
-
-  const sentences = allSentences[selectedLang];
-
-  useEffect(() => {
-    const saved = localStorage.getItem("naija_progress");
-    if (saved) { try { const p = JSON.parse(saved); setTaskProgress(p.progress); setEarnings(p.earnings); setCurrentSentenceIndex(p.index || 0); } catch {} }
-    const files = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-    setSavedFiles(files);
+  useEffect(() => { loadData(); 
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user || null);
+    });
+    return () => { listener.subscription.unsubscribe(); };
   }, []);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 2500); };
-
-  const toggleRecording = async () => {
-    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
+  async function loadData() {
+    const { data: u } = await supabase.auth.getUser();
+    setUser(u?.user || null);
+    const { data: v } = await supabase.from('voices').select('*').eq('active', true).limit(10);
+    if (v && v.length > 0) setVoices(v);
+    else setVoices([
+      { id: "1", name: "Lagos Male", accent: "Natural - Young", sample_text: "How far boss! Lagos male voice dey here, ready to talk." },
+      { id: "2", name: "Abuja Female", accent: "Warm - Professional", sample_text: "Good morning, na Abuja female voice, calm and clear." },
+      { id: "3", name: "Pidgin Narrator", accent: "Story - Expressive", sample_text: "For inside this life, na story dey sweet pass, make I tell you!" },
+      { id: "4", name: "Delta Warri", accent: "Rugged - Local", sample_text: "Warri no dey carry last, you hear? Original Warri voice!" },
+      { id: "5", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_text: "E kaaro! I fit speak Yoruba and pidgin join together." },
+    ]);
+    const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
+    localStorage.setItem('guest_id', guestId);
+    const uid = u?.user?.id || guestId;
+    const { data: keys } = await supabase.from('api_keys').select('*').eq('user_id', uid).eq('is_active', true).order('created_at', { ascending: false }).limit(1);
+    if (keys && keys[0]) {
+      setApiKey(keys[0].key_prefix); setRealKey(keys[0].key);
+      setFreeLeft(keys[0].free_requests_remaining || 0); setPaidLeft(keys[0].paid_requests_remaining || 0);
+    }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
-      streamRef.current = stream;
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-      mediaRecorderRef.current = mr; audioChunksRef.current = [];
-      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach(t => t.stop()); };
-      mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0);
-      timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
-    } catch { alert("Abeg allow microphone!"); }
+      const { data: ann } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
+      if (ann) setAnnounces(ann);
+    } catch {}
+  }
+
+  const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
+  
+  const playSample = async (voice: any) => {
+    try {
+      if (audio) { audio.pause(); }
+      if (playingId === voice.id) { setPlayingId(null); return; }
+      setPlayingId(voice.id);
+      if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
+      const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
+    } catch { setPlayingId(null); }
   };
 
-  const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
-  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
-
-  const saveAndNext = async () => {
-    if (!audioURL) { alert("Record first!"); return; }
-    const blob = await fetch(audioURL).then(r => r.blob());
-    const fileName = `recording-${selectedLang}-${Date.now()}.webm`;
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl; a.download = fileName; a.style.display = "none";
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 500);
-    const existing = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
-    const newFile = { id: Date.now(), lang: selectedLang, sentence: sentences[currentSentenceIndex], fileName, time: new Date().toISOString() };
-    existing.unshift(newFile);
-    localStorage.setItem("gin_recordings", JSON.stringify(existing.slice(0,100)));
-    setSavedFiles(existing.slice(0,100));
-    const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved + 1 };
-    const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
-    const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-    setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-    localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-    setAudioURL(null); setTimer(0);
-    showToast(`SAVED TO PHONE: ${fileName} 30 naira`);
+  // === FIXED LOGIN SIDE — OPEN BROWSING, LOGIN ONLY ON TAP FOR BOTH FREE + PAYSTACK ===
+  const claimFree = async () => {
+    if (!user) { 
+      showToast("Please login your email - go /login", "error"); 
+      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
+      return; 
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/keys/create-free', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
+      const data = await res.json();
+      if (data.api_key) { setRealKey(data.api_key); setApiKey(data.key_prefix); setFreeLeft(100); showToast("✅ 100 FREE claimed! Key copied!", "success"); navigator.clipboard.writeText(data.api_key); await loadData(); }
+      else showToast(data.error || 'Already claimed', "error");
+    } catch { showToast("Network error - add SUPABASE_SERVICE_KEY for Render", "error"); }
+    setLoading(false);
   };
 
-  useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
-  useEffect(() => { setCurrentSentenceIndex(0); setAudioURL(null); setTimer(0); }, [selectedLang]);
+  const buy = async (pkg: string) => {
+    if (pkg === 'free_100') { claimFree(); return; }
+    if (!user) { 
+      showToast("Please login your email - go /login", "error"); 
+      setTimeout(()=> window.location.href = "/login?next=/", 1200); 
+      return; 
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/paystack/initialize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packageId: pkg, email: user.email, userId: user.id }) });
+      const data = await res.json();
+      if (data.authorization_url) window.location.href = data.authorization_url;
+      else showToast(data.error || 'Paystack init failed', "error");
+    } catch { showToast("Connection failed", "error"); }
+    setLoading(false);
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    showToast("Logged out", "success");
+  };
 
   return (
-    <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
-      {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 100 }}>{toast}</div>}
-      <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-          <div><div style={{ display: "flex", gap: "8px" }}><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: "11px", color: "#aaa" }}>Welcome, <span style={{ color: "white", fontWeight: "800" }}>WORKER-1234{savedFiles.length>0?` - ${savedFiles.length} files saved to phone`:''}</span> <span style={{ color: "#00E676", fontSize: "10px" }}> ● Online</span></div></div>
-          <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%" }}></div>
-        </div>
-        <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
-          {["Pidgin","Igbo","Hausa","Yoruba"].map(lang=>(
-            <button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>
-          ))}
-        </div>
-        <div style={{ marginTop: "14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: "12px", fontWeight: "800" }}>Main Task Workspace</span><span style={{ fontSize: "10px", color: "#888" }}>{taskProgress.total}/500 Recorded Today {taskProgress.today}/50</span></div>
-          <div style={{ width: "100%", height: "6px", background: "#1A2A1A", borderRadius: "10px", marginTop: "4px" }}><div style={{ width: `${(taskProgress.total/500)*100}%`, height: "100%", background: "#00E676" }}></div></div>
-        </div>
-        <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
-          <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}><span style={{ fontSize: "11px", fontWeight: "800" }}>🎙️ Recording Studio</span><span style={{ fontSize: "10px", color: "#888" }}> - {selectedLang} - {currentSentenceIndex+1}/{sentences.length}</span></div>
-          <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
-            <button onClick={toggleRecording} style={{ width: "68px", height: "68px", borderRadius: "50%", background: isRecording?"#CC0000":"#E53935", border: "4px solid #7f1d1d" }}>
-              {isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }}></div> : <div style={{ width: "24px", height: "24px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }}></div>}
-            </button>
+    <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
+      <style>{`
+        *{box-sizing:border-box} body{margin:0} button:active{transform:scale(0.97)}
+        .voice-scroll { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+        @media (max-width: 380px) {
+          .voice-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }
+          .voice-scroll::-webkit-scrollbar { display: none; }
+          .voice-card { min-width: 88px; flex-shrink: 0; }
+        }
+      `}</style>
+      {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType==="error" ? "#FF5252" : "#00E676", color: toastType==="error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 100, maxWidth: "90%", textAlign: "center" }}>{toast}</div>}
+      
+      <div style={{ maxWidth: "420px", margin: "0 auto", border: "2px solid #1A231A", borderRadius: "28px", background: "#050A05", padding: "12px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 2px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ background: "white", borderRadius: "4px", width: "28px", height: "20px", display: "flex", overflow: "hidden" }}><div style={{ flex: 1, background: "#008751" }}></div><div style={{ flex: 1, background: "white" }}></div><div style={{ flex: 1, background: "#008751" }}></div></div>
+            <div style={{ fontWeight: "900", color: "white", fontSize: "15px" }}>MAIN NAIJA PIDGIN</div>
           </div>
-          <div style={{ textAlign: "center", fontSize: "11px", color: "#ff5252", fontFamily: "monospace", fontWeight: "700" }}>REC {formatTime(timer)} / 00:15</div>
-          <div style={{ display: "flex", gap: "2px", marginTop: "14px", marginBottom: "14px", height: "32px", alignItems: "center" }}>
-            {Array.from({ length: 45 }).map((_, i) => (<div key={i} style={{ flex: 1, height: `${6 + Math.sin(i + timer) * 10 + Math.random() * 12}px`, background: isRecording || audioURL ? "#00E676" : "#1E3A1E", borderRadius: "2px" }}></div>))}
-            <button onClick={()=>audioURL && new Audio(audioURL).play()} style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#00E676", border: "none" }}>▶</button>
-          </div>
-          {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginBottom: "12px", height: "32px" }} />}
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", border: "1px solid #2A4A2A", color: "#ccc", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "800" }}>↻ Re-record</button>
-            <button onClick={saveAndNext} style={{ flex: 1.5, background: "#00E676", color: "black", border: "none", padding: "13px", borderRadius: "12px", fontSize: "12px", fontWeight: "900" }}>Save & Next →</button>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {user ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ fontSize: "9px", color: "#00E676", maxWidth: "70px", overflow: "hidden", textOverflow: "ellipsis" }}>{user.email}</div>
+                <button onClick={logout} style={{ background: "#1A231A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "8px", padding: "4px 8px", borderRadius: "20px" }}>⎋ Logout</button>
+              </div>
+            ) : (
+              <Link href="/login" style={{ background: "#00E676", color: "black", fontSize: "9px", fontWeight: "900", padding: "6px 10px", borderRadius: "20px", textDecoration: "none" }}>Login</Link>
+            )}
+            <div style={{ background: "#14301A", border: "1px solid #1E4D2B", color: "#A5D6A7", fontSize: "9px", fontWeight: "800", padding: "6px 10px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "6px" }}><span style={{ width: "8px", height: "8px", background: "#00E676", borderRadius: "50%" }}></span>LIVE</div>
           </div>
         </div>
 
-        {savedFiles.length > 0 && (
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px", marginTop: "10px" }}>
-            <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676", marginBottom: "6px" }}>📂 {savedFiles.length} Files Saved to Phone for Chairman</div>
-            {savedFiles.slice(0,10).map((f:any)=>(
-              <div key={f.id} style={{ fontSize: "9px", color: "#aaa", padding: "5px 0", borderBottom: "1px solid #1A2A1A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                - {f.fileName} - {f.sentence}
+        {announces.length > 0 && (
+          <div style={{ marginTop: "10px", background: "#1A150A", border: "1.5px solid #FFB300", borderRadius: "12px", padding: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "800", color: "#FFB300" }}>📢 Announcement Board — From Chairman</div>
+            {announces.map((a: any) => (
+              <div key={a.id} style={{ marginTop: "8px", background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "8px", padding: "10px" }}>
+                <div style={{ fontSize: "12px", fontWeight: "900", color: "white" }}>{a.title}</div>
+                <div style={{ fontSize: "11px", color: "#BDBDBD", marginTop: "4px", lineHeight: "1.4" }}>{a.message}</div>
+                <div style={{ fontSize: "8px", color: "#666", marginTop: "6px" }}>{new Date(a.created_at).toLocaleString()} • Chairman</div>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px", marginTop: "10px" }}>
-          <div onClick={()=>setShowModal("earnings")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "9px", color: "#888" }}>💳 Earnings</div><div style={{ fontSize: "16px", fontWeight: "900", marginTop: "4px" }}>₦{earnings.total.toLocaleString()}</div></div>
-          <div onClick={()=>setShowModal("pending")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "9px", color: "#FFC107" }}>🕐 Pending</div><div style={{ fontSize: "16px", fontWeight: "900", marginTop: "4px" }}>₦{earnings.pending}</div></div>
-          <div onClick={()=>setShowModal("approved")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "9px", color: "#888" }}>✅ Approved</div><div style={{ fontSize: "16px", fontWeight: "900", marginTop: "4px" }}>{earnings.approved} clips</div></div>
+        <div style={{ marginTop: "12px", background: "#121C12", borderRadius: "14px", padding: "14px", border: "1px solid #1E2F1E" }}>
+          <div style={{ fontSize: "22px", fontWeight: "900", color: "white" }}>API Marketplace</div>
+          <div style={{ fontSize: "11px", color: "#9E9E9E", marginTop: "2px" }}>Authentic Naija Pidgin Voices • Paystack + Supabase {user && <span style={{ color: "#00E676" }}>• {user.email}</span>}</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "6px", marginTop: "8px" }}>
-          {[{ label: "Earnings", icon: "🏦", id: "earnings" }, { label: "Levels", icon: "👑", id: "levels" }, { label: "Crown", icon: "👑", id: "crown" }, { label: "Withdraw", icon: "🏦", id: "withdraw" }].map(item=>(
-            <button key={item.id} onClick={()=>{setActiveBottom(item.label); setShowModal(item.id);}} style={{ background: activeBottom===item.label?"#00E67622":"#121C12", border: activeBottom===item.label?"1px solid #00E676":"1px solid #1E2F1E", borderRadius: "12px", padding: "10px 4px" }}>
-              <div style={{ fontSize: "16px", textAlign: "center" }}>{item.icon}</div><div style={{ fontSize: "9px", marginTop: "2px", fontWeight: "800", textAlign: "center", color: activeBottom===item.label?"#00E676":"#888" }}>{item.label}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-      {showModal && (
-        <div onClick={()=>setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", zIndex: 50 }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background: "#121C12", border: "1px solid #00E676", borderRadius: "16px", padding: "20px", width: "100%", maxWidth: "340px" }}>
-            {showModal==="levels" && <><div style={{ fontSize: "16px", fontWeight: "900" }}>👑 Pro Level</div><div style={{ fontSize: "12px", color: "#00E676", marginTop: "6px" }}>You are Pro Level Worker!</div></>}
-            {showModal==="crown" && <><div style={{ fontSize: "16px", fontWeight: "900" }}>👑 Leaderboard</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Your rank: #12<br/>Keep recording!</div></>}
-            {showModal==="withdraw" && <><div style={{ fontSize: "16px", fontWeight: "900" }}>💳 Withdraw</div><div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>Available: ₦{earnings.total}</div><button style={{ width: "100%", marginTop: "14px", background: "#00E676", color: "black", border: "none", padding: "12px", borderRadius: "10px", fontWeight: "900" }}>Withdraw ₦{earnings.total}</button></>}
-            {showModal==="earnings" && <><div style={{ fontSize: "16px", fontWeight: "900" }}>💳 Earnings</div><div style={{ fontSize: "28px", fontWeight: "900", color: "#00E676", marginTop: "10px" }}>₦{earnings.total.toLocaleString()}</div></>}
-            <button onClick={()=>setShowModal(null)} style={{ width: "100%", marginTop: "16px", background: "#222", color: "white", border: "none", padding: "10px", borderRadius: "10px" }}>Close</button>
+
+        <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}>
+            <div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div>
+            <button onClick={() => { if(realKey){ navigator.clipboard.writeText(realKey); showToast("Key copied!"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button>
+          </div>
+          <div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD" }}>
+            <span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span>
+            <span><b style={{ color: "white" }}>{paidLeft}</b> Paid Left</span>
+            <span style={{ color: "#333" }}>|</span>
+            <span><b style={{ color: "#00E676" }}>99.9%</b> Uptime</span>
           </div>
         </div>
-      )}
+
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div>
+          <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "10px" }}>
+            <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 Starter</div>
+              <div style={{ fontSize: "20px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>100 FREE</div>
+              <div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div>
+              <button onClick={() => buy('free_100')} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>{loading ? "..." : "Get Free Key →"}</button>
+            </div>
+            <div style={{ background: "#1A150A", border: "1px solid #FFB300", borderRadius: "12px", padding: "10px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>👑 Pro</div>
+                <div style={{ fontSize: "7px", background: "#3E3200", border: "1px solid #FFB300", color: "#FFB300", padding: "2px 6px", borderRadius: "20px", fontWeight: "800" }}>MOST POPULAR</div>
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>🔥 1,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦5,000</div>
+              <button onClick={() => buy('pro')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
+            </div>
+            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🚀 Growth</div>
+              <div style={{ fontSize: "15px", fontWeight: "900", color: "white", marginTop: "4px" }}>2,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦10,000</div>
+              <button onClick={() => buy('growth')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>Buy with Paystack</button>
+            </div>
+            <div style={{ background: "#121C12", borderRadius: "12px", padding: "10px", border: "1px solid #1E2F1E" }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🏢 Scale</div>
+              <div style={{ fontSize: "14px", fontWeight: "900", color: "white", marginTop: "4px" }}>10,000 Voices</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>₦50,000</div>
+              <button onClick={() => buy('scale')} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>☰ Buy with Paystack</button>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: "14px" }}>
+          <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen</div>
+          <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct</div>
+          <div className="voice-scroll" style={{ marginTop: "10px" }}>
+            {voices.slice(0,5).map((v: any) => (
+              <div key={v.id} onClick={() => playSample(v)} className="voice-card" style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center", cursor: "pointer" }}>
+                <div style={{ width: "38px", height: "38px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "14px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
+                <div style={{ fontSize: "10px", fontWeight: "800", color: "white", marginTop: "7px", lineHeight: "1.1" }}>{v.name}</div>
+                <div style={{ fontSize: "8px", color: "#999", marginTop: "3px" }}>{v.accent.split("-")[0].trim()}</div>
+                <div style={{ marginTop: "8px", display: "flex", justifyContent: "center", gap: "2px", height: "14px", alignItems: "center" }}>
+                  {[...Array(8)].map((_, i) => <div key={i} style={{ width: "2.5px", height: `${4 + (i % 4) * 3}px`, background: "#00E676", borderRadius: "2px", opacity: playingId === v.id ? 1 : 0.6 }}></div>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>Go to API Dashboard <span>→</span></Link>
+        <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts {user ? `• ${user.email}` : "• Guest"} • Open browsing • Login on tap</div>
+      </div>
     </div>
   );
 }
