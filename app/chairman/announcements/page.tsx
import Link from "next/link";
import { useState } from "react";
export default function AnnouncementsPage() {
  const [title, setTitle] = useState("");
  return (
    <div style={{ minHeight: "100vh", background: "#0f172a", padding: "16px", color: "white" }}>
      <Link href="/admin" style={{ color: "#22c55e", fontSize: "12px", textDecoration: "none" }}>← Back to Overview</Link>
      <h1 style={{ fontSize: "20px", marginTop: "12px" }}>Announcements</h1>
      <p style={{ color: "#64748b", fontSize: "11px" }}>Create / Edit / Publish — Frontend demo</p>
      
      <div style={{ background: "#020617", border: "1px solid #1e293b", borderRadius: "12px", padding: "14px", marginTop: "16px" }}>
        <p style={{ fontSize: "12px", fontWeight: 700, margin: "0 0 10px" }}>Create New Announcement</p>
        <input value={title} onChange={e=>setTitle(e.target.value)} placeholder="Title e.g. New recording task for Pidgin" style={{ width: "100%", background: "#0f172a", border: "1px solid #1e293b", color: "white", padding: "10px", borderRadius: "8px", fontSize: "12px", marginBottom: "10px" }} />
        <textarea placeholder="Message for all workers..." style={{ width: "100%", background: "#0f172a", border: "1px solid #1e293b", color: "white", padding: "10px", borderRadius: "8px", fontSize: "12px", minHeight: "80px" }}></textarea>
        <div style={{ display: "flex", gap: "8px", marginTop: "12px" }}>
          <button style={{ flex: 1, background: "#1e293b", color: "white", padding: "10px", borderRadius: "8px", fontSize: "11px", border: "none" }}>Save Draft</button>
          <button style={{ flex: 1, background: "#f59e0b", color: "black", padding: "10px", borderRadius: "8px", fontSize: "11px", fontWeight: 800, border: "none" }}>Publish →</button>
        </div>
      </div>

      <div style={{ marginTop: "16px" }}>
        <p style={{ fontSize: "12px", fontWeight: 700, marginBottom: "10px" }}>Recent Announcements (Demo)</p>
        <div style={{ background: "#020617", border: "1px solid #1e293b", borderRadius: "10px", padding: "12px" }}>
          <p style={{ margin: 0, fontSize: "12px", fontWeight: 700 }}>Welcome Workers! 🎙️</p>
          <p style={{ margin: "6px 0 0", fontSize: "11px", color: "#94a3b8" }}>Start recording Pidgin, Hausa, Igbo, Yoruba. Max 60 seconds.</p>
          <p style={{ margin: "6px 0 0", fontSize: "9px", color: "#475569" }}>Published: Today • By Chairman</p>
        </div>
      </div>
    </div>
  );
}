@@ -1,0 +1,89 @@
+"use client";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com"
+
+export default function AnnouncementsPage() {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [list, setList] = useState<any[]>([]);
+
+  useEffect(()=>{ fetchAnnouncements() },[])
+
+  async function fetchAnnouncements(){
+    const res = await fetch("/api/chairman/announcements")
+    const data = await res.json()
+    setList(data.announcements || [])
+  }
+
+  async function publish(){
+    if(!title) return alert("Add title Chairman!")
+    
+    await fetch("/api/chairman/announcements",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        title, 
+        message, 
+        chairman_email: CHAIRMAN_EMAIL,
+        status: "published"
+      })
+    })
+    setTitle(""); setMessage("");
+    fetchAnnouncements()
+    alert("Published to all workers! 👑")
+  }
+
+  async function saveDraft(){
+    await fetch("/api/chairman/announcements",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        title, 
+        message, 
+        chairman_email: CHAIRMAN_EMAIL,
+        status: "draft"
+      })
+    })
+    setTitle(""); setMessage("");
+    fetchAnnouncements()
+    alert("Draft saved")
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0f172a", padding: "16px", color: "white", paddingBottom:80 }}>
+      <Link href="/chairman" style={{ color: "#22c55e", fontSize: "12px", textDecoration: "none" }}>← Back to Chairman Overview</Link>
+      <h1 style={{ fontSize: "20px", marginTop: "12px" }}>📢 Announcements</h1>
+      <p style={{ color: "#64748b", fontSize: "11px" }}>Chairman Only - Publish to all 36 States workers</p>
+      
+      <div style={{ background: "#020617", border: "1px solid #1e293b", borderRadius: "12px", padding: "14px", marginTop: "16px" }}>
+        <p style={{ fontSize: "12px", fontWeight: 700, margin: "0 0 10px" }}>Create New Announcement</p>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Title e.g. New recording task for Pidgin" style={{ width: "100%", background: "#0f172a", border: "1px solid #1e293b", color: "white", padding: "10px", borderRadius: "8px", fontSize: "12px", marginBottom: "10px" }} />
+        <textarea value={message} onChange={e=>setMessage(e.target.value)} placeholder="Message for all workers..." style={{ width: "100%", background: "#0f172a", border: "1px solid #1e293b", color: "white", padding: "10px", borderRadius: "8px", fontSize: "12px", minHeight: "80px" }}></textarea>
+        <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+          <button onClick={saveDraft} style={{ flex: 1, background: "#1e293b", color: "white", padding: "10px", borderRadius: "8px", fontSize: "11px", border: "none" }}>Save Draft</button>
+          <button onClick={publish} style={{ flex: 1, background: "#f59e0b", color: "black", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: 800, border: "none" }}>Publish →</button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "16px" }}>
+        <p style={{ fontSize: "12px", fontWeight: 700, marginBottom: "10px" }}>Recent Announcements ({list.length})</p>
+        {list.map((a:any)=>(
+          <div key={a.id} style={{ background: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px", marginBottom:8 }}>
+            <p style={{ margin: 0, fontSize: "12px", fontWeight: 700 }}>{a.title} {a.status==='draft' && <span style={{fontSize:9, background:"#333", padding:"2px 6px", borderRadius:10}}>DRAFT</span>}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#94a3b8" }}>{a.message}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "9px", color: "#475569" }}>{a.status} • {a.created_at && new Date(a.created_at).toLocaleString()} • By Chairman</p>
+          </div>
+        ))}
+        {list.length===0 && (
+          <div style={{ background: "#020617", border: "1px solid #1e293b", borderRadius: "10px", padding: "12px" }}>
+            <p style={{ margin: 0, fontSize: "12px", fontWeight: 700 }}>Welcome Workers! 🎙️</p>
+            <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#94a3b8" }}>Start recording Pidgin, Hausa, Igbo, Yoruba. Max 60 seconds.</p>
+            <p style={{ margin: "6px 0 0", fontSize: "9px", color: "#475569" }}>Published: Today • By Chairman</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
