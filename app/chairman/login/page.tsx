@@ -1,63 +1,141 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
+const SUPABASE_URL = "https://rupuxvpupdhlhxgjrbsh.supabase.co";
+const SUPABASE_KEY = "sb_publishable_DQ27GSl6cVVYy8s5U4ZsFA_ye9e-hpY";
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 export default function ChairmanLogin() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [pass, setPass] = useState("");
+  const [msg, setMsg] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (email.trim().toLowerCase() !== CHAIRMAN_EMAIL) {
-      setError("This panel na Chairman only. Worker use Worker login.");
+  async function doLogin() {
+    if (!email || !pass) {
+      setMsg("Fill email and password");
       return;
     }
+    setMsg("Checking...");
 
-    if (email && password) {
+    try {
+      const res = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: pass,
+      });
+      if (res.error) {
+        setMsg(res.error.message);
+        return;
+      }
+
+      const sess = await supabase.auth.getSession();
+      const userId = sess.data.session?.user.id;
+
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (error || !profile) {
+        setMsg("Profile not found");
+        return;
+      }
+
+      // THIS IS THE PATTERN FROM YOUR HTML
+      if (
+        profile.email !== CHAIRMAN_EMAIL ||
+        profile.is_chairman !== true
+      ) {
+        setMsg(`🚫 BLOCKED - Only ${CHAIRMAN_EMAIL} na chairman`);
+        await supabase.auth.signOut();
+        return;
+      }
+
+      // Success - Go to Chairman Dashboard
+      setMsg("✅ Chairman verified! Going...");
       window.location.href = "/chairman";
-    } else {
-      setError("Fill email and password");
+    } catch (err: any) {
+      setMsg("❌ " + err.message);
     }
-  };
+  }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#000", color: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", fontFamily: "sans-serif" }}>
-      <div style={{ width: "100%", maxWidth: "420px" }}>
-        <Link href="/" style={{ color: "#22c55e", fontSize: "14px", textDecoration: "none" }}>← Back to Home</Link>
-        
-        <div style={{ marginTop: "20px", border: "1px solid #222", borderRadius: "16px", padding: "24px", background: "#0a0a0a" }}>
-          <div style={{ textAlign: "center", marginBottom: "24px" }}>
-            <div style={{ fontSize: "40px" }}>👑</div>
-            <div style={{ color: "#22c55e", fontSize: "12px", letterSpacing: "2px", marginTop: "8px" }}>ADMINISTRATION</div>
-            <h1 style={{ fontSize: "24px", marginTop: "8px" }}>Chairman Panel</h1>
-            <p style={{ color: "#888", fontSize: "13px", marginTop: "4px" }}>Chairman only - tapbomba.ai@gmail.com</p>
-          </div>
+    <div style={{ background: "#000", minHeight: "100vh", padding: "20px", color: "#fff" }}>
+      <div
+        style={{
+          maxWidth: "450px",
+          margin: "30px auto",
+          border: "2px solid gold",
+          borderRadius: "16px",
+          padding: "20px",
+          background: "#111",
+        }}
+      >
+        <h2>👑 CHAIRMAN LOGIN</h2>
+        <p>Only {CHAIRMAN_EMAIL}</p>
 
-          <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <div>
-              <label style={{ fontSize: "13px", color: "#aaa" }}>Chairman Email</label>
-              <input type="email" placeholder="tapbomba.ai@gmail.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ width: "100%", marginTop: "6px", padding: "12px", borderRadius: "10px", border: "1px solid #333", background: "#111", color: "white" }} />
-            </div>
-            <div>
-              <label style={{ fontSize: "13px", color: "#aaa" }}>Password</label>
-              <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ width: "100%", marginTop: "6px", padding: "12px", borderRadius: "10px", border: "1px solid #333", background: "#111", color: "white" }} />
-            </div>
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "1px solid #444",
+            background: "#222",
+            color: "#fff",
+            margin: "6px 0",
+          }}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={pass}
+          onChange={(e) => setPass(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "12px",
+            borderRadius: "12px",
+            border: "1px solid #444",
+            background: "#222",
+            color: "#fff",
+            margin: "6px 0",
+          }}
+        />
 
-            {error && <p style={{ color: '#ff5555', background: '#2a1212', padding: '10px', borderRadius: '8px', fontSize: '13px', border: '1px solid #5a2222' }}>{error}</p>}
+        <button
+          onClick={doLogin}
+          style={{
+            width: "100%",
+            padding: "14px",
+            borderRadius: "40px",
+            background: "gold",
+            color: "#000",
+            fontWeight: 800,
+            border: "none",
+            marginTop: "10px",
+            cursor: "pointer",
+          }}
+        >
+          LOGIN AS CHAIRMAN
+        </button>
 
-            <button type="submit" style={{ padding: "14px", background: "#22c55e", color: "black", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}>
-              Chairman Login →
-            </button>
-          </form>
-
-          <div style={{ textAlign: "center", marginTop: "16px", color: "#555", fontSize: "11px" }}>MAIN NAIJA PIDGIN © 2026 - Build Fixed ✅</div>
-        </div>
+        <p
+          style={{
+            background: "#000",
+            padding: "10px",
+            borderRadius: "8px",
+            marginTop: "12px",
+            minHeight: "20px",
+          }}
+        >
+          {msg}
+        </p>
       </div>
-    </main>
+    </div>
   );
 }
