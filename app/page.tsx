@@ -121,28 +121,34 @@ export default function WorkerDashboard() {
         const { error: upErr } = await supabase.storage.from("voice-clips").upload(fileName, blob, { contentType: "audio/webm" });
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from("voice-clips").getPublicUrl(fileName);
-        const { error: dbErr } = await supabase.from("recordings").insert([{ language: selectedLang, text: sentences[currentSentenceIndex], audio_url: urlData.publicUrl, file_name: fileName, duration: timer, earnings: 50, worker_id: "WORKER-1234", status: "pending", is_approved: false }]);
+        const { error: dbErr } = await supabase.from("recordings").insert([{ language: selectedLang, text: sentences[currentSentenceIndex], audio_url: urlData.publicUrl, file_name: fileName, duration: timer, earnings: 10, worker_id: "WORKER-1234", status: "pending", is_approved: false }]);
         if (dbErr) throw dbErr;
       }
-      // ✅ FIXED - NO MONEY UNTIL CHAIRMAN APPROVE
       const newEarnings = { total: earnings.total, pending: earnings.pending, approved: earnings.approved };
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-      setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
+      setEarnings(newEarnings); 
+      setTaskProgress(newProgress); 
+      setCurrentSentenceIndex(nextIndex);
       localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-      setAudioURL(null); setTimer(0);
-      showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Wait Chairman approve for money!`);
+      
+      // ✅ GREEN GO COMOT HERE!
+      setAudioURL(null); 
+      setTimer(0);
+      setIsPlaying(false);
+      setIsRecording(false);
+      
+      showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Wait Chairman approve!`);
     } catch (err: any) {
       console.error(err);
       showToastMsg("❌ Save fail: " + err.message);
-      // ✅ FIXED - EVEN ON FAIL, NO FAKE MONEY
-      const newEarnings = { total: earnings.total, pending: earnings.pending, approved: earnings.approved };
-      const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
-      const nextIndex = (currentSentenceIndex + 1) % sentences.length;
-      setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-      localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-      setAudioURL(null); setTimer(0);
-    } finally { setIsUploading(false); }
+      setAudioURL(null);
+      setTimer(0);
+      setIsPlaying(false);
+      setIsRecording(false);
+    } finally { 
+      setIsUploading(false); 
+    }
   };
 
   // FIXED - WITHDRAW NOW CHECK BANK DETAILS FIRST
