@@ -5,24 +5,33 @@ export default function AdminPage() {
   const [items, setItems] = useState<any[]>([])
   const [pass, setPass] = useState("")
   const [ok, setOk] = useState(false)
-  const CHAIRMAN_PASS = "chairman2024" // Change this!
+  const CHAIRMAN_PASS = "chairman2024"
 
   useEffect(() => {
     if(ok) fetchList()
   }, [ok])
 
   async function fetchList() {
-    const res = await fetch("/api/admin/list")
+    const res = await fetch("/api/chairman/list")
     const data = await res.json()
-    setItems(data || [])
+    setItems(data.recordings || data || [])
   }
 
   async function approve(id: string) {
-    await fetch("/api/admin/approve", { method: "POST", body: JSON.stringify({ id, action: "approve" }) })
+    await fetch("/api/chairman/approve", { 
+      method: "POST", 
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "approved" }) 
+    })
     fetchList()
   }
+  
   async function reject(id: string) {
-    await fetch("/api/admin/approve", { method: "POST", body: JSON.stringify({ id, action: "reject" }) })
+    await fetch("/api/chairman/approve", { 
+      method: "POST", 
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status: "rejected" }) 
+    })
     fetchList()
   }
 
@@ -49,8 +58,10 @@ export default function AdminPage() {
       
       {items.map((it:any)=>(
         <div key={it.id} style={{background:"white", padding:12, borderRadius:12, marginBottom:12, boxShadow:"0 1px 3px rgba(0,0,0,0.1)"}}>
-          <div style={{fontSize:13, color:"#666"}}>{it.email || it.user_id} • ₦{it.amount || "2000"} • {new Date(it.created_at).toLocaleDateString()}</div>
-          <div style={{margin:"8px 0", fontWeight:"bold"}}>{it.voice_name || "Custom Voice"}</div>
+          <div style={{fontSize:13, color:"#666"}}>
+            {it.language || it.pidgin_text?.slice(0,20)} • {it.worker_id || it.user_id || "Worker"} • {new Date(it.created_at).toLocaleDateString()}
+          </div>
+          <div style={{margin:"8px 0", fontWeight:"bold"}}>{it.pidgin_text || it.text || it.voice_name || "Custom Voice"}</div>
           <audio controls src={it.audio_url || it.voice_url} style={{width:"100%", height:35}} />
           <div style={{display:"flex", gap:10, marginTop:10}}>
             <button onClick={()=>approve(it.id)} style={{flex:1, padding:10, background:"#16a34a", color:"white", borderRadius:8, border:0}}>✅ Approve</button>
