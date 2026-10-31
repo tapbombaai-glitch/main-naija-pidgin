@@ -108,7 +108,7 @@ export default function WorkerDashboard() {
   const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
-  const saveAndNext = async () => {
+    const saveAndNext = async () => {
     console.log("Save clicked, audioURL:", audioURL, "timer:", timer);
     if (!audioURL) { showToastMsg("⚠️ Record first! Click red button and talk"); return; }
     if (taskProgress.today >= 50) { showToastMsg("You don finish 50 today!"); return; }
@@ -121,20 +121,22 @@ export default function WorkerDashboard() {
         const { error: upErr } = await supabase.storage.from("voice-clips").upload(fileName, blob, { contentType: "audio/webm" });
         if (upErr) throw upErr;
         const { data: urlData } = supabase.storage.from("voice-clips").getPublicUrl(fileName);
-        const { error: dbErr } = await supabase.from("recordings").insert([{ language: selectedLang, text: sentences[currentSentenceIndex], audio_url: urlData.publicUrl, file_name: fileName, duration: timer, earnings: 50, worker_id: "WORKER-1234" }]);
+        const { error: dbErr } = await supabase.from("recordings").insert([{ language: selectedLang, text: sentences[currentSentenceIndex], audio_url: urlData.publicUrl, file_name: fileName, duration: timer, earnings: 50, worker_id: "WORKER-1234", status: "pending", is_approved: false }]);
         if (dbErr) throw dbErr;
       }
-      const newEarnings = { total: earnings.total + 15, pending: earnings.pending + 15, approved: earnings.approved + 1 };
+      // ✅ FIXED - NO MONEY UNTIL CHAIRMAN APPROVE
+      const newEarnings = { total: earnings.total, pending: earnings.pending, approved: earnings.approved };
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = (currentSentenceIndex + 1) % sentences.length;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
       localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
       setAudioURL(null); setTimer(0);
-      showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Voice go Supabase!`);
+      showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Wait Chairman approve for money!`);
     } catch (err: any) {
       console.error(err);
-      showToastMsg("❌ Save fail: " + err.message + " - But we go save locally");
-      const newEarnings = { total: earnings.total + 15, pending: earnings.pending + 15, approved: earnings.approved + 1 };
+      showToastMsg("❌ Save fail: " + err.message);
+      // ✅ FIXED - EVEN ON FAIL, NO FAKE MONEY
+      const newEarnings = { total: earnings.total, pending: earnings.pending, approved: earnings.approved };
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = (currentSentenceIndex + 1) % sentences.length;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
