@@ -409,7 +409,7 @@ export default function Marketplace() {
             {voices.slice(0, 5).map((v: any, idx: number) => {
               const hasMyVoice = !!myLocalVoices[idx];
               return (
-                <div key={v.id} onClick={() => playSample(v)} style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1.5px solid #00E676" : hasMyVoice ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "8px 4px", textAlign: "center", cursor: "pointer", position: "relative", minWidth: 0 }}>
+                <div key={v.id} onClick={() => { setTestVoice(v.name); playSample(v); }} style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1.5px solid #00E676" : hasMyVoice ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "8px 4px", textAlign: "center", cursor: "pointer", position: "relative", minWidth: 0 }}>
                   {hasMyVoice && <div style={{ position: "absolute", top: "3px", right: "3px", background: "#00E676", color: "black", fontSize: "5px", fontWeight: 900, padding: "1px 3px", borderRadius: "8px" }}>YOU</div>}
                   <div style={{ width: "36px", height: "36px", background: playingId === v.id ? "#FF5252" : "#00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto", fontSize: "12px", color: "#000", fontWeight: "900" }}>{playingId === v.id ? "■" : "▶"}</div>
                   <div style={{ fontSize: "9px", fontWeight: "800", color: "white", marginTop: "6px", lineHeight: "1.1", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.name}</div>
