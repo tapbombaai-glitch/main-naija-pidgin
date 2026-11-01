@@ -15,6 +15,16 @@ const CHAIRMAN_POWERFUL_VOICE_ID =
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
   "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR REAL ID, NOT DW6Z... AGAIN
 
+// ✅ YORUBA WEATHER ENGLISH SPEAKER - ADDED
+const CHAIRMAN_YORUBA_VOICE_ID = 
+  process.env.YORUBA_VOICE_ID?.trim() || 
+  CHAIRMAN_POWERFUL_VOICE_ID;
+
+// ✅ NEW - IGBO WEATHER ENGLISH SPEAKER - ADDED, NO REMOVE
+const CHAIRMAN_IGBO_VOICE_ID = 
+  process.env.IGBO_VOICE_ID?.trim() || 
+  CHAIRMAN_POWERFUL_VOICE_ID;
+
 const VOICE_MAP: Record<string, string> = {
   "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
   "My Voice": CHAIRMAN_POWERFUL_VOICE_ID,
@@ -27,6 +37,22 @@ const VOICE_MAP: Record<string, string> = {
   "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
   "Delta Warri": CHAIRMAN_POWERFUL_VOICE_ID,
   "Yoruba Mix": CHAIRMAN_POWERFUL_VOICE_ID,
+  // YORUBA WEATHER ENGLISH SPEAKER
+  "Yoruba Male": CHAIRMAN_YORUBA_VOICE_ID,
+  "Yoruba Female": CHAIRMAN_YORUBA_VOICE_ID,
+  "Yoruba Weather": CHAIRMAN_YORUBA_VOICE_ID,
+  "Yoruba Weather Man": CHAIRMAN_YORUBA_VOICE_ID,
+  "English Speaker": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Yoruba English": CHAIRMAN_YORUBA_VOICE_ID,
+  "Yoruba-English Mix": CHAIRMAN_YORUBA_VOICE_ID,
+  // ✅ NEW - IGBO WEATHER ENGLISH SPEAKER - ADDED
+  "Igbo Male": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo Female": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo Weather": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo Weather Man": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo English": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo-English Mix": CHAIRMAN_IGBO_VOICE_ID,
+  "Igbo Speaker": CHAIRMAN_IGBO_VOICE_ID,
 };
 
 export async function POST(req: NextRequest) {
