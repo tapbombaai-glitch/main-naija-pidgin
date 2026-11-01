@@ -9,18 +9,15 @@ const supabase = createClient(
 );
 
 // ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN ID - COPIED TODAY
-// This is the ID you just copied: BXStbbwwT5cKeWf2Ik8O
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
-  "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR REAL ID, NOT DW6Z... AGAIN
+  "BXStbbwwT5cKeWf2Ik8O";
 
-// ✅ YORUBA WEATHER ENGLISH SPEAKER - ADDED
 const CHAIRMAN_YORUBA_VOICE_ID = 
   process.env.YORUBA_VOICE_ID?.trim() || 
   CHAIRMAN_POWERFUL_VOICE_ID;
 
-// ✅ NEW - IGBO WEATHER ENGLISH SPEAKER - ADDED, NO REMOVE
 const CHAIRMAN_IGBO_VOICE_ID = 
   process.env.IGBO_VOICE_ID?.trim() || 
   CHAIRMAN_POWERFUL_VOICE_ID;
@@ -37,7 +34,6 @@ const VOICE_MAP: Record<string, string> = {
   "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
   "Delta Warri": CHAIRMAN_POWERFUL_VOICE_ID,
   "Yoruba Mix": CHAIRMAN_POWERFUL_VOICE_ID,
-  // YORUBA WEATHER ENGLISH SPEAKER
   "Yoruba Male": CHAIRMAN_YORUBA_VOICE_ID,
   "Yoruba Female": CHAIRMAN_YORUBA_VOICE_ID,
   "Yoruba Weather": CHAIRMAN_YORUBA_VOICE_ID,
@@ -45,7 +41,6 @@ const VOICE_MAP: Record<string, string> = {
   "English Speaker": CHAIRMAN_POWERFUL_VOICE_ID,
   "Yoruba English": CHAIRMAN_YORUBA_VOICE_ID,
   "Yoruba-English Mix": CHAIRMAN_YORUBA_VOICE_ID,
-  // ✅ NEW - IGBO WEATHER ENGLISH SPEAKER - ADDED
   "Igbo Male": CHAIRMAN_IGBO_VOICE_ID,
   "Igbo Female": CHAIRMAN_IGBO_VOICE_ID,
   "Igbo Weather": CHAIRMAN_IGBO_VOICE_ID,
@@ -98,7 +93,8 @@ export async function POST(req: NextRequest) {
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
     console.log(`Using Voice ID: ${voiceId} for request: ${voice}`);
 
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    // ✅ UPGRADED FOR CLEAR QUALITY - LIKE ELEVENLABS DIRECT
+    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192&optimize_streaming_latency=0`, {
       method: "POST",
       headers: {
         "xi-api-key": elevenKey,
@@ -107,8 +103,13 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_v3", // v3 sabi laugh, whisper, shout for Warri Pidgin
-        voice_settings: { stability: 0.5, similarity_boost: 0.9, style: 0.8, use_speaker_boost: true }
+        model_id: "eleven_v3", // v3 still sabi laugh but we tune am for clarity
+        voice_settings: { 
+          stability: 0.75, // ✅ UPGRADED from 0.5 to 0.75 = MORE CLEAR, no shaking
+          similarity_boost: 0.82, // ✅ UPGRADED for clarity like original
+          style: 0.35, // ✅ REDUCED from 0.8 to 0.35 = clear but still fit do [laughs]
+          use_speaker_boost: true // ✅ KEEP for loud clear
+        }
       })
     });
 
@@ -116,7 +117,6 @@ export async function POST(req: NextRequest) {
       const errText = await elevenRes.text();
       console.error("ElevenLabs error:", errText, "VoiceID used:", voiceId);
       
-      // Clear error message for voice_not_found
       if (errText.includes("voice_not_found") || errText.includes("not found")) {
         return NextResponse.json({ 
           success: false, 
