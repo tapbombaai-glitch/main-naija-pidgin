@@ -88,7 +88,7 @@ export default function WorkerDashboard() {
       if (saved) { try { const p = JSON.parse(saved); if(p.progress) setTaskProgress(p.progress); if(p.earnings) setEarnings(p.earnings); setCurrentSentenceIndex(p.index||0); } catch {} }
     }
     const savedBank = localStorage.getItem("gin_bank");
-    if (savedBank) { try { setBankDetails(JSON.parse(savedBank)); } catch {} }
+    if (savedBank) { try { const b=JSON.parse(savedBank); setBankDetails(b); if(b.accountNumber) setVerified(true); } catch {} }
 
     const fetchAnn = async () => {
       try {
@@ -218,8 +218,9 @@ export default function WorkerDashboard() {
 
   const saveBankAndContinue = async () => {
     if (!bankDetails.accountNumber || !bankDetails.accountName) { alert("Fill account number and account name"); return; }
+    setVerified(true);
     localStorage.setItem("gin_bank", JSON.stringify(bankDetails));
-    try { await supabase.from("workers").upsert([{ worker_id: "WORKER-1234", full_name: bankDetails.fullName, phone: bankDetails.phone, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName }], { onConflict: "worker_id" }); } catch {}
+    try { await supabase.from("workers").upsert([{ worker_id: "WORKER-1234", full_name: bankDetails.fullName, phone: bankDetails.phone, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, verified: true }], { onConflict: "worker_id" }); } catch {}
     setShowBankForm(false);
     setActiveBottom("Withdraw");
     setShowModal("withdraw");
@@ -304,14 +305,49 @@ export default function WorkerDashboard() {
           </div>
         </div>
       )}
+      {showInviteModal && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000DD", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 80 }}>
+          <div style={{ background: "#0F1F0F", border: "2px solid #00E676", borderRadius: 16, padding: 20, width: "100%", maxWidth: 360, textAlign: "center" }}>
+            <div style={{ fontSize: 40 }}>👥</div>
+            <div style={{ fontWeight: 900, fontSize: 16, marginTop: 8 }}>Invite 3 Friends to Withdraw</div>
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 6 }}>You have invited {invitedCount}/3</div>
+            <div style={{ background: "#111A11", borderRadius: 10, padding: 12, marginTop: 12, textAlign: "left" }}>
+              <div style={{ fontSize: 11, color: "#00E676" }}>Share your link:</div>
+              <div style={{ fontSize: 11, color: "white", wordBreak: "break-all", background: "#000", padding: 8, borderRadius: 8, marginTop: 6 }}>https://gin-voice.com/invite/WORKER-1234</div>
+            </div>
+            <button onClick={() => { const n=invitedCount+1; setInvitedCount(n); showToastMsg(`✅ Friend joined! ${n}/3`); if(n>=3){ setShowInviteModal(false); showToastMsg("✅ Approved! Now you can withdraw!"); setShowModal("withdraw"); } }} style={{ width: "100%", background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 12, color: "black" }}>📲 Simulate Invite (Test)</button>
+            <button onClick={() => setShowInviteModal(false)} style={{ width: "100%", background: "#1E2F1E", border: "none", borderRadius: 10, padding: 10, fontSize: 12, marginTop: 8, color: "#888" }}>Close</button>
+          </div>
+        </div>
+      )}
       {showModal && (
         <div onClick={()=>setShowModal(null)} style={{ position: "fixed", inset: 0, background: "#000000BB", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background: "#0F1F0F", border: "1px solid #1E2F1E", borderRadius: 16, padding: 20, width: "100%", maxWidth: 360 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background: "#0F1F0F", border: "1px solid #1E2F1E", borderRadius: 16, padding: 20, width: "100%", maxWidth: 360, maxHeight: "85vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><b style={{ textTransform: "capitalize" }}>{showModal}</b><button onClick={()=>setShowModal(null)} style={{ background: "none", border: "none", color: "#888", fontSize: 18 }}>✕</button></div>
             {showModal==="earnings" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div></div>}
             {showModal==="pending" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>}
             {showModal==="approved" && <div><div style={{ fontSize: 28, fontWeight: 900 }}>{earnings.approved} clips</div></div>}
-            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><button onClick={handleWithdrawClick} style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button></div>}
+            {showModal==="withdraw" && <div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 34, fontWeight: 900 }}>₦{earnings.total.toLocaleString()}.00</div>
+                <div style={{ fontSize: 11, color: "#888", display: "flex", justifyContent: "center", gap: 6, marginTop: 4 }}><span>Withdraw Now</span><span style={{ background: "#1E2F4A", border: "1px solid #2A4A8A", color: "#7AA0FF", padding: "2px 8px", borderRadius: 8, fontSize: 9 }}>IN NGN</span></div>
+              </div>
+              <div style={{ background: "#131A2A", border: "1px solid #1E2F4A", borderRadius: 14, padding: 12, marginTop: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12 }}><span style={{ color: "#888" }}>Commission</span><span>0.00 NGN</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12 }}><span style={{ color: "#888" }}>Service Charge</span><span>50.00 NGN</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12 }}><span style={{ color: "#888" }}>Total Amount</span><span>{earnings.total - 50} NGN</span></div>
+                <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12 }}><span style={{ color: "#888" }}>Available Amount</span><span>₦{earnings.total.toLocaleString()}</span></div>
+              </div>
+              <div style={{ marginTop: 14, textAlign: "center", fontSize: 12, color: "#aaa" }}>Selected Payment Method</div>
+              <div style={{ marginTop: 8, background: "linear-gradient(135deg, #6A7CFF 0%, #4A5AFF 100%)", borderRadius: 18, padding: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 10, color: "#FFFFFFAA" }}>Current Balance</span><span>🌙</span></div>
+                <div style={{ fontSize: 18, fontWeight: 900, marginTop: 2, color: "white" }}>₦ {earnings.total.toLocaleString()}.20</div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, fontSize: 11, color: "#FFFFFFCC" }}><span>• • • • {bankDetails.accountNumber ? bankDetails.accountNumber.slice(-4) : "0212"}</span><span>{bankDetails.bankName}</span></div>
+                <div style={{ fontSize: 10, color: "#FFFFFFAA", marginTop: 2 }}>{bankDetails.accountName || "WORKER-1234"}</div>
+              </div>
+              <button onClick={handleWithdrawClick} style={{ marginTop: 16, background: "#4A5AFF", border: "none", borderRadius: 22, padding: "13px 20px", fontWeight: 900, width: "100%", color: "white" }}>WITHDRAW</button>
+              <div style={{ fontSize: 8, color: "#555", textAlign: "center", marginTop: 8 }}>By withdrawing, you agree to the Terms of use, Refund Policy, Payment Conditions</div>
+            </div>}
             {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50 - Resets 12:00 AM</div>}
           </div>
         </div>
