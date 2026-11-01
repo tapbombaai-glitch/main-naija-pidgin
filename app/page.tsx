@@ -23,7 +23,9 @@ export default function WorkerDashboard() {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [invitedCount, setInvitedCount] = useState(0);
+    const [invitedCount, setInvitedCount] = useState(0);
+
+  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); }
 
   const BANKS = [
     { name: "Opay", logo: "🟩" }, { name: "Moniepoint", logo: "🔵" },
