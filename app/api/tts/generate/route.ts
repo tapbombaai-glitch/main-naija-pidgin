@@ -8,10 +8,12 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN ID - COPIED TODAY
+// This is the ID you just copied: BXStbbwwT5cKeWf2Ik8O
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
-  "BXStbbwwT5cKeWf2Ik8O";
+  "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR REAL ID, NOT DW6Z... AGAIN
 
 const VOICE_MAP: Record<string, string> = {
   "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
@@ -40,6 +42,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set in Render" }, { status: 500 });
     }
 
+    if (!CHAIRMAN_POWERFUL_VOICE_ID || CHAIRMAN_POWERFUL_VOICE_ID === "DW6Zuhb8hBT0UMYMno9Z") {
+      return NextResponse.json({ success: false, error: "Chairman! Your Voice ID still be old fake one. Go Render Environment set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O" }, { status: 500 });
+    }
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "No auth token" }, { status: 401 });
@@ -64,17 +70,9 @@ export async function POST(req: NextRequest) {
     }
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
+    console.log(`Using Voice ID: ${voiceId} for request: ${voice}`);
 
-    // ✅ CLEAR VOICE SETTINGS - MAKE AM LOUD & CLEAR FOR WARRI
-    const voiceSettingsToUse = { 
-      stability: 0.45,        // Clear and stable, not shaky
-      similarity_boost: 0.85, // Very close to your real voice
-      style: 0.65,            // Good for [laughs] [shouts] but still clear
-      use_speaker_boost: true // BOOST volume and clarity!
-    };
-
-    // ✅ HIGH QUALITY OUTPUT - 44.1kHz for clear sound
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
+    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
       headers: {
         "xi-api-key": elevenKey,
@@ -83,13 +81,23 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_v3", // v3 for clear Warri emotions
-        voice_settings: voiceSettingsToUse
+        model_id: "eleven_v3", // v3 sabi laugh, whisper, shout for Warri Pidgin
+        voice_settings: { stability: 0.5, similarity_boost: 0.9, style: 0.8, use_speaker_boost: true }
       })
     });
 
     if (!elevenRes.ok) {
       const errText = await elevenRes.text();
+      console.error("ElevenLabs error:", errText, "VoiceID used:", voiceId);
+      
+      // Clear error message for voice_not_found
+      if (errText.includes("voice_not_found") || errText.includes("not found")) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Voice ID ${voiceId} not found. Go ElevenLabs -> My Voices -> Copy correct ID and set for Render CHAIRMAN_VOICE_ID. Raw: ${errText}` 
+        }, { status: 400 });
+      }
+
       return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}` }, { status: 400 });
     }
 
@@ -109,12 +117,13 @@ export async function POST(req: NextRequest) {
       success: true,
       audio_url: audioUrl,
       remaining_credits: remaining,
-      voice_used: "Main Naija Pidgin - Chairman Original CLEAR",
+      voice_used: "Main Naija Pidgin - Chairman Original",
       voice_id_used: voiceId,
-      message: "Voice generated successfully with Chairman Warri voice - CLEAR!"
+      message: "Voice generated successfully with Chairman Warri voice!"
     });
 
   } catch (e: any) {
+    console.error(e);
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
-}
+} 
