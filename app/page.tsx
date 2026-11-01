@@ -130,12 +130,22 @@ export default function Marketplace() {
     } catch (error: any) { showToast(error.message || "Account authentication failed.", "error"); } finally { setLoading(false); }
   };
 
-  const playSample = async (voice: any) => {
+    const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); audio.currentTime = 0; setAudio(null); }
-      window.speechSynthesis?.cancel();
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
+      const a = new Audio(voice.sample_url);
+      setAudio(a);
+      a.onended = () => setPlayingId(null);
+      a.onerror = () => { 
+        setPlayingId(null); 
+        showToast(`🎧 ${voice.name} - Use API Testing Console below!`, "success");
+      };
+      await a.play();
+      showToast(`🎧 ${voice.name} - ORIGINAL`, "success");
+    } catch { setPlayingId(null); }
+  };
       const chairmanMap: any = { "Lagos Male": 0, "Abuja Female": 1, "Pidgin Narrator": 2, "Delta Warri": 3, "Yoruba Mix": 4 };
       const idx = chairmanMap[voice.name] ?? voices.findIndex((v: any) => v.id === voice.id);
       const chairmanVoice = myLocalVoices[idx];
