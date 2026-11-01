@@ -8,27 +8,23 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN ID - COPIED TODAY
-// This is the ID you just copied: BXStbbwwT5cKeWf2Ik8O
+// ✅ YOUR REAL WARRI VOICE ID
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
-  "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR REAL ID, NOT DW6Z... AGAIN
+  "BXStbbwwT5cKeWf2Ik8O";
 
 const VOICE_MAP: Record<string, string> = {
-  // YOUR NEW 5 GREATEST - ALL POINT TO YOUR REAL WARRI VOICE
   "Main Naija Pidgin 1": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 2": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 3": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 4": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 5": CHAIRMAN_POWERFUL_VOICE_ID,
-  // OLD NAMES - KEEP FOR BACKWARD COMPATIBILITY
   "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
   "My Voice": CHAIRMAN_POWERFUL_VOICE_ID,
   "Chairman Voice": CHAIRMAN_POWERFUL_VOICE_ID,
   "Powerful Voice": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Main Naija Warri Pidgin": CHAIRMAN_POWERFUL_VOICE_ID,
   "Lagos Male": CHAIRMAN_POWERFUL_VOICE_ID, 
   "Abuja Female": CHAIRMAN_POWERFUL_VOICE_ID,
   "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
@@ -50,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!CHAIRMAN_POWERFUL_VOICE_ID || CHAIRMAN_POWERFUL_VOICE_ID === "DW6Zuhb8hBT0UMYMno9Z") {
-      return NextResponse.json({ success: false, error: "Chairman! Your Voice ID still be old fake one. Go Render Environment set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Chairman! Set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O in Render" }, { status: 500 });
     }
 
     const authHeader = req.headers.get('Authorization');
@@ -77,7 +73,6 @@ export async function POST(req: NextRequest) {
     }
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
-    console.log(`Using Voice ID: ${voiceId} for request: ${voice}`);
 
     const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
@@ -88,23 +83,13 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_v3", // v3 sabi laugh, whisper, shout for Warri Pidgin
+        model_id: "eleven_v3",
         voice_settings: { stability: 0.5, similarity_boost: 0.9, style: 0.8, use_speaker_boost: true }
       })
     });
 
     if (!elevenRes.ok) {
       const errText = await elevenRes.text();
-      console.error("ElevenLabs error:", errText, "VoiceID used:", voiceId);
-      
-      // Clear error message for voice_not_found
-      if (errText.includes("voice_not_found") || errText.includes("not found")) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Voice ID ${voiceId} not found. Go ElevenLabs -> My Voices -> Copy correct ID and set for Render CHAIRMAN_VOICE_ID. Raw: ${errText}` 
-        }, { status: 400 });
-      }
-
       return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}` }, { status: 400 });
     }
 
@@ -126,11 +111,11 @@ export async function POST(req: NextRequest) {
       remaining_credits: remaining,
       voice_used: "Main Naija Pidgin - Chairman Original",
       voice_id_used: voiceId,
-      message: "Voice generated successfully with Chairman Warri voice!"
+      message: "Voice generated successfully!"
     });
 
   } catch (e: any) {
     console.error(e);
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
-} 
+}
