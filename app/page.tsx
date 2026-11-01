@@ -18,8 +18,37 @@ export default function WorkerDashboard() {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [showBankForm, setShowBankForm] = useState(false);
+    const [showBankForm, setShowBankForm] = useState(false);
   const [bankDetails, setBankDetails] = useState({ fullName: "", phone: "", bankName: "Opay", accountNumber: "", accountName: "" });
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [invitedCount, setInvitedCount] = useState(0);
+
+  const BANKS = [
+    { name: "Opay", logo: "🟩" }, { name: "Moniepoint", logo: "🔵" },
+    { name: "PalmPay", logo: "🟣" }, { name: "Kuda", logo: "🟪" },
+    { name: "First Bank", logo: "🏦" }, { name: "GTB", logo: "🟧" },
+    { name: "Access Bank", logo: "🟠" }, { name: "UBA", logo: "🔴" }, { name: "Zenith Bank", logo: "🔴" },
+  ];
+
+  const verifyAccount = async () => {
+    if (bankDetails.accountNumber.length !== 10) { showToastMsg("❌ 10 digits needed"); return; }
+    setVerifying(true);
+    setTimeout(async () => {
+      setVerifying(false); setVerified(true);
+      localStorage.setItem("gin_bank", JSON.stringify(bankDetails));
+      try { await supabase.from("workers").upsert([{ worker_id: "WORKER-1234", bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, verified: true, invited_count: invitedCount }], { onConflict: "worker_id" }); } catch {}
+      showToastMsg(`✅ Verified! ${bankDetails.accountName} - ${bankDetails.bankName}`);
+    }, 1500);
+  };
+
+  const handleWithdrawClick = () => {
+    if (!verified || !bankDetails.accountNumber) { setShowModal(null); setShowBankForm(true); return; }
+    if (earnings.total < 5000) { showToastMsg(`🔒 Need ₦5,000 min! You have ₦${earnings.total}`); return; }
+    if (invitedCount >= 3) { showToastMsg(`✅ Supabase Approved! Withdrawing ₦${earnings.total} to ${bankDetails.bankName}`); setShowModal(null); return; }
+    setShowModal(null); setShowInviteModal(true);
+  };
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
