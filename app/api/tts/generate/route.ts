@@ -27,6 +27,13 @@ const VOICE_MAP: Record<string, string> = {
   "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
   "Delta Warri": CHAIRMAN_POWERFUL_VOICE_ID,
   "Yoruba Mix": CHAIRMAN_POWERFUL_VOICE_ID,
+
+  // ✅ NEW VOICES ADDED (same powerful ID)
+  "Main Naija Pidgin 1": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Main Naija Pidgin 2": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Main Naija Pidgin 3": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Main Naija Pidgin 4": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Main Naija Pidgin 5": CHAIRMAN_POWERFUL_VOICE_ID,
 };
 
 export async function POST(req: NextRequest) {
@@ -126,4 +133,4 @@ export async function POST(req: NextRequest) {
     console.error(e);
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
-} 
+}
