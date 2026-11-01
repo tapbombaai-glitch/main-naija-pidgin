@@ -3,18 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY! || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY! || 
+  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY! || 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// 🔥 YOUR ORIGINAL MAIN NAIJA PIDGIN - NO DUPLICATE AGAIN
-// Go My Voices -> tap 3 dots ... -> Edit -> copy ID for end of link
+// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN ID - COPIED TODAY
+// This is the ID you just copied: BXStbbwwT5cKeWf2Ik8O
 const CHAIRMAN_POWERFUL_VOICE_ID = 
-  process.env.CHAIRMAN_VOICE_ID || 
-  process.env.ELEVENLABS_VOICE_ID || 
-  "DW6Zuhb8hBT0UMYMno9Z"; // <-- Replace with the ID you copy for My Voices
+  process.env.CHAIRMAN_VOICE_ID?.trim() || 
+  process.env.ELEVENLABS_VOICE_ID?.trim() || 
+  "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR REAL ID, NOT DW6Z... AGAIN
 
 const VOICE_MAP: Record<string, string> = {
-  // ALL NAMES POINT TO YOUR ONE ORIGINAL VOICE
   "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
   "My Voice": CHAIRMAN_POWERFUL_VOICE_ID,
   "Chairman Voice": CHAIRMAN_POWERFUL_VOICE_ID,
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set in Render" }, { status: 500 });
     }
 
-    if (!CHAIRMAN_POWERFUL_VOICE_ID) {
-      return NextResponse.json({ success: false, error: "Chairman! Add your Voice ID for Render Environment. Put your Main Naija Pidgin ID" }, { status: 500 });
+    if (!CHAIRMAN_POWERFUL_VOICE_ID || CHAIRMAN_POWERFUL_VOICE_ID === "DW6Zuhb8hBT0UMYMno9Z") {
+      return NextResponse.json({ success: false, error: "Chairman! Your Voice ID still be old fake one. Go Render Environment set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O" }, { status: 500 });
     }
 
     const authHeader = req.headers.get('Authorization');
@@ -69,9 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
-
-    // No more replacing Main Naija Pidgin - make e talk am exactly as you write!
-    let optimizedText = text;
+    console.log(`Using Voice ID: ${voiceId} for request: ${voice}`);
 
     const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
@@ -81,17 +80,25 @@ export async function POST(req: NextRequest) {
         "Accept": "audio/mpeg"
       },
       body: JSON.stringify({
-        text: optimizedText,
-        // Use v3 for your Warri Pidgin - e sabi laugh, whisper, shout!
-        model_id: "eleven_v3",
+        text: text,
+        model_id: "eleven_v3", // v3 sabi laugh, whisper, shout for Warri Pidgin
         voice_settings: { stability: 0.5, similarity_boost: 0.9, style: 0.8, use_speaker_boost: true }
       })
     });
 
     if (!elevenRes.ok) {
       const errText = await elevenRes.text();
-      console.error("ElevenLabs error:", errText);
-      return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}. Check Voice ID: ${voiceId}` }, { status: 400 });
+      console.error("ElevenLabs error:", errText, "VoiceID used:", voiceId);
+      
+      // Clear error message for voice_not_found
+      if (errText.includes("voice_not_found") || errText.includes("not found")) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Voice ID ${voiceId} not found. Go ElevenLabs -> My Voices -> Copy correct ID and set for Render CHAIRMAN_VOICE_ID. Raw: ${errText}` 
+        }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}` }, { status: 400 });
     }
 
     const audioBuffer = await elevenRes.arrayBuffer();
