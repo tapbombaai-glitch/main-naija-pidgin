@@ -8,7 +8,6 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN ID - COPIED TODAY
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
@@ -63,10 +62,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set in Render" }, { status: 500 });
     }
 
-    if (!CHAIRMAN_POWERFUL_VOICE_ID || CHAIRMAN_POWERFUL_VOICE_ID === "DW6Zuhb8hBT0UMYMno9Z") {
-      return NextResponse.json({ success: false, error: "Chairman! Your Voice ID still be old fake one. Go Render Environment set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O" }, { status: 500 });
-    }
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return NextResponse.json({ success: false, error: "No auth token" }, { status: 401 });
@@ -91,10 +86,9 @@ export async function POST(req: NextRequest) {
     }
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
-    console.log(`Using Voice ID: ${voiceId} for request: ${voice}`);
 
-    // ✅ UPGRADED FOR CLEAR QUALITY - LIKE ELEVENLABS DIRECT
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192&optimize_streaming_latency=0`, {
+    // ✅ UBONGEN FINAL FIX - CLEAR + NO ERROR
+    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`, {
       method: "POST",
       headers: {
         "xi-api-key": elevenKey,
@@ -103,27 +97,18 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_v3", // v3 still sabi laugh but we tune am for clarity
+        model_id: "eleven_v3",
         voice_settings: { 
-          stability: 0.75, // ✅ UPGRADED from 0.5 to 0.75 = MORE CLEAR, no shaking
-          similarity_boost: 0.82, // ✅ UPGRADED for clarity like original
-          style: 0.35, // ✅ REDUCED from 0.8 to 0.35 = clear but still fit do [laughs]
-          use_speaker_boost: true // ✅ KEEP for loud clear
+          stability: 0.75,
+          similarity_boost: 0.82,
+          style: 0.35,
+          use_speaker_boost: true 
         }
       })
     });
 
     if (!elevenRes.ok) {
       const errText = await elevenRes.text();
-      console.error("ElevenLabs error:", errText, "VoiceID used:", voiceId);
-      
-      if (errText.includes("voice_not_found") || errText.includes("not found")) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Voice ID ${voiceId} not found. Go ElevenLabs -> My Voices -> Copy correct ID and set for Render CHAIRMAN_VOICE_ID. Raw: ${errText}` 
-        }, { status: 400 });
-      }
-
       return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}` }, { status: 400 });
     }
 
@@ -145,7 +130,7 @@ export async function POST(req: NextRequest) {
       remaining_credits: remaining,
       voice_used: "Main Naija Pidgin - Chairman Original",
       voice_id_used: voiceId,
-      message: "Voice generated successfully with Chairman Warri voice!"
+      message: "Voice generated successfully!"
     });
 
   } catch (e: any) {
