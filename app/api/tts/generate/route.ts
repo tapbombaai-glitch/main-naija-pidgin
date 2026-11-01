@@ -8,18 +8,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// ✅ YOUR REAL VOICE - I NO CHANGE AM!
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
-  "BXStbbwwT5cKeWf2Ik8O";
+  "BXStbbwwT5cKeWf2Ik8O"; // <- YOUR VOICE, I KEEP AM!
 
-const CHAIRMAN_YORUBA_VOICE_ID = 
-  process.env.YORUBA_VOICE_ID?.trim() || 
-  CHAIRMAN_POWERFUL_VOICE_ID;
-
-const CHAIRMAN_IGBO_VOICE_ID = 
-  process.env.IGBO_VOICE_ID?.trim() || 
-  CHAIRMAN_POWERFUL_VOICE_ID;
+const CHAIRMAN_YORUBA_VOICE_ID = process.env.YORUBA_VOICE_ID?.trim() || CHAIRMAN_POWERFUL_VOICE_ID;
+const CHAIRMAN_IGBO_VOICE_ID = process.env.IGBO_VOICE_ID?.trim() || CHAIRMAN_POWERFUL_VOICE_ID;
 
 const VOICE_MAP: Record<string, string> = {
   "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
@@ -52,48 +48,41 @@ const VOICE_MAP: Record<string, string> = {
 export async function POST(req: NextRequest) {
   try {
     const { text, voice } = await req.json();
-    
-    if (!text || !voice) {
-      return NextResponse.json({ success: false, error: "Text and voice required" }, { status: 400 });
-    }
+    if (!text || !voice) return NextResponse.json({ success: false, error: "Text and voice required" }, { status: 400 });
 
-    const elevenKey = process.env.ELEVENLABS_API_KEY;
-    if (!elevenKey) {
-      return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set in Render" }, { status: 500 });
-    }
+    // ✅ KEY ROTATION - Save your 35k! x3 = 105k
+    const elevenKeys = [
+      process.env.ELEVENLABS_API_KEY,
+      process.env.ELEVENLABS_API_KEY_1,
+      process.env.ELEVENLABS_API_KEY_2,
+    ].filter(Boolean) as string[];
+    const elevenKey = elevenKeys[Math.floor(Math.random() * elevenKeys.length)];
+    if (!elevenKey) return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set" }, { status: 500 });
 
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return NextResponse.json({ success: false, error: "No auth token" }, { status: 401 });
-    }
-    
+    if (!authHeader) return NextResponse.json({ success: false, error: "No auth token" }, { status: 401 });
     const token = authHeader.replace('Bearer ', '');
     const { data: { user } } = await supabase.auth.getUser(token);
-    
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
 
     const { data: keyData } = await supabase.from("api_keys").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }).limit(1).single();
-
-    if (!keyData) {
-      return NextResponse.json({ success: false, error: "No API key found. Claim free key first." }, { status: 400 });
-    }
+    if (!keyData) return NextResponse.json({ success: false, error: "No API key found" }, { status: 400 });
 
     const totalLeft = (keyData.free_requests_remaining || 0) + (keyData.paid_requests_remaining || 0);
-    if (totalLeft <= 0) {
-      return NextResponse.json({ success: false, error: "No credits left. Buy more." }, { status: 400 });
-    }
+    if (totalLeft <= 0) return NextResponse.json({ success: false, error: "No credits left" }, { status: 400 });
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
 
-    // ✅ FIXED 1: REMOVE mp3_44100_192 - Free tier no allow am, use default (still clear)
-    // ✅ FIXED 2: SMART MODEL - Keep feeling if you use [laughs], else clear
+    // ✅ FIX FOR "NOT MY VOICE" - For instant clone like BXStbbwwT5cKeWf2Ik8O, use multilingual_v2 ONLY! v3 dey spoil am!
+    // If you want feeling [laughs], we use turbo_v2_5 which supports am for instant clones
     const hasEmotionTag = text.includes("[laughs]") || text.includes("[whispers]") || text.includes("[shouts]") || text.includes("[sighs]") || text.includes("[laugh]");
-    const modelToUse = hasEmotionTag ? "eleven_v3" : "eleven_multilingual_v2";
-    const voiceSettings = hasEmotionTag 
-      ? { stability: 0.70, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true }
-      : { stability: 0.71, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
+    const modelToUse = hasEmotionTag ? "eleven_turbo_v2_5" : "eleven_multilingual_v2"; // <- turbo supports feeling + your voice
+    const voiceSettings = {
+      stability: 0.75,
+      similarity_boost: 0.85,
+      style: hasEmotionTag ? 0.30 : 0.0,
+      use_speaker_boost: true
+    };
 
     const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
@@ -102,11 +91,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "Accept": "audio/mpeg"
       },
-      body: JSON.stringify({
-        text: text,
-        model_id: modelToUse,
-        voice_settings: voiceSettings
-      })
+      body: JSON.stringify({ text, model_id: modelToUse, voice_settings: voiceSettings })
     });
 
     if (!elevenRes.ok) {
@@ -124,14 +109,13 @@ export async function POST(req: NextRequest) {
       await supabase.from("api_keys").update({ paid_requests_remaining: keyData.paid_requests_remaining - 1 }).eq("id", keyData.id);
     }
 
-    const remaining = totalLeft - 1;
-
     return NextResponse.json({
       success: true,
       audio_url: audioUrl,
-      remaining_credits: remaining,
-      voice_used: "Main Naija Pidgin - Chairman Original",
-      voice_id_used: voiceId,
+      remaining_credits: totalLeft - 1,
+      voice_used: voice,
+      voice_id_used: voiceId, // Will show BXStbbwwT5cKeWf2Ik8O
+      model_used: modelToUse,
       message: "Voice generated successfully!"
     });
 
