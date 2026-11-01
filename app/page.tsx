@@ -20,10 +20,10 @@ export default function WorkerDashboard() {
   const [isUploading, setIsUploading] = useState(false);
   const [showBankForm, setShowBankForm] = useState(false);
   const [bankDetails, setBankDetails] = useState({ fullName: "", phone: "", bankName: "Opay", accountNumber: "", accountName: "" });
-  // 📢 FIX - ANNOUNCEMENT BOARD WITH COUNT
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [timeToMidnight, setTimeToMidnight] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -40,11 +40,25 @@ export default function WorkerDashboard() {
   const sentences = allSentences[selectedLang];
 
   useEffect(() => {
-    const saved = localStorage.getItem("naija_progress");
-    if (saved) { try { const p = JSON.parse(saved); setTaskProgress(p.progress); setEarnings(p.earnings); setCurrentSentenceIndex(p.index||0); } catch {} }
+    const todayStr = new Date().toDateString();
+    const lastReset = localStorage.getItem("last_reset_date");
+    if (lastReset !== todayStr) {
+      localStorage.setItem("last_reset_date", todayStr);
+      setTaskProgress(prev => ({ ...prev, today: 0 }));
+      const saved = localStorage.getItem("naija_progress");
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          localStorage.setItem("naija_progress", JSON.stringify({ progress: { total: p.progress?.total || 63, today: 0 }, earnings: p.earnings, index: p.index || 0 }));
+        } catch { localStorage.removeItem("naija_progress"); }
+      }
+    } else {
+      const saved = localStorage.getItem("naija_progress");
+      if (saved) { try { const p = JSON.parse(saved); if(p.progress) setTaskProgress(p.progress); if(p.earnings) setEarnings(p.earnings); setCurrentSentenceIndex(p.index||0); } catch {} }
+    }
     const savedBank = localStorage.getItem("gin_bank");
     if (savedBank) { try { setBankDetails(JSON.parse(savedBank)); } catch {} }
-    // Load announcements for count button - 1 msg=1, 2 msgs=2
+
     const fetchAnn = async () => {
       try {
         const { data } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(20);
@@ -57,8 +71,24 @@ export default function WorkerDashboard() {
       } catch {}
     };
     fetchAnn();
+    const channel = supabase.channel('ann-live').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (payload) => {
+      setAnnouncements(prev => [payload.new, ...prev]);
+      setUnreadCount(c => c + 1);
+    }).subscribe();
     const id = setInterval(fetchAnn, 30000);
-    return () => clearInterval(id);
+    const midInterval = setInterval(() => {
+      if (taskProgress.today >= 50) {
+        const now = new Date();
+        const nextMidnight = new Date();
+        nextMidnight.setDate(nextMidnight.getDate() + 1);
+        nextMidnight.setHours(0,0,0,0);
+        const diff = nextMidnight.getTime() - now.getTime();
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        setTimeToMidnight(`${h}h ${m}m to 12:00 AM`);
+      }
+    }, 60000);
+    return () => { clearInterval(id); clearInterval(midInterval); supabase.removeChannel(channel); };
   }, []);
 
   const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); };
@@ -83,7 +113,6 @@ export default function WorkerDashboard() {
       mr.onstop = () => {
         const blob = new Blob(audioChunksRef.current, { type: mime });
         const url = URL.createObjectURL(blob);
-        console.log("Recording done, url:", url, "size:", blob.size);
         setAudioURL(url);
         stream.getTracks().forEach(t => t.stop());
       };
@@ -102,16 +131,15 @@ export default function WorkerDashboard() {
           return p + 1;
         });
       }, 1000);
-    } catch (e) { alert("Abeg allow microphone! Go phone settings allow mic for Chrome"); console.log(e); }
+    } catch (e) { alert("Abeg allow microphone!"); }
   };
 
   const formatTime = (s: number) => { const m = Math.floor(s/60).toString().padStart(2,"0"); const sec = (s%60).toString().padStart(2,"0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
-    const saveAndNext = async () => {
-    console.log("Save clicked, audioURL:", audioURL, "timer:", timer);
+  const saveAndNext = async () => {
     if (!audioURL) { showToastMsg("⚠️ Record first! Click red button and talk"); return; }
-    if (taskProgress.today >= 50) { showToastMsg("You don finish 50 today!"); return; }
+    if (taskProgress.today >= 50) { showToastMsg("You don finish 50 today! Come back after 12 AM"); return; }
     setIsUploading(true);
     try {
       const blob = await fetch(audioURL).then(r => r.blob());
@@ -131,27 +159,18 @@ export default function WorkerDashboard() {
       setTaskProgress(newProgress); 
       setCurrentSentenceIndex(nextIndex);
       localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
-      
-      // ✅ GREEN GO COMOT HERE!
       setAudioURL(null); 
       setTimer(0);
-      setIsPlaying(false);
       setIsRecording(false);
-      
       showToastMsg(`✅ SAVED! ${newProgress.today}/50 today - Wait Chairman approve!`);
     } catch (err: any) {
-      console.error(err);
       showToastMsg("❌ Save fail: " + err.message);
       setAudioURL(null);
       setTimer(0);
-      setIsPlaying(false);
       setIsRecording(false);
-    } finally { 
-      setIsUploading(false); 
-    }
+    } finally { setIsUploading(false); }
   };
 
-  // FIXED - WITHDRAW NOW CHECK BANK DETAILS FIRST
   const handleBottomClick = (id: string, label: string) => {
     if (id === "withdraw") {
       const savedBank = localStorage.getItem("gin_bank");
@@ -184,24 +203,31 @@ export default function WorkerDashboard() {
     setShowAnnouncement(false);
   };
 
+  const finishedToday = taskProgress.today >= 50;
+
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
       {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: 20, fontSize: 12, fontWeight: 900, zIndex: 100, maxWidth: 300, textAlign: "center" }}>{toast}</div>}
       <div style={{ maxWidth: 390, margin: "0 auto", padding: 10, paddingBottom: 90 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}><div><div style={{ display: "flex", gap: 8 }}><h1 style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>Worker Dashboard</h1><span>🇳🇬</span></div><div style={{ fontSize: 11, color: "#aaa" }}>Welcome, WORKER-1234 <span style={{ color: "#00E676", fontSize: 10 }}> ● Online</span></div></div><div style={{ width: 10, height: 10, background: "#00E676", borderRadius: 50 }}></div></div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#0B1A0B", border: "1px solid #1E2F1E", borderRadius: 20, padding: "8px 10px", marginBottom: 10 }}><div style={{ width: 36, height: 36, background: "#00E676", color: "#000", borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900 }}>W</div><div style={{ flex: 1 }}><div style={{ fontSize: 12, fontWeight: 800 }}>WORKER-1234</div><div style={{ fontSize: 9, color: "#888" }}>Location: Lagos • Accent: Lagos Pidgin</div></div><div style={{ background: "#1A2F1A", border: "1px solid #00E676", color: "#00E676", fontSize: 9, fontWeight: 800, padding: "4px 8px", borderRadius: 12 }}>★ Pro Level</div></div>
-
-        {/* 📢 FIXED ANNOUNCEMENT BOARD - BUTTON WITH COUNT */}
         <button onClick={() => setShowAnnouncement(true)} style={{ width: "100%", background: "#0F1F0F", border: "1.5px solid #FFC107", borderRadius: 12, padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ background: "#FFC107", width: 32, height: 32, borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>📢{unreadCount>0 && <div style={{ position: "absolute", top: -6, right: -6, background: "#E53935", color: "white", fontSize: 9, fontWeight: 900, width: 16, height: 16, borderRadius: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>{unreadCount}</div>}</div>
-            <div style={{ textAlign: "left" }}><div style={{ fontSize: 12, fontWeight: 900, color: "white" }}>Announcement Board</div><div style={{ fontSize: 9, color: "#aaa" }}>{unreadCount>0 ? `🔴 ${unreadCount} new message${unreadCount>1?'s':''} - Click to read` : announcements.length>0 ? `✅ ${announcements.length} message${announcements.length>1?'s':''} - Check your message` : "✅ Check your message"}</div></div>
+            <div style={{ textAlign: "left" }}><div style={{ fontSize: 12, fontWeight: 900, color: "white" }}>Announcement Board</div><div style={{ fontSize: 9, color: "#aaa" }}>{unreadCount>0 ? `🔴 ${unreadCount} new - Click` : announcements.length>0 ? `✅ ${announcements.length} msgs` : "✅ Check your message"}</div></div>
           </div>
           <div style={{ background: unreadCount>0 ? "#FFC107" : "#1E2F1E", color: unreadCount>0 ? "black" : "#FFC107", padding: "4px 8px", borderRadius: 10, fontSize: 10, fontWeight: 900 }}>{unreadCount>0 ? `${unreadCount} new` : "Open →"}</div>
         </button>
-
         <div style={{ display: "flex", gap: 6, marginTop: 12 }}>{["Pidgin","Igbo","Hausa","Yoruba"].map(lang=><button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: 20, fontSize: 11, fontWeight: 900, border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>)}</div>
-        <div style={{ marginTop: 14 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, fontWeight: 800 }}>Main Task Workspace</span><span style={{ fontSize: 10, color: "#888" }}>{taskProgress.total}/500 Total | Today {taskProgress.today}/50</span></div><div style={{ width: "100%", height: 6, background: "#1A2A1A", borderRadius: 10, marginTop: 4 }}><div style={{ width: `${(taskProgress.total/500)*100}%`, height: "100%", background: "#00E676" }}></div></div><div style={{ textAlign: "right", fontSize: 9, color: "#00E676", marginTop: 2 }}>Today: {taskProgress.today} / 50 ↗</div></div>
+        <div style={{ marginTop: 14 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 12, fontWeight: 800 }}>Main Task Workspace</span><span style={{ fontSize: 10, color: "#888" }}>{taskProgress.total}/500 Total | Today {taskProgress.today}/50</span></div><div style={{ width: "100%", height: 6, background: "#1A2A1A", borderRadius: 10, marginTop: 4 }}><div style={{ width: `${(taskProgress.total/500)*100}%`, height: "100%", background: "#00E676" }}></div></div><div style={{ textAlign: "right", fontSize: 9, color: finishedToday ? "#E53935" : "#00E676", marginTop: 2 }}>Today: {taskProgress.today} / 50 {finishedToday ? " - Finished till 12 AM!" : "↗"}</div></div>
+        {finishedToday ? (
+          <div style={{ background: "#1A1111", border: "2px solid #E53935", borderRadius: 16, padding: 20, marginTop: 10, textAlign: "center" }}>
+            <div style={{ fontSize: 40 }}>🌙</div>
+            <div style={{ fontWeight: 900, fontSize: 16, marginTop: 10 }}>You don finish 50 today!</div>
+            <div style={{ fontSize: 12, color: "#aaa", marginTop: 5 }}>New 50 go start after 12:00 AM midnight</div>
+            <div style={{ marginTop: 12, background: "#FFC107", color: "black", padding: "8px 16px", borderRadius: 20, fontWeight: 900, display: "inline-block", fontSize: 12 }}>{timeToMidnight || "Come back after 12 AM"}</div>
+          </div>
+        ) : (
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: 16, padding: 14, marginTop: 10 }}>
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}><span style={{ fontSize: 11, fontWeight: 800 }}>🎙️ Recording Studio</span><span style={{ fontSize: 10, color: "#888" }}> - {selectedLang} - {currentSentenceIndex+1}/{sentences.length}</span></div>
           <div style={{ textAlign: "center", minHeight: 48, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><p style={{ fontSize: 18, fontWeight: 900, margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
@@ -214,6 +240,7 @@ export default function WorkerDashboard() {
             <button onClick={saveAndNext} disabled={isUploading} style={{ flex: 1.5, background: isUploading ? "#FFC107" : audioURL ? "#00E676" : "#333", color: audioURL ? "black" : "#888", border: "none", padding: 13, borderRadius: 12, fontSize: 12, fontWeight: 900 }}>{isUploading ? "⏳ Uploading..." : audioURL ? "✅ Save & Next →" : "Save & Next"}</button>
           </div>
         </div>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 12 }}>
           <div onClick={()=>setShowModal("earnings")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 9, color: "#888" }}>💳 Earnings</div><div style={{ fontSize: 16, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div></div>
           <div onClick={()=>setShowModal("pending")} style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 9, color: "#FFC107" }}>🕐 Pending</div><div style={{ fontSize: 16, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>
@@ -221,26 +248,20 @@ export default function WorkerDashboard() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>{[{ label: "Earnings", icon: "📊", id: "earnings" },{ label: "Levels", icon: "👑", id: "levels", active: true },{ label: "Withdraw", icon: "💳", id: "withdraw" }].map(item=><button key={item.id} onClick={()=>handleBottomClick(item.id, item.label)} style={{ background: item.active || activeBottom===item.label ? "#00E676" : "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: "12px 4px", color: item.active || activeBottom===item.label ? "#000" : "#888", fontWeight: 800, fontSize: 12 }}>{item.icon} {item.label}</button>)}</div>
       </div>
-
-      {/* 📢 ANNOUNCEMENT POPUP - SAME PATTERN LIKE BANK DETAILS */}
       {showAnnouncement && (
         <div style={{ position: "fixed", inset: 0, background: "#000000DD", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 60 }}>
           <div style={{ background: "#0F1F0F", border: "1.5px solid #FFC107", borderRadius: 16, padding: 16, width: "100%", maxWidth: 360, maxHeight: "80vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div style={{ fontSize: 16, fontWeight: 900 }}>📢 Announcements ({announcements.length})</div><button onClick={() => setShowAnnouncement(false)} style={{ background: "#1E2F1E", border: "none", color: "white", width: 28, height: 28, borderRadius: 50 }}>✕</button></div>
-            <div style={{ fontSize: 10, color: "#888", marginBottom: 10 }}>Check your message - if 1 message enter show 1, if 2 enter show 2 like button you want</div>
-            {announcements.length===0 && <div style={{ textAlign: "center", padding: 20, color: "#888", fontSize: 12 }}>No message yet - Chairman go send here!</div>}
+            {announcements.length===0 && <div style={{ textAlign: "center", padding: 20, color: "#888", fontSize: 12 }}>No message yet</div>}
             {announcements.map((a:any) => (<div key={a.id} style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: 10, padding: 10, marginBottom: 8 }}><div style={{ display: "flex", justifyContent: "space-between" }}><div style={{ fontSize: 12, fontWeight: 800 }}>{a.title}</div><div style={{ fontSize: 8, color: "#888" }}>{new Date(a.created_at).toLocaleDateString()}</div></div><div style={{ fontSize: 11, color: "#ccc", marginTop: 6 }}>{a.message}</div></div>))}
-            <button onClick={markAnnRead} style={{ width: "100%", background: "#FFC107", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, fontSize: 13, marginTop: 8, color: "black" }}>👇 Mark as Read - Close (Go Down)</button>
+            <button onClick={markAnnRead} style={{ width: "100%", background: "#FFC107", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, fontSize: 13, marginTop: 8, color: "black" }}>👇 Mark as Read</button>
           </div>
         </div>
       )}
-
-      {/* 🏦 FIXED ACCOUNT DETAILS */}
       {showBankForm && (
         <div style={{ position: "fixed", inset: 0, background: "#000000DD", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 70 }}>
           <div style={{ background: "#0F1F0F", border: "1.5px solid #00E676", borderRadius: 16, padding: 16, width: "100%", maxWidth: 360 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><b>🏦 Add Account Details</b><button onClick={()=>setShowBankForm(false)} style={{ background: "#1E2F1E", border: "none", color: "white", width: 28, height: 28, borderRadius: 50 }}>✕</button></div>
-            <div style={{ fontSize: 10, color: "#888", marginBottom: 10 }}>Chairman go see am for Supabase to pay you</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <input placeholder="Full Name" value={bankDetails.fullName} onChange={e=>setBankDetails({...bankDetails, fullName: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
               <input placeholder="Phone" value={bankDetails.phone} onChange={e=>setBankDetails({...bankDetails, phone: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
@@ -249,21 +270,20 @@ export default function WorkerDashboard() {
               </select>
               <input placeholder="Account Number" value={bankDetails.accountNumber} onChange={e=>setBankDetails({...bankDetails, accountNumber: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
               <input placeholder="Account Name" value={bankDetails.accountName} onChange={e=>setBankDetails({...bankDetails, accountName: e.target.value})} style={{ background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: 12, color: "white" }} />
-              <button onClick={saveBankAndContinue} style={{ background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 4, color: "black" }}>💾 Save & Continue to Withdraw</button>
+              <button onClick={saveBankAndContinue} style={{ background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 4, color: "black" }}>💾 Save & Continue</button>
             </div>
           </div>
         </div>
       )}
-
       {showModal && (
         <div onClick={()=>setShowModal(null)} style={{ position: "fixed", inset: 0, background: "#000000BB", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 50 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background: "#0F1F0F", border: "1px solid #1E2F1E", borderRadius: 16, padding: 20, width: "100%", maxWidth: 360 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><b style={{ textTransform: "capitalize" }}>{showModal}</b><button onClick={()=>setShowModal(null)} style={{ background: "none", border: "none", color: "#888", fontSize: 18 }}>✕</button></div>
-            {showModal==="earnings" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div><div style={{ fontSize: 10, color: "#888", marginTop: 8, background: "#1A2A1A", padding: 8, borderRadius: 8 }}>Bank: {bankDetails.bankName} - {bankDetails.accountNumber || "Not set - Click Withdraw to add"}</div></div>}
+            {showModal==="earnings" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div></div>}
             {showModal==="pending" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>}
             {showModal==="approved" && <div><div style={{ fontSize: 28, fontWeight: 900 }}>{earnings.approved} clips</div></div>}
-            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available to withdraw</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><div style={{ fontSize: 10, color: "#aaa", background: "#1A2A1A", padding: 8, borderRadius: 8, marginTop: 8 }}>To: {bankDetails.bankName} - {bankDetails.accountNumber}<br/>{bankDetails.accountName}</div><button style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button><button onClick={()=>{ setShowModal(null); setShowBankForm(true); }} style={{ marginTop: 8, background: "#1A2A1A", border: "1px solid #2A4A2A", borderRadius: 10, padding: "10px 20px", width: "100%", color: "#aaa", fontSize: 11 }}>✏️ Change Account</button></div>}
-            {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50<br/>Bank: {bankDetails.accountNumber ? "✅ Saved" : "❌ Not saved - Click Withdraw"}</div>}
+            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><button style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button></div>}
+            {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50 - Resets 12:00 AM</div>}
           </div>
         </div>
       )}
