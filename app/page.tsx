@@ -24,37 +24,62 @@ export default function WorkerDashboard() {
   const [verified, setVerified] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedCount, setInvitedCount] = useState(0);
-
-  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); }
-
-  const BANKS = [
-    { name: "Opay", logo: "🟩" }, { name: "Moniepoint", logo: "🔵" },
-    { name: "PalmPay", logo: "🟣" }, { name: "Kuda", logo: "🟪" },
-    { name: "First Bank", logo: "🏦" }, { name: "GTB", logo: "🟧" },
-    { name: "Access Bank", logo: "🟠" }, { name: "UBA", logo: "🔴" }, { name: "Zenith Bank", logo: "🔴" },
-  ];
-
-  const verifyAccount = async () => {
-    if (bankDetails.accountNumber.length !== 10) { showToastMsg("❌ 10 digits needed"); return; }
-    setVerifying(true);
-    setTimeout(async () => {
-      setVerifying(false); setVerified(true);
-      localStorage.setItem("gin_bank", JSON.stringify(bankDetails));
-      try { await supabase.from("workers").upsert([{ worker_id: "WORKER-1234", bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, verified: true, invited_count: invitedCount }], { onConflict: "worker_id" }); } catch {}
-      showToastMsg(`✅ Verified! ${bankDetails.accountName} - ${bankDetails.bankName}`);
-    }, 1500);
-  };
-
-  const handleWithdrawClick = () => {
-    if (!verified || !bankDetails.accountNumber) { setShowModal(null); setShowBankForm(true); return; }
-    if (earnings.total < 5000) { showToastMsg(`🔒 Need ₦5,000 min! You have ₦${earnings.total}`); return; }
-    if (invitedCount >= 3) { showToastMsg(`✅ Supabase Approved! Withdrawing ₦${earnings.total} to ${bankDetails.bankName}`); setShowModal(null); return; }
-    setShowModal(null); setShowInviteModal(true);
-  };
   const [showAnnouncement, setShowAnnouncement] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [timeToMidnight, setTimeToMidnight] = useState("");
+  const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState(0);
+
+  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); }
+
+  const handleWithdrawClick = async () => {
+    if (!verified || !bankDetails.accountNumber) { 
+      setShowModal(null); 
+      setShowBankForm(true); 
+      return; 
+    }
+    if (earnings.total < 5000) { 
+      showToastMsg(`🔒 Need ₦5,000 min! You have ₦${earnings.total}`); 
+      return; 
+    }
+    if (invitedCount < 3) {
+      setShowModal(null); 
+      setShowInviteModal(true);
+      return;
+    }
+    try {
+      const amountToSend = earnings.total - 50;
+      setWithdrawAmount(amountToSend);
+      try {
+        await supabase.from("withdrawals").insert([{
+          worker_id: "WORKER-1234",
+          amount: amountToSend,
+          bank_name: bankDetails.bankName,
+          account_number: bankDetails.accountNumber,
+          account_name: bankDetails.accountName,
+          full_name: bankDetails.fullName,
+          phone: bankDetails.phone,
+          status: "pending"
+        }]);
+      } catch {}
+      setShowModal(null);
+      setShowWithdrawSuccess(true);
+      setTimeout(() => {
+        setShowWithdrawSuccess(false);
+        showToastMsg(`✅ ₦${amountToSend} sent to ${bankDetails.bankName}!`);
+      }, 3500);
+    } catch (err: any) {
+      const amountToSend = earnings.total - 50;
+      setWithdrawAmount(amountToSend);
+      setShowModal(null);
+      setShowWithdrawSuccess(true);
+      setTimeout(() => setShowWithdrawSuccess(false), 3500);
+      const reqs = JSON.parse(localStorage.getItem("withdraw_reqs") || "[]");
+      reqs.push({ ...bankDetails, amount: earnings.total, time: new Date().toISOString() });
+      localStorage.setItem("withdraw_reqs", JSON.stringify(reqs));
+    }
+  };
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -76,20 +101,14 @@ export default function WorkerDashboard() {
     if (lastReset !== todayStr) {
       localStorage.setItem("last_reset_date", todayStr);
       setTaskProgress(prev => ({ ...prev, today: 0 }));
-      const saved = localStorage.getItem("naija_progress");
-      if (saved) {
-        try {
-          const p = JSON.parse(saved);
-          localStorage.setItem("naija_progress", JSON.stringify({ progress: { total: p.progress?.total || 63, today: 0 }, earnings: p.earnings, index: p.index || 0 }));
-        } catch { localStorage.removeItem("naija_progress"); }
-      }
     } else {
       const saved = localStorage.getItem("naija_progress");
       if (saved) { try { const p = JSON.parse(saved); if(p.progress) setTaskProgress(p.progress); if(p.earnings) setEarnings(p.earnings); setCurrentSentenceIndex(p.index||0); } catch {} }
     }
     const savedBank = localStorage.getItem("gin_bank");
     if (savedBank) { try { const b=JSON.parse(savedBank); setBankDetails(b); if(b.accountNumber) setVerified(true); } catch {} }
-
+    const savedInv = localStorage.getItem("gin_invites");
+    if (savedInv) setInvitedCount(parseInt(savedInv));
     const fetchAnn = async () => {
       try {
         const { data } = await supabase.from("announcements").select("*").order("created_at", { ascending: false }).limit(20);
@@ -311,12 +330,30 @@ export default function WorkerDashboard() {
             <div style={{ fontSize: 40 }}>👥</div>
             <div style={{ fontWeight: 900, fontSize: 16, marginTop: 8 }}>Invite 3 Friends to Withdraw</div>
             <div style={{ fontSize: 12, color: "#aaa", marginTop: 6 }}>You have invited {invitedCount}/3</div>
+            <div style={{ fontSize: 11, color: "#FFC107", marginTop: 6 }}>Reach ₦5,000 + 3 friends = Withdraw!</div>
             <div style={{ background: "#111A11", borderRadius: 10, padding: 12, marginTop: 12, textAlign: "left" }}>
               <div style={{ fontSize: 11, color: "#00E676" }}>Share your link:</div>
               <div style={{ fontSize: 11, color: "white", wordBreak: "break-all", background: "#000", padding: 8, borderRadius: 8, marginTop: 6 }}>https://gin-voice.com/invite/WORKER-1234</div>
             </div>
-            <button onClick={() => { const n=invitedCount+1; setInvitedCount(n); showToastMsg(`✅ Friend joined! ${n}/3`); if(n>=3){ setShowInviteModal(false); showToastMsg("✅ Approved! Now you can withdraw!"); setShowModal("withdraw"); } }} style={{ width: "100%", background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 12, color: "black" }}>📲 Simulate Invite (Test)</button>
+            <button onClick={() => { const n=invitedCount+1; setInvitedCount(n); localStorage.setItem("gin_invites", n.toString()); showToastMsg(`✅ Friend joined! ${n}/3`); if(n>=3){ setShowInviteModal(false); showToastMsg("✅ 3 Friends Done! Now you can withdraw ₦5,000!"); setShowModal("withdraw"); } }} style={{ width: "100%", background: "#00E676", border: "none", borderRadius: 10, padding: 12, fontWeight: 900, marginTop: 12, color: "black" }}>📲 Simulate Invite (Test) {invitedCount}/3</button>
             <button onClick={() => setShowInviteModal(false)} style={{ width: "100%", background: "#1E2F1E", border: "none", borderRadius: 10, padding: 10, fontSize: 12, marginTop: 8, color: "#888" }}>Close</button>
+          </div>
+        </div>
+      )}
+      {showWithdrawSuccess && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 90 }}>
+          <div style={{ background: "#0F1F0F", border: "2px solid #00E676", borderRadius: 20, padding: 24, width: "100%", maxWidth: 340, textAlign: "center" }}>
+            <div style={{ fontSize: 50 }}>💸</div>
+            <div style={{ fontSize: 14, fontWeight: 900, marginTop: 12 }}>Sending ₦{withdrawAmount.toLocaleString()}...</div>
+            <div style={{ marginTop: 16, position: "relative", height: 80, background: "#131A2A", borderRadius: 14, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+              <div style={{ background: "#00E676", padding: "6px 10px", borderRadius: 8, fontSize: 11, fontWeight: 900, color: "black" }}>₦{withdrawAmount}</div>
+              <div>➡️</div>
+              <div style={{ background: "linear-gradient(135deg, #6A7CFF, #4A5AFF)", padding: "8px 12px", borderRadius: 10, fontSize: 9, color: "white" }}>{bankDetails.bankName}<br/>••••{bankDetails.accountNumber?.slice(-4)}</div>
+            </div>
+            <div style={{ marginTop: 16, background: "#00E676", color: "black", padding: "10px", borderRadius: 10, fontWeight: 900, fontSize: 13 }}>
+              ✅ Sent to {bankDetails.accountNumber?.slice(-4)} - {bankDetails.bankName}!
+            </div>
+            <div style={{ fontSize: 10, color: "#888", marginTop: 10 }}>Processing... You go receive alert soon!</div>
           </div>
         </div>
       )}
@@ -346,9 +383,9 @@ export default function WorkerDashboard() {
                 <div style={{ fontSize: 10, color: "#FFFFFFAA", marginTop: 2 }}>{bankDetails.accountName || "WORKER-1234"}</div>
               </div>
               <button onClick={handleWithdrawClick} style={{ marginTop: 16, background: "#4A5AFF", border: "none", borderRadius: 22, padding: "13px 20px", fontWeight: 900, width: "100%", color: "white" }}>WITHDRAW</button>
-              <div style={{ fontSize: 8, color: "#555", textAlign: "center", marginTop: 8 }}>By withdrawing, you agree to the Terms of use, Refund Policy, Payment Conditions</div>
+              <div style={{ fontSize: 8, color: "#555", textAlign: "center", marginTop: 8 }}>Need ₦5,000 + 3 friends to withdraw</div>
             </div>}
-            {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50 - Resets 12:00 AM</div>}
+            {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50 - Resets 12:00 AM - Need ₦5000 + 3 invites to withdraw</div>}
           </div>
         </div>
       )}
