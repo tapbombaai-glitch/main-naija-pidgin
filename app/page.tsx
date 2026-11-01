@@ -18,12 +18,12 @@ export default function WorkerDashboard() {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-    const [showBankForm, setShowBankForm] = useState(false);
+  const [showBankForm, setShowBankForm] = useState(false);
   const [bankDetails, setBankDetails] = useState({ fullName: "", phone: "", bankName: "Opay", accountNumber: "", accountName: "" });
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-    const [invitedCount, setInvitedCount] = useState(0);
+  const [invitedCount, setInvitedCount] = useState(0);
 
   const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); }
 
@@ -121,8 +121,6 @@ export default function WorkerDashboard() {
     }, 60000);
     return () => { clearInterval(id); clearInterval(midInterval); supabase.removeChannel(channel); };
   }, []);
-
-  const showToastMsg = (msg: string) => { setToast(msg); setTimeout(()=>setToast(null), 3000); };
 
   const toggleRecording = async () => {
     if (isRecording) {
@@ -313,7 +311,7 @@ export default function WorkerDashboard() {
             {showModal==="earnings" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#00E676" }}>₦{earnings.total.toLocaleString()}</div></div>}
             {showModal==="pending" && <div><div style={{ fontSize: 28, fontWeight: 900, color: "#FFC107" }}>₦{earnings.pending}</div></div>}
             {showModal==="approved" && <div><div style={{ fontSize: 28, fontWeight: 900 }}>{earnings.approved} clips</div></div>}
-            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><button style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button></div>}
+            {showModal==="withdraw" && <div><div style={{ fontSize: 12, color: "#888" }}>Available</div><div style={{ fontSize: 28, fontWeight: 900 }}>₦{earnings.total}</div><button onClick={handleWithdrawClick} style={{ marginTop: 12, background: "#00E676", border: "none", borderRadius: 10, padding: "12px 20px", fontWeight: 900, width: "100%" }}>Withdraw ₦{earnings.total}</button></div>}
             {showModal==="levels" && <div style={{ color: "#888", fontSize: 13 }}>Pro Level - {taskProgress.total}/500 - Today {taskProgress.today}/50 - Resets 12:00 AM</div>}
           </div>
         </div>
