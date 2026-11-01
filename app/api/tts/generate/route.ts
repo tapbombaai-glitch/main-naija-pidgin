@@ -87,8 +87,15 @@ export async function POST(req: NextRequest) {
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
 
-    // ✅ UBONGEN FINAL FIX - CLEAR + NO ERROR
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`, {
+    // ✅ FIXED 1: REMOVE mp3_44100_192 - Free tier no allow am, use default (still clear)
+    // ✅ FIXED 2: SMART MODEL - Keep feeling if you use [laughs], else clear
+    const hasEmotionTag = text.includes("[laughs]") || text.includes("[whispers]") || text.includes("[shouts]") || text.includes("[sighs]") || text.includes("[laugh]");
+    const modelToUse = hasEmotionTag ? "eleven_v3" : "eleven_multilingual_v2";
+    const voiceSettings = hasEmotionTag 
+      ? { stability: 0.70, similarity_boost: 0.85, style: 0.45, use_speaker_boost: true }
+      : { stability: 0.71, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true };
+
+    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
       headers: {
         "xi-api-key": elevenKey,
@@ -97,13 +104,8 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: "eleven_v3",
-        voice_settings: { 
-          stability: 0.75,
-          similarity_boost: 0.82,
-          style: 0.35,
-          use_speaker_boost: true 
-        }
+        model_id: modelToUse,
+        voice_settings: voiceSettings
       })
     });
 
