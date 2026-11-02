@@ -1,15 +1,17 @@
 
 "use client";
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+
+// SAFE - No crash if ENV missing during build
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key-placeholder-key';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 type AuthMode = "login" | "signup";
-
 // ✅ FINAL CLEAN - 6 VOICES ONLY - NO DUPLICATE - NO BELLA/ELLI - NO ID 6 & 7
 const DEFAULT_VOICES = [
   { id: "w5p3k3PueAgQOT4lq0SF", name: "Warri Babe", accent: "Sweet - Expressive - Professional - BEST SELLER", category: "Female", sample_text: "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!", sample_url: "/samples/ElevenLabs_2026-11-02T13_24_07_Warri babe ivc_sp100_s50_sb75_v4.mp3", rating: 5.0, sales: 1200, isBestSeller: true, isFeatured: true, tag: "FEMALE" },
