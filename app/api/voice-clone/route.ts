@@ -10,34 +10,42 @@ const elevenLabsKey = process.env.ELEVENLABS_API_KEY!;
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
+const authClient = createClient(supabaseUrl, anonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+const adminClient = createClient(supabaseUrl, serviceKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
 export async function POST(req: NextRequest) {
   let createdVoiceId: string | null = null;
 
   try {
-    // 1. Check server configuration.
     if (!supabaseUrl || !anonKey || !serviceKey || !elevenLabsKey) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Missing server environment variables.",
-        },
+        { success: false, error: "Server configuration is incomplete." },
         { status: 500 }
       );
     }
 
-    // 2. Verify login.
-    const authHeader = req.headers.get("authorization");
+    // Verify Supabase session.
+    const authorization = req.headers.get("authorization");
 
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authorization?.startsWith("Bearer ")) {
       return NextResponse.json(
         { success: false, error: "Please log in first." },
         { status: 401 }
       );
     }
 
-    const token = authHeader.slice(7);
-
-    const authClient = createClient(supabaseUrl, anonKey);
+    const token = authorization.slice(7);
 
     const {
       data: { user },
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Only Chairman can create platform voices.
+    // Only the authorized Chairman can create platform voices.
     if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
       return NextResponse.json(
         {
@@ -62,18 +70,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Read uploaded recording.
+    // Verify Chairman profile as an additional check.
+    const { data: profile, error: profileError } = await adminClient
+      .from("profiles")
+      .select("email, is_chairman")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (
+      profileError ||
+      !profile ||
+      profile.email?.toLowerCase() !== CHAIRMAN_EMAIL ||
+      profile.is_chairman !== true
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Chairman profile verification failed.",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Read form data.
     const formData = await req.formData();
 
     const name = String(formData.get("name") || "").trim();
+    const gender = String(formData.get("gender") || "").toLowerCase();
     const audio = formData.get("audio");
 
     if (!name || name.length > 80) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Enter a voice name between 1 and 80 characters.",
-        },
+        { success: false, error: "Enter a voice name between 1 and 80 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (gender !== "male" && gender !== "female") {
+      return NextResponse.json(
+        { success: false, error: "Select male or female voice." },
         { status: 400 }
       );
     }
@@ -81,7 +116,7 @@ export async function POST(req: NextRequest) {
     if (
       !audio ||
       typeof audio === "string" ||
-      typeof audio === "object" && !("arrayBuffer" in audio)
+      typeof (audio as File).arrayBuffer !== "function"
     ) {
       return NextResponse.json(
         { success: false, error: "Upload a voice recording first." },
@@ -93,23 +128,20 @@ export async function POST(req: NextRequest) {
 
     if (audioFile.size < 50 * 1024) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Recording is too small. Please record a longer, clearer sample.",
-        },
+        { success: false, error: "Recording is too small. Please record a longer sample." },
         { status: 400 }
       );
     }
 
     if (audioFile.size > 20 * 1024 * 1024) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Recording is too large. Maximum size is 20 MB.",
-        },
+        { success: false, error: "Maximum recording size is 20 MB." },
         { status: 400 }
       );
     }
+
+    // Accept WebM with codec parameters, such as audio/webm;codecs=opus.
+    const mimeType = (audioFile.type || "").split(";")[0].trim().toLowerCase();
 
     const allowedTypes = [
       "audio/webm",
@@ -123,20 +155,14 @@ export async function POST(req: NextRequest) {
       "application/octet-stream",
     ];
 
-    if (
-      audioFile.type &&
-      !allowedTypes.includes(audioFile.type)
-    ) {
+    if (mimeType && !allowedTypes.includes(mimeType)) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Unsupported audio format. Record using your browser microphone.",
-        },
+        { success: false, error: "Unsupported audio format." },
         { status: 400 }
       );
     }
 
-    // 5. Prepare recording for ElevenLabs.
+    // Prepare ElevenLabs clone request.
     const elevenForm = new FormData();
 
     elevenForm.append("name", name);
@@ -151,14 +177,18 @@ export async function POST(req: NextRequest) {
       JSON.stringify({
         language: "English",
         accent: "Nigerian",
-        gender: "male",
+        gender,
         use_case: "text_to_speech",
       })
     );
 
-    elevenForm.append("files", audioFile, audioFile.name || "voice-sample.webm");
+    elevenForm.append(
+      "files",
+      audioFile,
+      audioFile.name || "voice-sample.webm"
+    );
 
-    // 6. Create the REAL voice clone.
+    // Create actual ElevenLabs voice clone.
     const cloneResponse = await fetch(
       "https://api.elevenlabs.io/v1/voices/add",
       {
@@ -177,14 +207,14 @@ export async function POST(req: NextRequest) {
     if (!cloneResponse.ok || !cloneResult.voice_id) {
       console.error("ElevenLabs cloning error:", cloneResult);
 
+      const detail = cloneResult.detail;
+      const errorMessage =
+        typeof detail === "string"
+          ? detail
+          : detail?.message || "ElevenLabs could not create this voice clone.";
+
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            cloneResult.detail?.message ||
-            cloneResult.detail ||
-            "ElevenLabs could not create the voice clone. Check your recording and account access.",
-        },
+        { success: false, error: errorMessage },
         { status: 502 }
       );
     }
@@ -194,21 +224,14 @@ export async function POST(req: NextRequest) {
     const requiresVerification =
       cloneResult.requires_verification === true;
 
-    // 7. Save voice ID securely in Supabase.
-    const adminClient = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
+    // Save the new voice without publishing it publicly.
     const { data: savedVoice, error: saveError } = await adminClient
       .from("cloned_voices")
       .insert({
         owner_user_id: user.id,
         name,
         elevenlabs_voice_id: createdVoiceId,
-        gender: "male",
+        gender,
         accent: "Nigerian Pidgin",
         description: "Chairman-created Main Naija Pidgin voice",
         is_public: false,
@@ -220,14 +243,17 @@ export async function POST(req: NextRequest) {
     if (saveError) {
       console.error("Supabase voice save error:", saveError);
 
-      // Clean up the ElevenLabs clone if database saving fails.
+      // Clean up only the newly created clone if saving failed.
       await fetch(
-        `https://api.elevenlabs.io/v1/voices/${createdVoiceId}`,
+        `https://api.elevenlabs.io/v1/voices/${encodeURIComponent(createdVoiceId)}`,
         {
           method: "DELETE",
           headers: { "xi-api-key": elevenLabsKey },
+          cache: "no-store",
         }
       );
+
+      createdVoiceId = null;
 
       return NextResponse.json(
         {
@@ -238,23 +264,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 8. Return the real Voice ID.
-    return NextResponse.json({
-      success: true,
-      message: requiresVerification
-        ? "Voice created. Verification is required before use."
-        : "Your real voice clone was created successfully!",
-      voice: {
-        id: savedVoice.id,
-        name: savedVoice.name,
-        voice_id: savedVoice.elevenlabs_voice_id,
-        gender: savedVoice.gender,
-        accent: savedVoice.accent,
-        is_public: savedVoice.is_public,
-        is_active: savedVoice.is_active,
-        requires_verification: requiresVerification,
+    return NextResponse.json(
+      {
+        success: true,
+        message: requiresVerification
+          ? "Voice created. Verification is required before activation."
+          : "Your real voice clone was created successfully!",
+        voice: {
+          id: savedVoice.id,
+          name: savedVoice.name,
+          voice_id: savedVoice.elevenlabs_voice_id,
+          gender: savedVoice.gender,
+          accent: savedVoice.accent,
+          is_public: savedVoice.is_public,
+          is_active: savedVoice.is_active,
+          requires_verification: requiresVerification,
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
   } catch (error) {
     console.error("Voice cloning route error:", error);
 
