@@ -36,7 +36,6 @@ export default function ClonePage() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
 
-  const [email, setEmail] = useState(CHAIRMAN_EMAIL);
   const [password, setPassword] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
@@ -71,37 +70,47 @@ export default function ClonePage() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --------------------------------------------------
-  // VERIFY CHAIRMAN ACCOUNT
+  // CHAIRMAN VERIFICATION
   // --------------------------------------------------
 
   async function verifyChairman(currentSession: Session) {
+    const user = currentSession.user;
+
+    if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
+      setSession(currentSession);
+      setAuthorized(false);
+      setLoginError(
+        `The currently signed-in account is ${user.email || "unknown"}. Sign out of it and enter the Chairman account.`
+      );
+      return false;
+    }
+
     try {
-      const user = currentSession.user;
-
-      if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
-        setAuthorized(false);
-        setSession(null);
-        await supabase.auth.signOut();
-        setLoginError("Access denied. Chairman account only.");
-        return false;
-      }
-
       const { data: profile, error } = await supabase
         .from("profiles")
         .select("email,is_chairman")
         .eq("id", user.id)
         .maybeSingle();
 
+      if (error) {
+        setSession(currentSession);
+        setAuthorized(false);
+        setLoginError(
+          `Could not check Chairman profile: ${error.message}`
+        );
+        return false;
+      }
+
       if (
-        error ||
         !profile ||
         profile.email?.toLowerCase() !== CHAIRMAN_EMAIL ||
         profile.is_chairman !== true
       ) {
+        setSession(currentSession);
         setAuthorized(false);
-        setSession(null);
-        await supabase.auth.signOut();
-        setLoginError("Chairman profile could not be verified.");
+        setLoginError(
+          "Your email is correct, but the profiles table does not confirm is_chairman = true. Chairman access must be enabled for this account."
+        );
         return false;
       }
 
@@ -112,41 +121,46 @@ export default function ClonePage() {
       return true;
     } catch {
       setAuthorized(false);
-      setLoginError("Unable to verify Chairman account.");
+      setLoginError("Unable to verify your Chairman profile.");
       return false;
     }
   }
+
+  // --------------------------------------------------
+  // CHECK EXISTING LOGIN
+  // --------------------------------------------------
 
   useEffect(() => {
     let mounted = true;
 
     async function checkSession() {
-      const { data } = await supabase.auth.getSession();
+      try {
+        const { data, error } = await supabase.auth.getSession();
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      if (data.session) {
-        await verifyChairman(data.session);
+        if (error) {
+          setLoginError(error.message);
+        } else if (data.session) {
+          await verifyChairman(data.session);
+        }
+      } finally {
+        if (mounted) setAuthLoading(false);
       }
-
-      if (mounted) setAuthLoading(false);
     }
 
-    checkSession();
+    void checkSession();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
 
-      if (!newSession) {
+      if (event === "SIGNED_OUT" || !newSession) {
         setSession(null);
         setAuthorized(false);
       } else {
         setSession(newSession);
-        setTimeout(() => {
-          if (mounted) void verifyChairman(newSession);
-        }, 0);
       }
     });
 
@@ -173,10 +187,8 @@ export default function ClonePage() {
     setLoginError("");
 
     try {
-      if (email.trim().toLowerCase() !== CHAIRMAN_EMAIL) {
-        setLoginError("Only the Chairman account can access this page.");
-        return;
-      }
+      // Clear any previous worker or non-Chairman session.
+      await supabase.auth.signOut();
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email: CHAIRMAN_EMAIL,
@@ -184,13 +196,27 @@ export default function ClonePage() {
       });
 
       if (error || !data.session) {
-        setLoginError(error?.message || "Login failed.");
+        setLoginError(error?.message || "Chairman login failed.");
         return;
       }
 
       await verifyChairman(data.session);
     } catch {
-      setLoginError("Something went wrong during login.");
+      setLoginError("Login failed. Please try again.");
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
+  async function clearPreviousLogin() {
+    setLoginLoading(true);
+
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setAuthorized(false);
+      setPassword("");
+      setLoginError("Previous login cleared. Enter your Chairman password.");
     } finally {
       setLoginLoading(false);
     }
@@ -198,7 +224,6 @@ export default function ClonePage() {
 
   async function handleLogout() {
     await stopRecording();
-
     await supabase.auth.signOut();
 
     setSession(null);
@@ -213,6 +238,9 @@ export default function ClonePage() {
   async function startRecording() {
     try {
       setCloneMessage("");
+
+      if (audioURL) URL.revokeObjectURL(audioURL);
+
       setAudioBlob(null);
       setAudioURL("");
 
@@ -272,8 +300,9 @@ export default function ClonePage() {
       }, 1000);
     } catch (error) {
       console.error(error);
+
       setCloneMessage(
-        "Microphone access failed. Please allow microphone permission."
+        "Microphone access failed. Allow microphone permission in your browser."
       );
     }
   }
@@ -294,9 +323,7 @@ export default function ClonePage() {
   }
 
   function clearRecording() {
-    if (recording) {
-      void stopRecording();
-    }
+    if (recording) void stopRecording();
 
     if (audioURL) URL.revokeObjectURL(audioURL);
 
@@ -307,7 +334,7 @@ export default function ClonePage() {
   }
 
   // --------------------------------------------------
-  // CREATE REAL ELEVENLABS VOICE CLONE
+  // CREATE ELEVENLABS VOICE CLONE
   // --------------------------------------------------
 
   async function createVoiceClone() {
@@ -317,12 +344,12 @@ export default function ClonePage() {
     }
 
     if (!voiceName.trim()) {
-      setCloneMessage("Please enter a name for your voice.");
+      setCloneMessage("Enter a name for your new voice.");
       return;
     }
 
     if (!audioBlob) {
-      setCloneMessage("Please record a voice sample first.");
+      setCloneMessage("Record a voice sample first.");
       return;
     }
 
@@ -357,21 +384,24 @@ export default function ClonePage() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || result.message || "Voice creation failed.");
+        throw new Error(
+          result.error || result.message || "Voice creation failed."
+        );
       }
 
-      // The backend returns the voice inside result.voice.
       const newVoice = result.voice;
 
       if (!newVoice?.voice_id) {
-        throw new Error("Voice was created but no Voice ID was returned.");
+        throw new Error("No Voice ID was returned.");
       }
 
       const createdVoice: Voice = {
         name: newVoice.name || voiceName.trim(),
         gender,
         id: newVoice.voice_id,
-        requiresVerification: Boolean(newVoice.requires_verification),
+        requiresVerification: Boolean(
+          newVoice.requires_verification
+        ),
       };
 
       setVoices((previous) => [
@@ -385,15 +415,17 @@ export default function ClonePage() {
 
       setCloneMessage(
         createdVoice.requiresVerification
-          ? "Voice created. ElevenLabs verification is required before testing this clone."
-          : "Your voice clone was created successfully. You can now test it below."
+          ? "Voice created. ElevenLabs verification is required before testing."
+          : "Voice clone created successfully. You can test it below."
       );
 
       setVoiceName("");
       clearRecording();
     } catch (error) {
       setCloneMessage(
-        error instanceof Error ? error.message : "Voice creation failed."
+        error instanceof Error
+          ? error.message
+          : "Voice creation failed."
       );
     } finally {
       setCloneLoading(false);
@@ -401,7 +433,7 @@ export default function ClonePage() {
   }
 
   // --------------------------------------------------
-  // TEST VOICE WITHOUT MARKETPLACE CREDITS
+  // GENERATE SPEECH WITHOUT MARKETPLACE CREDITS
   // --------------------------------------------------
 
   async function generateSpeech() {
@@ -411,7 +443,7 @@ export default function ClonePage() {
     }
 
     if (!testText.trim()) {
-      setTestMessage("Enter a message to generate speech.");
+      setTestMessage("Enter a message first.");
       return;
     }
 
@@ -421,7 +453,7 @@ export default function ClonePage() {
 
     if (selectedVoice?.requiresVerification) {
       setTestMessage(
-        "This cloned voice needs ElevenLabs verification before testing."
+        "This voice needs ElevenLabs verification before testing."
       );
       return;
     }
@@ -449,7 +481,7 @@ export default function ClonePage() {
           const result = await response.json();
           message = result.error || result.message || message;
         } catch {
-          // Keep fallback message.
+          // Use the fallback message.
         }
 
         throw new Error(message);
@@ -469,7 +501,7 @@ export default function ClonePage() {
 
       setGeneratedAudioURL(newURL);
       setTestMessage(
-        "Speech generated successfully. Your Marketplace credits were not used."
+        "Speech generated successfully. Marketplace credits were not used."
       );
     } catch (error) {
       setTestMessage(
@@ -483,7 +515,7 @@ export default function ClonePage() {
   }
 
   // --------------------------------------------------
-  // CLEANUP AUDIO URLS
+  // AUDIO CLEANUP
   // --------------------------------------------------
 
   useEffect(() => {
@@ -494,15 +526,15 @@ export default function ClonePage() {
   }, [audioURL, generatedAudioURL]);
 
   // --------------------------------------------------
-  // LOGIN SCREEN
+  // SMALL PHONE LOADING SCREEN
   // --------------------------------------------------
 
   if (authLoading) {
     return (
-      <main className="min-h-screen bg-[#050807] flex items-center justify-center text-white">
+      <main className="min-h-[100svh] bg-[#050807] flex items-center justify-center text-white px-4">
         <div className="text-center">
-          <div className="text-3xl mb-3">🎙️</div>
-          <p className="text-green-400 font-semibold">
+          <div className="text-3xl mb-2">🎙️</div>
+          <p className="text-green-400 text-sm font-semibold">
             Checking Chairman access...
           </p>
         </div>
@@ -510,42 +542,48 @@ export default function ClonePage() {
     );
   }
 
+  // --------------------------------------------------
+  // COMPACT CHAIRMAN LOGIN
+  // --------------------------------------------------
+
   if (!authorized) {
     return (
-      <main className="min-h-screen bg-[#050807] text-white flex items-center justify-center p-5">
-        <div className="w-full max-w-md bg-[#101915] border border-green-900 rounded-3xl p-6 shadow-2xl">
-          <div className="text-center mb-7">
-            <div className="text-5xl mb-3">👑</div>
+      <main className="min-h-[100svh] bg-[#050807] text-white flex items-center justify-center px-3 py-5">
+        <div className="w-full max-w-[360px] bg-[#101915] border border-green-900 rounded-2xl p-4 shadow-xl">
 
-            <h1 className="text-2xl font-black text-green-400">
+          <div className="text-center mb-5">
+            <div className="text-3xl mb-1">👑</div>
+
+            <h1 className="text-xl font-black text-green-400">
               Main Naija Pidgin
             </h1>
 
-            <p className="text-gray-400 text-sm mt-2">
+            <p className="text-gray-400 text-xs mt-1">
               Chairman Voice Studio
             </p>
 
-            <div className="inline-block mt-4 text-xs px-3 py-2 rounded-full bg-green-950 text-green-300 border border-green-800">
+            <span className="inline-block mt-3 text-[10px] px-3 py-1.5 rounded-full bg-green-950 text-green-300 border border-green-800">
               CHAIRMAN ACCESS ONLY
-            </div>
+            </span>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-3">
+
             <div>
-              <label className="text-sm text-gray-300 block mb-2">
+              <label className="text-xs text-gray-300 block mb-1">
                 Chairman Email
               </label>
 
               <input
                 type="email"
-                value={email}
+                value={CHAIRMAN_EMAIL}
                 readOnly
-                className="w-full rounded-xl bg-black border border-gray-700 p-4 text-white outline-none"
+                className="w-full rounded-lg bg-black border border-gray-700 p-3 text-sm text-white"
               />
             </div>
 
             <div>
-              <label className="text-sm text-gray-300 block mb-2">
+              <label className="text-xs text-gray-300 block mb-1">
                 Password
               </label>
 
@@ -555,12 +593,13 @@ export default function ClonePage() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter Chairman password"
                 required
-                className="w-full rounded-xl bg-black border border-gray-700 p-4 text-white outline-none focus:border-green-500"
+                autoComplete="current-password"
+                className="w-full rounded-lg bg-black border border-gray-700 p-3 text-sm text-white outline-none focus:border-green-500"
               />
             </div>
 
             {loginError && (
-              <div className="bg-red-950 border border-red-800 text-red-300 rounded-xl p-3 text-sm">
+              <div className="bg-red-950 border border-red-800 text-red-300 rounded-lg p-3 text-xs leading-5 break-words">
                 {loginError}
               </div>
             )}
@@ -568,14 +607,23 @@ export default function ClonePage() {
             <button
               type="submit"
               disabled={loginLoading}
-              className="w-full rounded-xl bg-green-500 hover:bg-green-400 text-black font-bold p-4 disabled:opacity-50"
+              className="w-full rounded-lg bg-green-500 text-black font-bold p-3 text-sm disabled:opacity-50"
             >
-              {loginLoading ? "Checking access..." : "Enter Voice Studio"}
+              {loginLoading ? "Checking..." : "Enter Voice Studio"}
             </button>
           </form>
 
-          <p className="text-center text-xs text-gray-500 mt-6">
-            Protected Chairman workspace.
+          <button
+            type="button"
+            onClick={clearPreviousLogin}
+            disabled={loginLoading}
+            className="w-full mt-3 rounded-lg border border-gray-700 text-gray-300 p-2.5 text-xs disabled:opacity-50"
+          >
+            Clear Previous Login
+          </button>
+
+          <p className="text-center text-[10px] text-gray-500 mt-4">
+            Secure Chairman Workspace
           </p>
         </div>
       </main>
@@ -583,77 +631,81 @@ export default function ClonePage() {
   }
 
   // --------------------------------------------------
-  // MAIN VOICE STUDIO
+  // COMPACT MOBILE VOICE STUDIO
   // --------------------------------------------------
 
   return (
-    <main className="min-h-screen bg-[#050807] text-white pb-12">
-      <header className="sticky top-0 z-20 bg-[#080e0b]/95 backdrop-blur border-b border-green-950 px-4 py-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+    <main className="min-h-[100svh] bg-[#050807] text-white pb-8">
+
+      <header className="sticky top-0 z-20 bg-[#080e0b]/95 backdrop-blur border-b border-green-950 px-3 py-3">
+        <div className="max-w-xl mx-auto flex items-center justify-between gap-2">
           <div>
-            <p className="text-green-400 text-xs font-bold tracking-widest">
+            <p className="text-green-400 text-[10px] font-bold tracking-widest">
               MAIN NAIJA PIDGIN
             </p>
 
-            <h1 className="text-xl font-black">
+            <h1 className="text-base font-black">
               Chairman Voice Studio
             </h1>
           </div>
 
           <button
             onClick={handleLogout}
-            className="text-xs border border-red-900 text-red-300 rounded-lg px-3 py-2"
+            className="text-[11px] border border-red-900 text-red-300 rounded-lg px-3 py-2"
           >
             Logout
           </button>
         </div>
       </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        <section className="rounded-2xl border border-green-900 bg-gradient-to-br from-[#10251a] to-[#080e0b] p-5">
-          <div className="text-3xl mb-2">🎙️</div>
+      <div className="max-w-xl mx-auto px-3 py-4 space-y-4">
 
-          <h2 className="text-xl font-black text-green-400">
-            Create Your Own Voice
-          </h2>
+        <section className="rounded-xl border border-green-900 bg-gradient-to-br from-[#10251a] to-[#080e0b] p-4">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">🎙️</div>
 
-          <p className="text-sm text-gray-300 mt-2 leading-6">
-            Record a voice sample, preview it, and create a real
-            ElevenLabs voice clone. Choose whether the new voice
-            should be male or female.
-          </p>
+            <div>
+              <h2 className="text-base font-black text-green-400">
+                Create Your Own Voice
+              </h2>
+
+              <p className="text-xs text-gray-400 mt-1">
+                Record, clone and test your Nigerian voices.
+              </p>
+            </div>
+          </div>
         </section>
 
-        {/* CREATE VOICE */}
+        {/* VOICE INFORMATION */}
 
-        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
-          <h2 className="font-bold text-lg">
+        <section className="rounded-xl border border-gray-800 bg-[#101713] p-4 space-y-3">
+          <h2 className="font-bold text-sm">
             1. Voice Information
           </h2>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">
+            <label className="block text-xs text-gray-400 mb-1">
               Voice Name
             </label>
 
             <input
               value={voiceName}
               onChange={(e) => setVoiceName(e.target.value)}
-              placeholder="Example: My Naija Male Voice"
-              className="w-full bg-black border border-gray-700 rounded-xl p-4 outline-none focus:border-green-500"
+              placeholder="Enter voice name"
+              className="w-full bg-black border border-gray-700 rounded-lg p-3 text-sm outline-none focus:border-green-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              Voice Gender
+            <label className="block text-xs text-gray-400 mb-2">
+              Select Gender
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setGender("male")}
-                className={`rounded-xl p-4 border font-bold ${
+                className={`rounded-lg p-3 text-sm border font-bold ${
                   gender === "male"
                     ? "bg-green-950 border-green-500 text-green-300"
                     : "bg-black border-gray-700 text-gray-400"
@@ -665,7 +717,7 @@ export default function ClonePage() {
               <button
                 type="button"
                 onClick={() => setGender("female")}
-                className={`rounded-xl p-4 border font-bold ${
+                className={`rounded-lg p-3 text-sm border font-bold ${
                   gender === "female"
                     ? "bg-green-950 border-green-500 text-green-300"
                     : "bg-black border-gray-700 text-gray-400"
@@ -679,35 +731,34 @@ export default function ClonePage() {
 
         {/* RECORDING */}
 
-        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
-          <h2 className="font-bold text-lg">
+        <section className="rounded-xl border border-gray-800 bg-[#101713] p-4 space-y-3">
+          <h2 className="font-bold text-sm">
             2. Record Voice Sample
           </h2>
 
-          <p className="text-sm text-gray-400 leading-6">
-            Record in a quiet place. Speak naturally and clearly.
-            A longer, clean sample generally gives better cloning
-            results. Maximum recording time: 90 seconds.
+          <p className="text-xs text-gray-400 leading-5">
+            Record in a quiet place. Speak clearly and naturally.
+            Maximum recording time is 90 seconds.
           </p>
 
-          <div className="rounded-xl bg-black border border-gray-800 p-5 text-center">
-            <div className="text-4xl mb-3">
+          <div className="rounded-lg bg-black border border-gray-800 p-4 text-center">
+            <div className="text-3xl mb-1">
               {recording ? "🔴" : "🎤"}
             </div>
 
-            <p className="text-2xl font-black text-green-400">
+            <p className="text-xl font-black text-green-400">
               {recordingSeconds}s
             </p>
 
-            <p className="text-xs text-gray-500 mt-1">
-              {recording ? "Recording in progress" : "Recording timer"}
+            <p className="text-[10px] text-gray-500">
+              {recording ? "Recording..." : "Recording timer"}
             </p>
 
             {!recording ? (
               <button
                 type="button"
                 onClick={startRecording}
-                className="mt-5 w-full bg-green-500 text-black font-bold rounded-xl p-4"
+                className="mt-3 w-full bg-green-500 text-black font-bold rounded-lg p-3 text-sm"
               >
                 ● Start Recording
               </button>
@@ -715,7 +766,7 @@ export default function ClonePage() {
               <button
                 type="button"
                 onClick={stopRecording}
-                className="mt-5 w-full bg-red-600 text-white font-bold rounded-xl p-4"
+                className="mt-3 w-full bg-red-600 text-white font-bold rounded-lg p-3 text-sm"
               >
                 ■ Stop Recording
               </button>
@@ -723,21 +774,17 @@ export default function ClonePage() {
           </div>
 
           {audioURL && (
-            <div className="space-y-3">
-              <p className="text-sm text-green-400 font-semibold">
+            <div className="space-y-2">
+              <p className="text-xs text-green-400 font-semibold">
                 Voice sample ready
               </p>
 
-              <audio
-                controls
-                src={audioURL}
-                className="w-full"
-              />
+              <audio controls src={audioURL} className="w-full" />
 
               <button
                 type="button"
                 onClick={clearRecording}
-                className="text-sm text-red-400 underline"
+                className="text-xs text-red-400 underline"
               >
                 Delete sample and record again
               </button>
@@ -748,51 +795,49 @@ export default function ClonePage() {
             type="button"
             onClick={createVoiceClone}
             disabled={cloneLoading || recording || !audioBlob}
-            className="w-full rounded-xl bg-green-500 text-black font-black p-4 disabled:opacity-40"
+            className="w-full rounded-lg bg-green-500 text-black font-black p-3 text-sm disabled:opacity-40"
           >
-            {cloneLoading ? "Creating Voice Clone..." : "Create Voice Clone"}
+            {cloneLoading ? "Creating Voice..." : "Create Voice Clone"}
           </button>
 
           {cloneMessage && (
-            <div className="rounded-xl bg-black border border-green-900 p-3 text-sm text-green-300 break-words">
+            <div className="rounded-lg bg-black border border-green-900 p-3 text-xs text-green-300 leading-5 break-words">
               {cloneMessage}
             </div>
           )}
         </section>
 
-        {/* VOICE SELECTION */}
+        {/* SELECT VOICE */}
 
-        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
-          <h2 className="font-bold text-lg">
+        <section className="rounded-xl border border-gray-800 bg-[#101713] p-4 space-y-3">
+          <h2 className="font-bold text-sm">
             3. Select a Voice
           </h2>
 
-          <p className="text-sm text-gray-400">
-            Choose an existing voice or one of your newly created clones.
-          </p>
-
-          <div className="space-y-3">
+          <div className="space-y-2">
             {voices.map((voice) => (
               <button
                 key={voice.id}
                 type="button"
                 onClick={() => setSelectedVoiceId(voice.id)}
-                className={`w-full text-left rounded-xl border p-4 ${
+                className={`w-full text-left rounded-lg border p-3 ${
                   selectedVoiceId === voice.id
                     ? "border-green-500 bg-green-950/50"
                     : "border-gray-700 bg-black"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="font-bold">{voice.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">
+                      {voice.name}
+                    </p>
 
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-[10px] text-gray-500 mt-1">
                       {voice.gender.toUpperCase()} VOICE
                     </p>
                   </div>
 
-                  <span className="text-xs text-green-400">
+                  <span className="text-[10px] text-green-400 shrink-0">
                     {voice.requiresVerification
                       ? "Verification needed"
                       : selectedVoiceId === voice.id
@@ -805,35 +850,34 @@ export default function ClonePage() {
           </div>
         </section>
 
-        {/* SPEECH TESTING */}
+        {/* SPEECH TEST */}
 
-        <section className="rounded-2xl border border-green-900 bg-[#101713] p-5 space-y-4">
+        <section className="rounded-xl border border-green-900 bg-[#101713] p-4 space-y-3">
           <div>
-            <p className="text-xs tracking-widest text-green-400 font-bold">
+            <p className="text-[10px] tracking-widest text-green-400 font-bold">
               CHAIRMAN TEST LAB
             </p>
 
-            <h2 className="text-xl font-black mt-1">
+            <h2 className="text-base font-black mt-1">
               4. Generate Speech
             </h2>
           </div>
 
-          <p className="text-sm text-gray-400 leading-6">
-            Type any message and hear how your selected voice sounds.
-            This private test uses a separate endpoint and does not
-            deduct Marketplace API credits.
+          <p className="text-xs text-gray-400 leading-5">
+            Type a message and hear your selected voice.
+            This private test does not deduct Marketplace credits.
           </p>
 
           <textarea
             value={testText}
             onChange={(e) => setTestText(e.target.value)}
-            rows={5}
+            rows={4}
             maxLength={5000}
-            placeholder="Type your message here..."
-            className="w-full bg-black border border-gray-700 rounded-xl p-4 outline-none focus:border-green-500 resize-y"
+            placeholder="Type your message..."
+            className="w-full bg-black border border-gray-700 rounded-lg p-3 text-sm outline-none focus:border-green-500 resize-y"
           />
 
-          <div className="flex justify-between text-xs text-gray-500">
+          <div className="flex justify-between text-[10px] text-gray-500">
             <span>Maximum 5,000 characters</span>
             <span>{testText.length}/5000</span>
           </div>
@@ -842,20 +886,20 @@ export default function ClonePage() {
             type="button"
             onClick={generateSpeech}
             disabled={testLoading || !selectedVoiceId}
-            className="w-full rounded-xl bg-green-500 text-black font-black p-4 disabled:opacity-40"
+            className="w-full rounded-lg bg-green-500 text-black font-black p-3 text-sm disabled:opacity-40"
           >
-            {testLoading ? "Generating Speech..." : "▶ Generate Voice Speech"}
+            {testLoading ? "Generating Speech..." : "▶ Generate Speech"}
           </button>
 
           {testMessage && (
-            <div className="rounded-xl bg-black border border-green-900 p-3 text-sm text-green-300 break-words">
+            <div className="rounded-lg bg-black border border-green-900 p-3 text-xs text-green-300 leading-5 break-words">
               {testMessage}
             </div>
           )}
 
           {generatedAudioURL && (
-            <div className="rounded-xl bg-black border border-green-900 p-4 space-y-3">
-              <p className="text-green-400 font-bold text-sm">
+            <div className="rounded-lg bg-black border border-green-900 p-3 space-y-2">
+              <p className="text-green-400 font-bold text-xs">
                 Generated Voice Audio
               </p>
 
@@ -869,8 +913,8 @@ export default function ClonePage() {
           )}
         </section>
 
-        <footer className="text-center text-xs text-gray-600 py-4">
-          Main Naija Pidgin • Private Chairman Voice Studio
+        <footer className="text-center text-[10px] text-gray-600 py-2">
+          Main Naija Pidgin • Chairman Voice Studio
         </footer>
       </div>
     </main>
