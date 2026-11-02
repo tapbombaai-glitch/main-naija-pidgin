@@ -605,3 +605,274 @@ export default function ClonePage() {
             className="text-xs border border-red-900 text-red-300 rounded-lg px-3 py-2"
           >
             Logout
+          </button>
+        </div>
+      </header>
+
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        <section className="rounded-2xl border border-green-900 bg-gradient-to-br from-[#10251a] to-[#080e0b] p-5">
+          <div className="text-3xl mb-2">🎙️</div>
+
+          <h2 className="text-xl font-black text-green-400">
+            Create Your Own Voice
+          </h2>
+
+          <p className="text-sm text-gray-300 mt-2 leading-6">
+            Record a voice sample, preview it, and create a real
+            ElevenLabs voice clone. Choose whether the new voice
+            should be male or female.
+          </p>
+        </section>
+
+        {/* CREATE VOICE */}
+
+        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
+          <h2 className="font-bold text-lg">
+            1. Voice Information
+          </h2>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">
+              Voice Name
+            </label>
+
+            <input
+              value={voiceName}
+              onChange={(e) => setVoiceName(e.target.value)}
+              placeholder="Example: My Naija Male Voice"
+              className="w-full bg-black border border-gray-700 rounded-xl p-4 outline-none focus:border-green-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">
+              Voice Gender
+            </label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setGender("male")}
+                className={`rounded-xl p-4 border font-bold ${
+                  gender === "male"
+                    ? "bg-green-950 border-green-500 text-green-300"
+                    : "bg-black border-gray-700 text-gray-400"
+                }`}
+              >
+                👨 Male
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setGender("female")}
+                className={`rounded-xl p-4 border font-bold ${
+                  gender === "female"
+                    ? "bg-green-950 border-green-500 text-green-300"
+                    : "bg-black border-gray-700 text-gray-400"
+                }`}
+              >
+                👩 Female
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* RECORDING */}
+
+        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
+          <h2 className="font-bold text-lg">
+            2. Record Voice Sample
+          </h2>
+
+          <p className="text-sm text-gray-400 leading-6">
+            Record in a quiet place. Speak naturally and clearly.
+            A longer, clean sample generally gives better cloning
+            results. Maximum recording time: 90 seconds.
+          </p>
+
+          <div className="rounded-xl bg-black border border-gray-800 p-5 text-center">
+            <div className="text-4xl mb-3">
+              {recording ? "🔴" : "🎤"}
+            </div>
+
+            <p className="text-2xl font-black text-green-400">
+              {recordingSeconds}s
+            </p>
+
+            <p className="text-xs text-gray-500 mt-1">
+              {recording ? "Recording in progress" : "Recording timer"}
+            </p>
+
+            {!recording ? (
+              <button
+                type="button"
+                onClick={startRecording}
+                className="mt-5 w-full bg-green-500 text-black font-bold rounded-xl p-4"
+              >
+                ● Start Recording
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="mt-5 w-full bg-red-600 text-white font-bold rounded-xl p-4"
+              >
+                ■ Stop Recording
+              </button>
+            )}
+          </div>
+
+          {audioURL && (
+            <div className="space-y-3">
+              <p className="text-sm text-green-400 font-semibold">
+                Voice sample ready
+              </p>
+
+              <audio
+                controls
+                src={audioURL}
+                className="w-full"
+              />
+
+              <button
+                type="button"
+                onClick={clearRecording}
+                className="text-sm text-red-400 underline"
+              >
+                Delete sample and record again
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={createVoiceClone}
+            disabled={cloneLoading || recording || !audioBlob}
+            className="w-full rounded-xl bg-green-500 text-black font-black p-4 disabled:opacity-40"
+          >
+            {cloneLoading ? "Creating Voice Clone..." : "Create Voice Clone"}
+          </button>
+
+          {cloneMessage && (
+            <div className="rounded-xl bg-black border border-green-900 p-3 text-sm text-green-300 break-words">
+              {cloneMessage}
+            </div>
+          )}
+        </section>
+
+        {/* VOICE SELECTION */}
+
+        <section className="rounded-2xl border border-gray-800 bg-[#101713] p-5 space-y-4">
+          <h2 className="font-bold text-lg">
+            3. Select a Voice
+          </h2>
+
+          <p className="text-sm text-gray-400">
+            Choose an existing voice or one of your newly created clones.
+          </p>
+
+          <div className="space-y-3">
+            {voices.map((voice) => (
+              <button
+                key={voice.id}
+                type="button"
+                onClick={() => setSelectedVoiceId(voice.id)}
+                className={`w-full text-left rounded-xl border p-4 ${
+                  selectedVoiceId === voice.id
+                    ? "border-green-500 bg-green-950/50"
+                    : "border-gray-700 bg-black"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-bold">{voice.name}</p>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                      {voice.gender.toUpperCase()} VOICE
+                    </p>
+                  </div>
+
+                  <span className="text-xs text-green-400">
+                    {voice.requiresVerification
+                      ? "Verification needed"
+                      : selectedVoiceId === voice.id
+                      ? "Selected ✓"
+                      : "Select"}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* SPEECH TESTING */}
+
+        <section className="rounded-2xl border border-green-900 bg-[#101713] p-5 space-y-4">
+          <div>
+            <p className="text-xs tracking-widest text-green-400 font-bold">
+              CHAIRMAN TEST LAB
+            </p>
+
+            <h2 className="text-xl font-black mt-1">
+              4. Generate Speech
+            </h2>
+          </div>
+
+          <p className="text-sm text-gray-400 leading-6">
+            Type any message and hear how your selected voice sounds.
+            This private test uses a separate endpoint and does not
+            deduct Marketplace API credits.
+          </p>
+
+          <textarea
+            value={testText}
+            onChange={(e) => setTestText(e.target.value)}
+            rows={5}
+            maxLength={5000}
+            placeholder="Type your message here..."
+            className="w-full bg-black border border-gray-700 rounded-xl p-4 outline-none focus:border-green-500 resize-y"
+          />
+
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Maximum 5,000 characters</span>
+            <span>{testText.length}/5000</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={generateSpeech}
+            disabled={testLoading || !selectedVoiceId}
+            className="w-full rounded-xl bg-green-500 text-black font-black p-4 disabled:opacity-40"
+          >
+            {testLoading ? "Generating Speech..." : "▶ Generate Voice Speech"}
+          </button>
+
+          {testMessage && (
+            <div className="rounded-xl bg-black border border-green-900 p-3 text-sm text-green-300 break-words">
+              {testMessage}
+            </div>
+          )}
+
+          {generatedAudioURL && (
+            <div className="rounded-xl bg-black border border-green-900 p-4 space-y-3">
+              <p className="text-green-400 font-bold text-sm">
+                Generated Voice Audio
+              </p>
+
+              <audio
+                controls
+                autoPlay
+                src={generatedAudioURL}
+                className="w-full"
+              />
+            </div>
+          )}
+        </section>
+
+        <footer className="text-center text-xs text-gray-600 py-4">
+          Main Naija Pidgin • Private Chairman Voice Studio
+        </footer>
+      </div>
+    </main>
+  );
+}
