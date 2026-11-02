@@ -11,15 +11,19 @@ const supabase = createClient(
 
 type AuthMode = "login" | "signup";
 
+// ✅ FIXED - 7 VOICES - EACH DIFFERENT SOUND - ZERO SPACE!
 const DEFAULT_VOICES = [
-  { id: "1", name: "Main Naija Pidgin 1", accent: "Natural - Young", category: "Lagos", sample_text: "How far boss! Main Naija Pidgin 1 dey here.", sample_url: "/voices/main-naija-pidgin-1.mp3", rating: 4.8, sales: 312, isBestSeller: false, isFeatured: false },
-  { id: "2", name: "Main Naija Pidgin 2", accent: "Warm - Professional", category: "PH", sample_text: "Good morning, na Main Naija Pidgin 2.", sample_url: "/voices/main-naija-pidgin-2.mp3", rating: 4.9, sales: 456, isBestSeller: true, isFeatured: false },
-  { id: "3", name: "Main Naija Pidgin 3", accent: "Story - Expressive", category: "Warri", sample_text: "For inside this life, na story dey sweet pass!", sample_url: "/voices/main-naija-pidgin-3.mp3", rating: 5.0, sales: 892, isBestSeller: true, isFeatured: true },
-  { id: "4", name: "Main Naija Pidgin 4", accent: "Rugged - Local", category: "Warri", sample_text: "Warri no dey carry last!", sample_url: "/voices/main-naija-pidgin-4.mp3", rating: 4.7, sales: 234, isBestSeller: false, isFeatured: false },
-  { id: "5", name: "Main Naija Pidgin 5", accent: "Hybrid - Bilingual", category: "Lagos", sample_text: "E kaaro! I fit speak Yoruba and pidgin join.", sample_url: "/voices/main-naija-pidgin-5.mp3", rating: 4.8, sales: 189, isBestSeller: false, isFeatured: false },
+  { id: "1", name: "Main Naija Pidgin 1", accent: "Natural - Young - Fast", category: "Lagos", sample_text: "How far boss! Main Naija Pidgin 1 dey here - Fast young vibe!", sample_url: "", rating: 4.8, sales: 312, isBestSeller: false, isFeatured: false, tag: "MALE" },
+  { id: "2", name: "Main Naija Pidgin 2", accent: "Warm - Professional - Calm", category: "PH", sample_text: "Good morning, na Main Naija Pidgin 2 - Warm professional.", sample_url: "", rating: 4.9, sales: 456, isBestSeller: true, isFeatured: false, tag: "MALE" },
+  { id: "3", name: "Main Naija Pidgin 3", accent: "Story - Expressive - BESTSELLER", category: "Warri", sample_text: "For inside this life, na story dey sweet pass!", sample_url: "", rating: 5.0, sales: 892, isBestSeller: true, isFeatured: true, tag: "MALE" },
+  { id: "4", name: "Main Naija Pidgin 4", accent: "Rugged - Local - Street", category: "Warri", sample_text: "Warri no dey carry last! Rugged local vibe!", sample_url: "", rating: 4.7, sales: 234, isBestSeller: false, isFeatured: false, tag: "MALE" },
+  { id: "5", name: "Main Naija Pidgin 5", accent: "Hybrid - Bilingual - Balanced", category: "Lagos", sample_text: "E kaaro! I fit speak Yoruba and pidgin join - Hybrid!", sample_url: "", rating: 4.8, sales: 189, isBestSeller: false, isFeatured: false, tag: "MALE" },
+  // ✅ NEW FEMALE - DIFFERENT VOICE ID - BELLA & ELLI
+  { id: "6", name: "Naija Slay Queen", accent: "Lagos Female - Sweet Babe", category: "Female", sample_text: "How far baby, you fine die! Na slay queen dey here!", sample_url: "", rating: 4.9, sales: 521, isBestSeller: true, isFeatured: false, tag: "FEMALE" },
+  { id: "7", name: "Warri Fine Girl", accent: "Warri Female - Sharp Funny", category: "Female", sample_text: "Warri fine girl no dey carry last, how far my guy!", sample_url: "", rating: 4.8, sales: 334, isBestSeller: false, isFeatured: false, tag: "FEMALE" },
 ];
 
-const CATEGORIES = ["All", "Lagos", "Warri", "PH", "Igbo", "Yoruba", "Chairman"];
+const CATEGORIES = ["All", "Lagos", "Warri", "PH", "Female", "Chairman"];
 
 export default function Marketplace() {
   const [user, setUser] = useState<any>(null);
@@ -29,13 +33,11 @@ export default function Marketplace() {
   const [paidLeft, setPaidLeft] = useState(0);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
-
-  // Mobile-first states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [cart, setCart] = useState<any[]>([]);
   const [showCart, setShowCart] = useState(false);
-  const [realStats, setRealStats] = useState({ totalUsers: 0, totalSales: 0, totalVoices: 5 });
+  const [realStats, setRealStats] = useState({ totalUsers: 0, totalSales: 0, totalVoices: 7 });
   const [voices, setVoices] = useState<any[]>(DEFAULT_VOICES);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -66,10 +68,7 @@ export default function Marketplace() {
     });
     return () => {
       listener.subscription.unsubscribe();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     };
   }, []);
 
@@ -80,10 +79,10 @@ export default function Marketplace() {
       const { count: usersCount } = await supabase.from("api_keys").select("*", { count: "exact", head: true });
       const { data: keysData } = await supabase.from("api_keys").select("paid_requests_remaining");
       const totalPaidUsed = keysData?.reduce((acc, k: any) => acc + (1000 - (k.paid_requests_remaining || 0)), 0) || 0;
-      setRealStats({ totalUsers: usersCount || 0, totalSales: totalPaidUsed, totalVoices: 5 + myLocalVoices.length });
+      setRealStats({ totalUsers: usersCount || 0, totalSales: totalPaidUsed, totalVoices: 7 + myLocalVoices.length });
     } catch {}
-    const { data: dbVoices } = await supabase.from("voices").select("*").eq("active", true).limit(10);
-    if (dbVoices && dbVoices.length > 0) setVoices(dbVoices); else setVoices(DEFAULT_VOICES);
+    const { data: dbVoices } = await supabase.from("voices").select("*").eq("active", true).limit(20);
+    if (dbVoices && dbVoices.length >= 7) setVoices(dbVoices); else setVoices(DEFAULT_VOICES);
     let guestId = localStorage.getItem("guest_id");
     if (!guestId) { guestId = `guest_${Date.now()}`; localStorage.setItem("guest_id", guestId); }
     const uid = currentUser?.id || guestId;
@@ -128,7 +127,16 @@ export default function Marketplace() {
       }
     } catch (err: any) { showToast(err.message || "Auth failed", "error"); } finally { setLoading(false); setAuthPassword(""); setConfirmPassword(""); }
   };
+
+  // ✅ FIXED - MUST LOGIN BEFORE TAP TO LISTEN - NO FREE COLLECT!
   const playSample = async (voice: any) => {
+    // 🔒 LOGIN CHECK - MUST LOGIN FIRST!
+    if (!user) {
+      showToast("🔒 Oga login first before you fit listen! No free collect!", "error");
+      setAuthMode("login");
+      setShowAuth(true);
+      return;
+    }
     try {
       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
       window.speechSynthesis?.cancel();
@@ -137,10 +145,13 @@ export default function Marketplace() {
       const idx = DEFAULT_VOICES.findIndex((v) => v.name === voice.name);
       const localVoice = myLocalVoices[idx];
       if (localVoice?.audioData) { const a = new Audio(localVoice.audioData); audioRef.current = a; a.onended = () => setPlayingId(null); a.onerror = () => setPlayingId(null); await a.play(); return; }
+      // No mp3 file - Zero space - Use browser speech as preview, real TTS na for API tab with credits
       if (voice.sample_url) { const a = new Audio(voice.sample_url); audioRef.current = a; a.onended = () => setPlayingId(null); a.onerror = () => setPlayingId(null); await a.play(); return; }
       const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
+      showToast(`🔊 Preview: ${voice.name} - Real voice dey for Test API tab with credits!`);
     } catch { setPlayingId(null); }
   };
+
   const claimFree = async () => {
     if (!user) { requireAccount("free_100"); return; }
     setLoading(true);
@@ -172,7 +183,7 @@ export default function Marketplace() {
       const { data: sessionData } = await supabase.auth.getSession(); const token = sessionData.session?.access_token; if (!token) throw new Error("Session expired");
       const response = await fetch("/api/tts/generate", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ text: testText.trim(), voice: testVoice }) });
       const result = await response.json(); if (!response.ok || !result.success) throw new Error(result?.error || `Failed ${response.status}`);
-      const audioUrl = result.audio_url || result.audioUrl; if (!audioUrl) throw new Error("No audio"); setTestAudio(audioUrl); setTestTime(Date.now() - started); setTestCredits(result.remaining_credits ?? null); setTestStatus("Success!"); showToast("API test successful!"); await loadData();
+      const audioUrl = result.audio_url || result.audioUrl; if (!audioUrl) throw new Error("No audio"); setTestAudio(audioUrl); setTestTime(Date.now() - started); setTestCredits(result.remaining_credits ?? null); setTestStatus(`Success! ${result.voice_style || ''}`); showToast("API test successful!"); await loadData();
     } catch (err: any) { setTestStatus(err.message); showToast(err.message, "error"); } finally { setTestingApi(false); }
   };
   const logout = async () => { await supabase.auth.signOut(); setUser(null); setApiKey(""); setRealKey(""); setFreeLeft(0); setPaidLeft(0); showToast("Logged out"); };
@@ -208,7 +219,7 @@ export default function Marketplace() {
               <>
                 {cart.map((item) => (
                   <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#121C12", padding: 12, borderRadius: 10, marginTop: 10 }}>
-                    <div><div style={{ color: "white", fontSize: 13, fontWeight: 800 }}>{item.name}</div><div style={{ color: "#FFD600", fontSize: 11, fontWeight: 900 }}>₦5,000 • 1,000 Voices</div></div>
+                    <div><div style={{ color: "white", fontSize: 13, fontWeight: 800 }}>{item.name}</div><div style={{ color: "#FFD600", fontSize: 11, fontWeight: 900 }}>₦5,000 • 1,000 Voices • {item.tag}</div></div>
                     <button onClick={() => removeFromCart(item.id)} style={{ background: "#FF5252", color: "white", border: "none", padding: "8px 12px", borderRadius: 8, fontSize: 10 }}>Remove</button>
                   </div>
                 ))}
@@ -233,7 +244,7 @@ export default function Marketplace() {
       {showAuth && (
         <div className="market-modal" onClick={() => !loading && setShowAuth(false)}>
           <div className="market-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><div style={{ color: "#00E676", fontWeight: 900, fontSize: 11 }}>MAIN NAIJA PIDGIN</div><h2 style={{ color: "white", fontSize: 20, margin: "6px 0 0" }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h2></div><button onClick={() => setShowAuth(false)} disabled={loading} style={{ background: "#263326", border: "none", color: "white", borderRadius: "50%", width: 34, height: 34, fontSize: 18 }}>×</button></div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><div style={{ color: "#00E676", fontWeight: 900, fontSize: 11 }}>MAIN NAIJA PIDGIN</div><h2 style={{ color: "white", fontSize: 20, margin: "6px 0 0" }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h2><div style={{ color: "#FF5252", fontSize: 10, marginTop: 4 }}>🔒 Login required to listen & buy</div></div><button onClick={() => setShowAuth(false)} disabled={loading} style={{ background: "#263326", border: "none", color: "white", borderRadius: "50%", width: 34, height: 34, fontSize: 18 }}>×</button></div>
             <form onSubmit={submitAuth}><label className="market-label">EMAIL</label><input className="market-input" type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required /><label className="market-label">PASSWORD</label><input className="market-input" type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />{authMode === "signup" && <><label className="market-label">CONFIRM PASSWORD</label><input className="market-input" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required /></>}<button type="submit" disabled={loading} style={{ width: "100%", marginTop: 20, background: "#00E676", color: "black", border: "none", borderRadius: 12, padding: 16, fontSize: 14, fontWeight: 900 }}>{loading ? "..." : authMode === "signup" ? "CREATE ACCOUNT →" : "LOGIN →"}</button></form>
             <div style={{ textAlign: "center", color: "#999", fontSize: 11, marginTop: 18 }}>{authMode === "signup" ? "Already have?" : "No account?"}<button onClick={() => { setAuthMode(authMode === "signup" ? "login" : "signup"); setAuthPassword(""); setConfirmPassword(""); }} style={{ background: "none", border: "none", color: "#00E676", fontWeight: 900, marginLeft: 6 }}>{authMode === "signup" ? "Login" : "Register"}</button></div>
           </div>
@@ -241,7 +252,6 @@ export default function Marketplace() {
       )}
 
       <div style={{ maxWidth: 420, margin: "0 auto", padding: 12 }}>
-        {/* Header - Compact for small screen */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div style={{ background: "white", borderRadius: 4, width: 26, height: 18, display: "flex", overflow: "hidden" }}><div style={{ flex: 1, background: "#008751" }} /><div style={{ flex: 1, background: "white" }} /><div style={{ flex: 1, background: "#008751" }} /></div>
@@ -250,7 +260,6 @@ export default function Marketplace() {
           <button onClick={() => setShowCart(true)} style={{ background: "#FFD600", color: "black", border: "none", borderRadius: 20, padding: "7px 14px", fontSize: 11, fontWeight: 900 }}>🛒 {cart.length}</button>
         </div>
 
-        {/* Real Stats - Small Cards */}
         <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10, textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 900, color: "#00E676" }}>{realStats.totalUsers || "—"}</div><div style={{ fontSize: 8, color: "#777", fontWeight: 700, marginTop: 2 }}>USERS</div></div>
           <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10, textAlign: "center" }}><div style={{ fontSize: 16, fontWeight: 900, color: "#FFD600" }}>{realStats.totalVoices}</div><div style={{ fontSize: 8, color: "#777", fontWeight: 700, marginTop: 2 }}>VOICES</div></div>
@@ -270,39 +279,34 @@ export default function Marketplace() {
               </div>
             )}
 
-            {/* Compact Search */}
             <div style={{ marginTop: 12 }}>
-              <input placeholder="🔍 Search Lagos, Warri, PH..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: "100%", background: "#121C12", border: "1px solid #00E676", borderRadius: 12, padding: "13px 14px", color: "white", fontSize: 13, outline: "none" }} />
+              <input placeholder="🔍 Search Lagos, Warri, Female..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: "100%", background: "#121C12", border: "1px solid #00E676", borderRadius: 12, padding: "13px 14px", color: "white", fontSize: 13, outline: "none" }} />
             </div>
 
-            {/* Small Scrollable Categories */}
             <div className="cat-scroll">
               {CATEGORIES.map((cat) => (
-                <button key={cat} onClick={() => setSelectedCategory(cat)} style={{ background: selectedCategory === cat ? "#00E676" : "#121C12", color: selectedCategory === cat ? "black" : "#AAA", border: selectedCategory === cat ? "none" : "1px solid #1E2F1E", padding: "8px 14px", borderRadius: 20, fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>{cat === "All" ? "All" : cat === "Chairman" ? "🎙️ Chairman" : cat}</button>
+                <button key={cat} onClick={() => setSelectedCategory(cat)} style={{ background: selectedCategory === cat ? "#00E676" : "#121C12", color: selectedCategory === cat ? "black" : "#AAA", border: selectedCategory === cat ? "none" : "1px solid #1E2F1E", padding: "8px 14px", borderRadius: 20, fontSize: 11, fontWeight: 800, whiteSpace: "nowrap", flexShrink: 0 }}>{cat === "All" ? "All" : cat === "Chairman" ? "🎙️ Chairman" : cat === "Female" ? "👩 Female" : cat}</button>
               ))}
             </div>
 
-            {/* Pricing - Single Column Large Buttons */}
             <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Pricing</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Pricing - Paystack Secured</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-                <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 10, fontWeight: 800, color: "white" }}>🎁 Starter</div><div style={{ fontSize: 16, fontWeight: 900, color: "#00E676", marginTop: 4 }}>100 FREE</div><button onClick={() => requireAccount("free_100")} style={{ width: "100%", marginTop: 8, background: "#00E676", color: "black", border: "none", padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 900 }}>Get Free →</button></div>
-                <div style={{ background: "#1A150A", border: "1.5px solid #FFD600", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 10, fontWeight: 800, color: "white" }}>👑 Pro - 1k</div><div style={{ fontSize: 16, fontWeight: 900, color: "white", marginTop: 4 }}>₦5,000</div><button onClick={() => requireAccount("pro")} style={{ width: "100%", marginTop: 8, background: "#FFD600", color: "black", border: "none", padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 900 }}>Buy Now</button></div>
+                <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 10, fontWeight: 800, color: "white" }}>🎁 Starter</div><div style={{ fontSize: 16, fontWeight: 900, color: "#00E676", marginTop: 4 }}>100 FREE</div><div style={{ fontSize: 9, color: "#666", marginTop: 2 }}>Login required</div><button onClick={() => requireAccount("free_100")} style={{ width: "100%", marginTop: 8, background: "#00E676", color: "black", border: "none", padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 900 }}>Get Free →</button></div>
+                <div style={{ background: "#1A150A", border: "1.5px solid #FFD600", borderRadius: 12, padding: 10 }}><div style={{ fontSize: 10, fontWeight: 800, color: "white" }}>👑 Pro - 1k</div><div style={{ fontSize: 16, fontWeight: 900, color: "white", marginTop: 4 }}>₦5,000</div><div style={{ fontSize: 9, color: "#FFD600", marginTop: 2 }}>Paystack secured</div><button onClick={() => requireAccount("pro")} style={{ width: "100%", marginTop: 8, background: "#FFD600", color: "black", border: "none", padding: 10, borderRadius: 8, fontSize: 11, fontWeight: 900 }}>Buy Now</button></div>
               </div>
             </div>
 
-            {/* SINGLE-COLUMN VOICE CARDS - Premium Mobile */}
             <div style={{ marginTop: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Voices • Tap to Listen</div><div style={{ fontSize: 10, color: "#666" }}>{filteredVoices.length}</div></div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ fontSize: 14, fontWeight: 900, color: "white" }}>Voices • 🔒 Login to Listen</div><div style={{ fontSize: 10, color: "#666" }}>{filteredVoices.length}</div></div>
 
-              {/* Featured - Full Width Card */}
               {filteredVoices.find((v) => v.isFeatured) && (
                 <div style={{ marginTop: 10, background: "#1A150A", border: "1.5px solid #FFD600", borderRadius: 16, padding: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 9, color: "#FFD600", fontWeight: 900 }}>🏆 FEATURED • Main Naija Pidgin 3</span><span style={{ fontSize: 8, background: "#FFD600", color: "black", padding: "2px 6px", borderRadius: 8, fontWeight: 900 }}>BEST SELLER</span></div>
                   {(() => { const fv = filteredVoices.find((v) => v.isFeatured); return fv ? (
                     <div style={{ display: "flex", gap: 12, marginTop: 10, alignItems: "center" }}>
                       <button onClick={() => playSample(fv)} style={{ width: 56, height: 56, background: playingId === fv.id ? "#FF5252" : "#FFD600", borderRadius: "50%", border: "none", fontSize: 22, flexShrink: 0 }}>{playingId === fv.id ? "■" : "▶"}</button>
-                      <div style={{ flex: 1, minWidth: 0 }}><div style={{ color: "white", fontSize: 14, fontWeight: 900 }}>{fv.name}</div><div style={{ color: "#AAA", fontSize: 11, marginTop: 2 }}>{fv.accent}</div><div style={{ color: "#FFD600", fontSize: 10, marginTop: 3 }}>⭐ {fv.rating} • {fv.sales} sales • 100% Naija</div></div>
+                      <div style={{ flex: 1, minWidth: 0 }}><div style={{ color: "white", fontSize: 14, fontWeight: 900 }}>{fv.name}</div><div style={{ color: "#AAA", fontSize: 11, marginTop: 2 }}>{fv.accent}</div><div style={{ color: "#FFD600", fontSize: 10, marginTop: 3 }}>⭐ {fv.rating} • {fv.sales} sales • 🔒 Login to play</div></div>
                     </div>
                   ) : null; })()}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
@@ -312,30 +316,31 @@ export default function Marketplace() {
                 </div>
               )}
 
-              {/* All Voices - Single Column Big Cards */}
               {filteredVoices.filter(v => !v.isFeatured).map((v, idx) => {
                 const hasMyVoice = !!myLocalVoices[idx];
+                const isFemale = v.tag === "FEMALE";
                 return (
-                  <div key={v.id} className="voice-card" style={{ border: playingId === v.id ? "1.5px solid #00E676" : hasMyVoice ? "1px solid #00E676" : v.isBestSeller ? "1px solid #FFD600" : "1px solid #1E2F1E" }}>
+                  <div key={v.id} className="voice-card" style={{ border: playingId === v.id ? "1.5px solid #00E676" : isFemale ? "1.5px solid #FF1493" : hasMyVoice ? "1px solid #00E676" : v.isBestSeller ? "1px solid #FFD600" : "1px solid #1E2F1E", background: isFemale ? "#1A1218" : "#121C12" }}>
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                      <button onClick={() => playSample(v)} style={{ width: 50, height: 50, background: playingId === v.id ? "#FF5252" : hasMyVoice ? "#00E676" : "#1E2F1E", border: playingId === v.id ? "none" : "1px solid #00E676", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: playingId === v.id ? "white" : "#00E676", flexShrink: 0 }}>{playingId === v.id ? "■" : "▶"}</button>
+                      <button onClick={() => playSample(v)} style={{ width: 50, height: 50, background: playingId === v.id ? "#FF5252" : isFemale ? "#FF1493" : hasMyVoice ? "#00E676" : "#1E2F1E", border: playingId === v.id ? "none" : `1px solid ${isFemale ? "#FF1493" : "#00E676"}`, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, color: playingId === v.id ? "white" : isFemale ? "white" : "#00E676", flexShrink: 0 }}>{playingId === v.id ? "■" : "▶"}</button>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <div style={{ color: "white", fontSize: 13, fontWeight: 900, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{v.name}</div>
-                          {v.isBestSeller && <span style={{ background: "#FFD600", color: "black", fontSize: 7, fontWeight: 900, padding: "2px 5px", borderRadius: 8, flexShrink: 0 }}>BEST</span>}
+                          {isFemale && <span style={{ background: "#FF1493", color: "white", fontSize: 7, fontWeight: 900, padding: "2px 5px", borderRadius: 8, flexShrink: 0 }}>FEMALE</span>}
+                          {v.isBestSeller && !isFemale && <span style={{ background: "#FFD600", color: "black", fontSize: 7, fontWeight: 900, padding: "2px 5px", borderRadius: 8, flexShrink: 0 }}>BEST</span>}
                           {hasMyVoice && <span style={{ background: "#00E676", color: "black", fontSize: 7, fontWeight: 900, padding: "2px 5px", borderRadius: 8, flexShrink: 0 }}>YOU</span>}
                         </div>
-                        <div style={{ color: "#888", fontSize: 11, marginTop: 2 }}>{v.accent}</div>
+                        <div style={{ color: isFemale ? "#FF69B4" : "#888", fontSize: 11, marginTop: 2 }}>{v.accent}</div>
                         <div style={{ display: "flex", gap: 8, marginTop: 3, alignItems: "center" }}>
                           <span style={{ color: "#FFD600", fontSize: 10, fontWeight: 800 }}>⭐ {v.rating}</span>
                           <span style={{ color: "#555", fontSize: 9 }}>• {v.sales} sales</span>
-                          <span style={{ color: "#00E676", fontSize: 9 }}>• Preview free</span>
+                          <span style={{ color: "#FF5252", fontSize: 9 }}>• 🔒 Login</span>
                         </div>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
-                      <button onClick={() => addToCart(v)} style={{ background: "#0A1A0A", color: "#00E676", border: "1px solid #1E4D2B", padding: 13, borderRadius: 10, fontSize: 12, fontWeight: 900 }}>🛒 Add to Cart</button>
-                      <button onClick={() => buy("pro")} style={{ background: "white", color: "black", border: "none", padding: 13, borderRadius: 10, fontSize: 12, fontWeight: 900 }}>💳 Buy ₦5,000</button>
+                      <button onClick={() => addToCart(v)} style={{ background: isFemale ? "#2A1528" : "#0A1A0A", color: isFemale ? "#FF69B4" : "#00E676", border: `1px solid ${isFemale ? "#FF1493" : "#1E4D2B"}`, padding: 13, borderRadius: 10, fontSize: 12, fontWeight: 900 }}>🛒 Add to Cart</button>
+                      <button onClick={() => buy("pro")} style={{ background: isFemale ? "#FF1493" : "white", color: isFemale ? "white" : "black", border: "none", padding: 13, borderRadius: 10, fontSize: 12, fontWeight: 900 }}>💳 Buy ₦5,000</button>
                     </div>
                   </div>
                 );
@@ -348,16 +353,16 @@ export default function Marketplace() {
         {activeTab === "api" && (
           <div style={{ marginTop: 12 }}>
             <div style={{ background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: 14, padding: 14 }}>
-              <div style={{ color: "#00E676", fontSize: 16, fontWeight: 900 }}>🧪 API TESTING</div>
-              <p style={{ color: "#888", fontSize: 11, marginTop: 4 }}>Test your key - Real credits</p>
+              <div style={{ color: "#00E676", fontSize: 16, fontWeight: 900 }}>🧪 API TESTING - 7 VOICES DIFFERENT SOUND</div>
+              <p style={{ color: "#888", fontSize: 11, marginTop: 4 }}>Each voice different style - Zero space - Login secured</p>
               <label className="market-label">YOUR API KEY</label>
-              <div style={{ display: "flex", gap: 8, marginTop: 6 }}><div style={{ flex: 1, background: "#071007", border: "1px solid #1E4D2B", borderRadius: 10, padding: 12, color: "#00E676", fontSize: 11, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey || "No key yet"}</div><button onClick={async () => { if (realKey) { try { await navigator.clipboard.writeText(realKey); showToast("Copied!"); } catch {} } }} style={{ background: "#00E676", color: "black", border: "none", borderRadius: 10, padding: "0 14px", fontWeight: 900 }}>Copy</button></div>
-              <div style={{ display: "flex", gap: 10, marginTop: 10, fontSize: 11, color: "#AAA" }}><span>Free: <b style={{ color: "white" }}>{freeLeft}</b></span><span>Paid: <b style={{ color: "white" }}>{paidLeft}</b></span></div>
+              <div style={{ display: "flex", gap: 8, marginTop: 6 }}><div style={{ flex: 1, background: "#071007", border: "1px solid #1E4D2B", borderRadius: 10, padding: 12, color: "#00E676", fontSize: 11, fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis" }}>{apiKey || "No key yet - Login & claim free"}</div><button onClick={async () => { if (realKey) { try { await navigator.clipboard.writeText(realKey); showToast("Copied!"); } catch {} } }} style={{ background: "#00E676", color: "black", border: "none", borderRadius: 10, padding: "0 14px", fontWeight: 900 }}>Copy</button></div>
+              <div style={{ display: "flex", gap: 10, marginTop: 10, fontSize: 11, color: "#AAA" }}><span>Free: <b style={{ color: "white" }}>{freeLeft}</b></span><span>Paid: <b style={{ color: "white" }}>{paidLeft}</b></span><span style={{ color: "#FF5252" }}>🔒 Secured</span></div>
               <label className="market-label">TEXT</label><textarea className="market-input" value={testText} onChange={(e) => setTestText(e.target.value)} rows={3} placeholder="Type pidgin..." />
-              <label className="market-label">VOICE</label><select className="market-input" value={testVoice} onChange={(e) => setTestVoice(e.target.value)}>{DEFAULT_VOICES.map((v) => (<option key={v.name} value={v.name}>{v.name}</option>))}</select>
-              <button onClick={testMyApi} disabled={testingApi || !testText.trim()} style={{ width: "100%", marginTop: 14, padding: 16, border: "none", borderRadius: 12, background: testingApi ? "#2A4A2A" : "#00E676", color: "black", fontWeight: 900, fontSize: 14 }}>{testingApi ? "Generating..." : "▶ TEST MY API"}</button>
-              {testStatus && <div style={{ marginTop: 12, padding: 10, borderRadius: 10, background: "#071007", color: testAudio ? "#00E676" : "#FFB74D", fontSize: 11 }}>{testStatus}</div>}
-              {testAudio && <><audio controls src={testAudio} style={{ width: "100%", marginTop: 12 }} /><a href={testAudio} download="test.mp3" style={{ display: "block", textAlign: "center", marginTop: 10, padding: 12, background: "#17351D", color: "#00E676", borderRadius: 10, textDecoration: "none", fontWeight: 800, fontSize: 12 }}>↓ DOWNLOAD</a></>}
+              <label className="market-label">VOICE - 7 DIFFERENT SOUNDS</label><select className="market-input" value={testVoice} onChange={(e) => setTestVoice(e.target.value)}>{DEFAULT_VOICES.map((v) => (<option key={v.name} value={v.name}>{v.name} - {v.tag} - {v.accent}</option>))}</select>
+              <button onClick={testMyApi} disabled={testingApi || !testText.trim()} style={{ width: "100%", marginTop: 14, padding: 16, border: "none", borderRadius: 12, background: testingApi ? "#2A4A2A" : "#00E676", color: "black", fontWeight: 900, fontSize: 14 }}>{testingApi ? "Generating different sound..." : "▶ TEST MY API - DIFFERENT SOUND"}</button>
+              {testStatus && <div style={{ marginTop: 12, padding: 10, borderRadius: 10, background: "#071007", color: testAudio ? "#00E676" : "#FFB74D", fontSize: 11 }}>{testStatus} {testTime ? `• ${testTime}ms` : ''}</div>}
+              {testAudio && <><audio controls src={testAudio} style={{ width: "100%", marginTop: 12 }} /><a href={testAudio} download="test.mp3" style={{ display: "block", textAlign: "center", marginTop: 10, padding: 12, background: "#17351D", color: "#00E676", borderRadius: 10, textDecoration: "none", fontWeight: 800, fontSize: 12 }}>↓ DOWNLOAD - Zero space</a></>}
             </div>
             <Link href="/api-dashboard" style={{ display: "flex", justifyContent: "center", marginTop: 12, background: "white", color: "black", padding: 14, borderRadius: 12, fontWeight: 900, textDecoration: "none", fontSize: 13 }}>Go to API Dashboard →</Link>
           </div>
@@ -365,20 +370,19 @@ export default function Marketplace() {
 
         {activeTab === "pricing" && (
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: "white" }}>Choose Plan</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: "white" }}>Choose Plan - Paystack Secured</div>
             <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 16, padding: 16 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 13, fontWeight: 900, color: "white" }}>🎁 Starter - 100 FREE</span><span style={{ fontSize: 10, color: "#00E676" }}>FREE</span></div><div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>Perfect to test - No card</div><button onClick={() => requireAccount("free_100")} style={{ width: "100%", marginTop: 12, background: "#00E676", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>Get 100 FREE →</button></div>
-              <div style={{ background: "#1A150A", border: "2px solid #FFD600", borderRadius: 16, padding: 16 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 13, fontWeight: 900, color: "white" }}>👑 Pro - 1,000 Voices</span><span style={{ fontSize: 9, background: "#FFD600", color: "black", padding: "3px 8px", borderRadius: 10, fontWeight: 900 }}>MOST POPULAR</span></div><div style={{ fontSize: 22, fontWeight: 900, color: "white", marginTop: 8 }}>₦5,000</div><div style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>1k API calls • Paystack secured • Instant</div><button onClick={() => requireAccount("pro")} style={{ width: "100%", marginTop: 12, background: "#FFD600", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900, fontSize: 13 }}>💳 Buy with Paystack - ₦5,000</button></div>
+              <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 16, padding: 16 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 13, fontWeight: 900, color: "white" }}>🎁 Starter - 100 FREE</span><span style={{ fontSize: 10, color: "#00E676" }}>FREE • Login required</span></div><div style={{ fontSize: 11, color: "#888", marginTop: 6 }}>Perfect to test - No card - Must login</div><button onClick={() => requireAccount("free_100")} style={{ width: "100%", marginTop: 12, background: "#00E676", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>Get 100 FREE →</button></div>
+              <div style={{ background: "#1A150A", border: "2px solid #FFD600", borderRadius: 16, padding: 16 }}><div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ fontSize: 13, fontWeight: 900, color: "white" }}>👑 Pro - 1,000 Voices - 7 different sounds</span><span style={{ fontSize: 9, background: "#FFD600", color: "black", padding: "3px 8px", borderRadius: 10, fontWeight: 900 }}>MOST POPULAR</span></div><div style={{ fontSize: 22, fontWeight: 900, color: "white", marginTop: 8 }}>₦5,000</div><div style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>1k API calls • Paystack secured • Instant • Zero space</div><button onClick={() => requireAccount("pro")} style={{ width: "100%", marginTop: 12, background: "#FFD600", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900, fontSize: 13 }}>💳 Buy with Paystack - ₦5,000</button></div>
               <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 16, padding: 16 }}><div style={{ fontSize: 13, fontWeight: 900, color: "white" }}>🚀 Growth - 2,000</div><div style={{ fontSize: 20, fontWeight: 900, color: "white", marginTop: 6 }}>₦10,000</div><button onClick={() => requireAccount("growth")} style={{ width: "100%", marginTop: 12, background: "white", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>Buy ₦10,000</button></div>
               <div style={{ background: "#121C12", border: "1px solid #1E2F1E", borderRadius: 16, padding: 16 }}><div style={{ fontSize: 13, fontWeight: 900, color: "white" }}>🏢 Scale - 10,000</div><div style={{ fontSize: 20, fontWeight: 900, color: "white", marginTop: 6 }}>₦50,000</div><button onClick={() => requireAccount("scale")} style={{ width: "100%", marginTop: 12, background: "white", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>Buy ₦50,000</button></div>
             </div>
           </div>
         )}
 
-        <div style={{ textAlign: "center", fontSize: 8, color: "#444", marginTop: 20, paddingBottom: 10 }}>Paystack Secured • Supabase • Preview free • Only API deducts • {user ? user.email : "Guest"} • Cart {cart.length}</div>
+        <div style={{ textAlign: "center", fontSize: 8, color: "#444", marginTop: 20, paddingBottom: 10 }}>Paystack Secured • Supabase • 🔒 Login to Listen • Only API deducts • Zero Space • {user ? user.email : "Guest - Login to listen"} • Cart {cart.length} • 7 Voices Different Sound</div>
       </div>
 
-      {/* Bottom Navigation - Easy tap for small Android */}
       <div className="bottom-nav">
         <button className={`nav-item ${activeTab === "home" ? "active" : ""}`} onClick={() => setActiveTab("home")}><span className="nav-icon">🏠</span>Home</button>
         <button className={`nav-item ${activeTab === "api" ? "active" : ""}`} onClick={() => setActiveTab("api")}><span className="nav-icon">🧪</span>Test API</button>
