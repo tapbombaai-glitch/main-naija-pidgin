@@ -1,182 +1,483 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+export const runtime = "nodejs";
 
-// ✅ YOUR REAL WARRI MALE VOICE
-const CHAIRMAN_POWERFUL_VOICE_ID = 
-  process.env.CHAIRMAN_VOICE_ID?.trim() || 
-  process.env.ELEVENLABS_VOICE_ID?.trim() || 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// Public client: verifies the user's login token.
+const authClient = createClient(supabaseUrl, anonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+// Server-only client: accesses API credit records.
+const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+});
+
+const CHAIRMAN_VOICE =
+  process.env.CHAIRMAN_VOICE_ID?.trim() ||
+  process.env.ELEVENLABS_VOICE_ID?.trim() ||
   "BXStbbwwT5cKeWf2Ik8O";
 
-// ✅ FEMALE VOICES - REAL FEMALE - 100% FEMALE - CLEAR LIKE YOUR VIDEO
-const FEMALE_BELLA = "EXAVITQu4vr4xnSDxMaL"; // Bella - Sweet female - Clear
-const FEMALE_ELLI = "MF3mGyEYCl7XYWbV9V6O"; // Elli - Young female - Clear
-const FEMALE_RACHEL = "21m00Tcm4TlvDq8ikWAM"; // Rachel - Calm female
+const BELLA = "EXAVITQu4vr4xnSDxMaL";
+const ELLI = "MF3mGyEYCl7XYWbV9V6O";
+const RACHEL = "21m00Tcm4TlvDq8ikWAM";
 
-// ✅ NEW - CLEAR MALE VOICES FOR PIDGIN 4 & 5 - MAKE DEM CLEAR LIKE FEMALE!
-const MALE_ADAM = "pNInz6obpgDQGcFmaJgB"; // Adam - Deep, Rugged, VERY CLEAR - For Pidgin 4
-const MALE_ANTONI = "ErXwobaYiN019PkySvjV"; // Antoni - Balanced, Hybrid, VERY CLEAR - For Pidgin 5
+const ADAM = "pNInz6obpgDQGcFmaJgB";
+const ANTONI = "ErXwobaYiN019PkySvjV";
 
-// ✅ FOR YOUR WHATSAPP CLONED FEMALE - REPLACE WHEN YOU CLONE!
-const WHATSAPP_FEMALE_1 = process.env.WHATSAPP_FEMALE_VOICE_ID_1?.trim() || FEMALE_BELLA; // Put your cloned ID here later
-const WHATSAPP_FEMALE_2 = process.env.WHATSAPP_FEMALE_VOICE_ID_2?.trim() || FEMALE_ELLI;
+const WARRI_BABE =
+  process.env.WARRI_BABE_VOICE_ID?.trim() ||
+  "w5p3k3PueAgQOT4lq0SF";
 
-const OLD_FAKE_ID = "DW6Zuhb8hBT0UMYMno9Z";
+const FEMALE_1 =
+  process.env.WHATSAPP_FEMALE_VOICE_ID_1?.trim() || BELLA;
 
-const VOICE_MAP: Record<string, string> = {
-  // YOUR 5 MALE WARRI VOICES - EACH NOW DIFFERENT SOUND & CLEAR!
-  "Main Naija Pidgin 1": CHAIRMAN_POWERFUL_VOICE_ID, // Your voice - Fast Young
-  "Main Naija Pidgin 2": CHAIRMAN_POWERFUL_VOICE_ID, // Your voice - Warm Calm
-  "Main Naija Pidgin 3": CHAIRMAN_POWERFUL_VOICE_ID, // Your voice - Bestseller Expressive
-  "Main Naija Pidgin 3 - GREATEST": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Main Naija Pidgin 4": MALE_ADAM, // ✅ FIXED - WAS YOUR ID = MUMBLE - NOW ADAM = CLEAR!
-  "Main Naija Pidgin 5": MALE_ANTONI, // ✅ FIXED - WAS YOUR ID = MUMBLE - NOW ANTONI = CLEAR!
+const FEMALE_2 =
+  process.env.WHATSAPP_FEMALE_VOICE_ID_2?.trim() || ELLI;
 
-  // OLD MALE NAMES
-  "Lagos Male": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Delta Warri": MALE_ADAM,
-  "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Yoruba Mix": MALE_ANTONI,
-  "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Chairman Voice": CHAIRMAN_POWERFUL_VOICE_ID,
-
-  // ✅ FEMALE - NOW REAL FEMALE - CLEAR LIKE YOUR VIDEO!
-  "Abuja Female": WHATSAPP_FEMALE_1,
-  "Naija Slay Queen": WHATSAPP_FEMALE_1, // Bella or your WhatsApp cloned female
-  "Naija Slay Queen - Female": WHATSAPP_FEMALE_1,
-  "Warri Fine Girl": WHATSAPP_FEMALE_2, // Elli or your second WhatsApp female
-  "Lagos Babe": WHATSAPP_FEMALE_1,
-  "PH Fine Girl": WHATSAPP_FEMALE_2,
-  "Female Voice 1": WHATSAPP_FEMALE_1,
-  "Female Voice 2": WHATSAPP_FEMALE_2,
-  "Lagos Female": FEMALE_RACHEL,
-  "Warri Fine Girl - FEMALE": WHATSAPP_FEMALE_2,
+type VoiceConfig = {
+  id: string;
+  gender: "male" | "female";
+  stability: number;
+  style: number;
+  label: string;
 };
 
-// ✅ UPGRADED - ONE BUTTON = ONE DIFFERENT CLEAR SOUND - ZERO SPACE!
-const VOICE_STYLES: Record<string, { stability: number; style: number; boost: number; model: string; label: string }> = {
-  // Male - Clear settings - High stability = Clear word
-  "Main Naija Pidgin 1": { stability: 0.70, style: 0.30, boost: 0.90, model: "eleven_multilingual_v2", label: "Relaxed Young Fast - Clear" },
-  "Main Naija Pidgin 2": { stability: 0.75, style: 0.25, boost: 0.92, model: "eleven_multilingual_v2", label: "Warm Professional Calm - Clear" },
-  "Main Naija Pidgin 3": { stability: 0.65, style: 0.45, boost: 0.90, model: "eleven_multilingual_v2", label: "Story Expressive BESTSELLER - Clear" },
-  "Main Naija Pidgin 3 - GREATEST": { stability: 0.65, style: 0.45, boost: 0.90, model: "eleven_multilingual_v2", label: "Story Expressive BESTSELLER - Clear" },
-  
-  // ✅ FIXED - THE 2 LAST ONES YOU COMPLAIN - NOW CLEAR LIKE FEMALE!
-  "Main Naija Pidgin 4": { stability: 0.80, style: 0.15, boost: 0.95, model: "eleven_multilingual_v2", label: "Rugged Local Street CLEAR - Adam" },
-  "Main Naija Pidgin 5": { stability: 0.78, style: 0.18, boost: 0.93, model: "eleven_multilingual_v2", label: "Hybrid Bilingual Balanced CLEAR - Antoni" },
+const VOICES: Record<string, VoiceConfig> = {
+  // MAIN NAIJA PIDGIN MALE VOICES
 
-  // Female - Clear like your video - 00:00-00:03
-  "Abuja Female": { stability: 0.60, style: 0.35, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Lagos Sweet - Clear" },
-  "Naija Slay Queen": { stability: 0.60, style: 0.35, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Lagos Sweet - Clear" },
-  "Naija Slay Queen - Female": { stability: 0.60, style: 0.35, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Lagos Sweet - Clear" },
-  "Warri Fine Girl": { stability: 0.62, style: 0.32, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Warri Sharp - Clear" },
-  "Warri Fine Girl - FEMALE": { stability: 0.62, style: 0.32, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Warri Sharp - Clear" },
-  "Lagos Female": { stability: 0.60, style: 0.35, boost: 0.90, model: "eleven_multilingual_v2", label: "Female Lagos Sweet - Clear" },
+  "Main Naija Pidgin 1": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.70,
+    style: 0.30,
+    label: "Chairman Original - Young",
+  },
+
+  "Main Naija Pidgin 2": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.75,
+    style: 0.25,
+    label: "Chairman Original - Warm",
+  },
+
+  "Main Naija Pidgin 3": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.65,
+    style: 0.45,
+    label: "Chairman Original - Expressive",
+  },
+
+  "Main Naija Pidgin 3 - GREATEST": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.65,
+    style: 0.45,
+    label: "Chairman Original - Greatest",
+  },
+
+  "Main Naija Pidgin 4": {
+    id: ADAM,
+    gender: "male",
+    stability: 0.80,
+    style: 0.15,
+    label: "Adam - Deep Male",
+  },
+
+  "Main Naija Pidgin 5": {
+    id: ANTONI,
+    gender: "male",
+    stability: 0.78,
+    style: 0.18,
+    label: "Antoni - Balanced Male",
+  },
+
+  // WARRI BABE
+
+  "Warri Babe": {
+    id: WARRI_BABE,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Warri Babe - Female",
+  },
+
+  // OTHER MALE VOICES
+
+  "Lagos Male": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.70,
+    style: 0.30,
+    label: "Lagos Male",
+  },
+
+  "Delta Warri": {
+    id: ADAM,
+    gender: "male",
+    stability: 0.80,
+    style: 0.15,
+    label: "Delta Warri Male",
+  },
+
+  "Pidgin Narrator": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.70,
+    style: 0.30,
+    label: "Pidgin Narrator",
+  },
+
+  "Yoruba Mix": {
+    id: ANTONI,
+    gender: "male",
+    stability: 0.78,
+    style: 0.18,
+    label: "Yoruba Mix Male",
+  },
+
+  "Chairman Original": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.70,
+    style: 0.30,
+    label: "Chairman Original",
+  },
+
+  "Chairman Voice": {
+    id: CHAIRMAN_VOICE,
+    gender: "male",
+    stability: 0.70,
+    style: 0.30,
+    label: "Chairman Voice",
+  },
+
+  // FEMALE VOICES
+
+  "Abuja Female": {
+    id: FEMALE_1,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Abuja Female",
+  },
+
+  "Naija Slay Queen": {
+    id: FEMALE_1,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Naija Slay Queen",
+  },
+
+  "Naija Slay Queen - Female": {
+    id: FEMALE_1,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Naija Slay Queen Female",
+  },
+
+  "Warri Fine Girl": {
+    id: FEMALE_2,
+    gender: "female",
+    stability: 0.62,
+    style: 0.32,
+    label: "Warri Fine Girl",
+  },
+
+  "Lagos Babe": {
+    id: FEMALE_1,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Lagos Babe",
+  },
+
+  "PH Fine Girl": {
+    id: FEMALE_2,
+    gender: "female",
+    stability: 0.62,
+    style: 0.32,
+    label: "PH Fine Girl",
+  },
+
+  "Female Voice 1": {
+    id: FEMALE_1,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Female Voice 1",
+  },
+
+  "Female Voice 2": {
+    id: FEMALE_2,
+    gender: "female",
+    stability: 0.62,
+    style: 0.32,
+    label: "Female Voice 2",
+  },
+
+  "Lagos Female": {
+    id: RACHEL,
+    gender: "female",
+    stability: 0.60,
+    style: 0.35,
+    label: "Lagos Female",
+  },
+
+  "Warri Fine Girl - FEMALE": {
+    id: FEMALE_2,
+    gender: "female",
+    stability: 0.62,
+    style: 0.32,
+    label: "Warri Fine Girl Female",
+  },
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const { text, voice } = await req.json();
+    // Check environment variables.
+    if (
+      !supabaseUrl ||
+      !anonKey ||
+      !serviceRoleKey ||
+      !process.env.ELEVENLABS_API_KEY
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Server configuration is incomplete. Check Render environment variables.",
+        },
+        { status: 500 }
+      );
+    }
 
-    if (!text?.trim() || !voice?.trim()) {
-      return NextResponse.json({ success: false, error: "Text and voice are required" }, { status: 400 });
+    const authorization = req.headers.get("authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { success: false, error: "Please log in first." },
+        { status: 401 }
+      );
+    }
+
+    const token = authorization.slice(7);
+
+    // Verify actual Supabase user.
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser(token);
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: "Your session has expired. Log in again." },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const voice = typeof body.voice === "string" ? body.voice.trim() : "";
+
+    if (!text || !voice) {
+      return NextResponse.json(
+        { success: false, error: "Text and voice are required." },
+        { status: 400 }
+      );
     }
 
     if (text.length > 5000) {
-      return NextResponse.json({ success: false, error: "Text too long. Maximum 5000 characters" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Maximum text length is 5000 characters." },
+        { status: 400 }
+      );
     }
 
-    const elevenKey = process.env.ELEVENLABS_API_KEY;
-    if (!elevenKey) {
-      return NextResponse.json({ success: false, error: "ELEVENLABS_API_KEY not set in Render env" }, { status: 500 });
-    }
+    // Never silently replace an unknown voice with the Chairman voice.
+    const voiceConfig = VOICES[voice];
 
-    if (!CHAIRMAN_POWERFUL_VOICE_ID || CHAIRMAN_POWERFUL_VOICE_ID === OLD_FAKE_ID || CHAIRMAN_POWERFUL_VOICE_ID.length < 10) {
-      return NextResponse.json({ success: false, error: "Chairman! Voice ID wrong. Set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O in Render" }, { status: 500 });
-    }
-
-    // 🔒 LOGIN CHECK - MUST LOGIN - NO FREE COLLECT!
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ success: false, error: "🔒 No auth token - Login first!" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: "🔒 Invalid session - Login again!" }, { status: 401 });
-    }
-
-    const { data: keyData, error: keyError } = await supabase.from("api_keys").select("*").eq("user_id", user.id).eq("is_active", true).order("created_at", { ascending: false }).limit(1).single();
-    if (keyError || !keyData) {
-      return NextResponse.json({ success: false, error: "No active API key found. Claim 100 FREE first for Pricing tab." }, { status: 400 });
-    }
-
-    const freeLeft = keyData.free_requests_remaining || 0;
-    const paidLeft = keyData.paid_requests_remaining || 0;
-    const totalLeft = freeLeft + paidLeft;
-    if (totalLeft <= 0) {
-      return NextResponse.json({ success: false, error: "No credits left. Buy Pro ₦5,000 for 1k voices - Paystack secured." }, { status: 400 });
-    }
-
-    const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
-    const styleConfig = VOICE_STYLES[voice] || { stability: 0.65, style: 0.35, boost: 0.90, model: "eleven_multilingual_v2", label: voice };
-    const isFemale = voiceId === FEMALE_BELLA || voiceId === FEMALE_ELLI || voiceId === FEMALE_RACHEL || voiceId === WHATSAPP_FEMALE_1 || voiceId === WHATSAPP_FEMALE_2;
-
-    console.log(`🎤 Voice: "${voice}" → ID: ${voiceId} ${styleConfig.label} Model:${styleConfig.model} ${isFemale ? '(FEMALE CLEAR)' : '(MALE CLEAR)'}`);
-
-    // ✅ UPGRADED - v2 MODEL = CLEAR LIKE YOUR VIDEO - NOT V3 MUMBLE!
-    const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-      method: "POST",
-      headers: { "xi-api-key": elevenKey, "Content-Type": "application/json", "Accept": "audio/mpeg" },
-      body: JSON.stringify({
-        text: text.trim(),
-        model_id: styleConfig.model, // eleven_multilingual_v2 = CLEAR!
-        voice_settings: { 
-          stability: styleConfig.stability, 
-          similarity_boost: styleConfig.boost, 
-          style: styleConfig.style, 
-          use_speaker_boost: true 
+    if (!voiceConfig) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Voice "${voice}" is not registered in the voice engine.`,
         },
-      }),
-    });
-
-    if (!elevenRes.ok) {
-      const errText = await elevenRes.text();
-      console.error("ElevenLabs error:", errText, "VoiceID:", voiceId, "Voice:", voice);
-      return NextResponse.json({ success: false, error: `ElevenLabs failed: ${errText}` }, { status: 400 });
+        { status: 400 }
+      );
     }
 
-    const audioBuffer = await elevenRes.arrayBuffer();
+    // Find user's active API key.
+    const { data: keyData, error: keyError } = await adminClient
+      .from("api_keys")
+      .select(
+        "id, user_id, is_active, free_requests_remaining, paid_requests_remaining"
+      )
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (keyError || !keyData) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No active API key found. Claim your 100 free requests first.",
+        },
+        { status: 400 }
+      );
+    }
+
+    const freeLeft = Math.max(
+      0,
+      Number(keyData.free_requests_remaining || 0)
+    );
+
+    const paidLeft = Math.max(
+      0,
+      Number(keyData.paid_requests_remaining || 0)
+    );
+
+    const totalLeft = freeLeft + paidLeft;
+
+    if (totalLeft <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You have no requests remaining. Please purchase more credits.",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Generate speech with the selected voice.
+    const elevenKey = process.env.ELEVENLABS_API_KEY;
+
+    const elevenResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+        voiceConfig.id
+      )}`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": elevenKey!,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: voiceConfig.stability,
+            similarity_boost: 0.90,
+            style: voiceConfig.style,
+            use_speaker_boost: true,
+          },
+        }),
+        cache: "no-store",
+      }
+    );
+
+    if (!elevenResponse.ok) {
+      const errorText = await elevenResponse.text();
+
+      console.error("ElevenLabs generation failed:", errorText);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Voice generation failed. Check your ElevenLabs voice ID and account.",
+        },
+        { status: 502 }
+      );
+    }
+
+    const audioBuffer = await elevenResponse.arrayBuffer();
+
+    if (!audioBuffer.byteLength) {
+      return NextResponse.json(
+        { success: false, error: "The voice engine returned empty audio." },
+        { status: 502 }
+      );
+    }
+
     const base64Audio = Buffer.from(audioBuffer).toString("base64");
-    const audioUrl = `data:audio/mpeg;base64,${base64Audio}`; // Zero space - No save for Supabase!
 
-    // Deduct credit - Space park / Paystack withdrawal still intact
-    if (freeLeft > 0) {
-      await supabase.from("api_keys").update({ free_requests_remaining: freeLeft - 1 }).eq("id", keyData.id);
-    } else {
-      await supabase.from("api_keys").update({ paid_requests_remaining: paidLeft - 1 }).eq("id", keyData.id);
+    const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+    // Deduct one credit only after successful audio generation.
+    const updateField =
+      freeLeft > 0
+        ? "free_requests_remaining"
+        : "paid_requests_remaining";
+
+    const newBalance =
+      freeLeft > 0
+        ? freeLeft - 1
+        : paidLeft - 1;
+
+    const { error: creditError } = await adminClient
+      .from("api_keys")
+      .update({
+        [updateField]: newBalance,
+      })
+      .eq("id", keyData.id)
+      .eq("user_id", user.id);
+
+    if (creditError) {
+      console.error("Credit deduction failed:", creditError);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Audio was generated, but credit updating failed. Contact support before retrying.",
+        },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      audio_url: audioUrl,
-      remaining_credits: totalLeft - 1,
-      voice_used: voice,
-      voice_id_used: voiceId,
-      voice_style: styleConfig.label,
-      model_used: styleConfig.model,
-      message: isFemale ? `Female voice clear! ${styleConfig.label}` : `Chairman Warri clear! ${styleConfig.label}`,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        audio_url: audioUrl,
+        remaining_credits: totalLeft - 1,
+        voice_used: voice,
+        voice_id_used: voiceConfig.id,
+        voice_gender: voiceConfig.gender,
+        voice_style: voiceConfig.label,
+        model_used: "eleven_multilingual_v2",
+        message: `${voiceConfig.label} generated successfully.`,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("TTS route error:", error);
 
-  } catch (e: any) {
-    console.error("TTS Route Error:", e);
-    return NextResponse.json({ success: false, error: e.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "An unexpected voice-generation error occurred.",
+      },
+      { status: 500 }
+    );
   }
 }
