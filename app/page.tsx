@@ -5,11 +5,9 @@ export const revalidate = 0;
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// SAFE - No crash if ENV missing during build
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key-placeholder-key';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
-
 type AuthMode = "login" | "signup";
 // ✅ FINAL CLEAN - 6 VOICES ONLY - NO DUPLICATE - NO BELLA/ELLI - NO ID 6 & 7
 const DEFAULT_VOICES = [
