@@ -8,38 +8,47 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN VOICE ID
+// ✅ YOUR REAL MAIN NAIJA WARRI PIDGIN VOICE - MALE
 const CHAIRMAN_POWERFUL_VOICE_ID = 
   process.env.CHAIRMAN_VOICE_ID?.trim() || 
   process.env.ELEVENLABS_VOICE_ID?.trim() || 
   "BXStbbwwT5cKeWf2Ik8O";
 
-// Old fake ID we never want to use again
+// ✅ NEW FEMALE VOICES - DIFFERENT ID - FROM ELEVENLABS LIBRARY
+// These are stock ElevenLabs female voices - Free to use
+const FEMALE_VOICE_1_RACHEL = "21m00Tcm4TlvDq8ikWAM"; // Replace with real female later
+const FEMALE_VOICE_2_BELLA = "EXAVITQu4vr4xnSDxMaL"; // Sweet Bella female
+const FEMALE_VOICE_3_ELLI = "MF3mGyEYCl7XYWbV9V6O"; // Elli female
+
+// For now use Bella and Elli as female - They are 100% female stock voices
 const OLD_FAKE_ID = "DW6Zuhb8hBT0UMYMno9Z";
 
 const VOICE_MAP: Record<string, string> = {
-  // Old Chairman names
-  "Lagos Male": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Abuja Female": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Delta Warri": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Yoruba Mix": CHAIRMAN_POWERFUL_VOICE_ID,
-
-  // Common aliases
-  "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Chairman Voice": CHAIRMAN_POWERFUL_VOICE_ID,
-  "My Voice": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Powerful Voice": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Main Naija Pidgin": CHAIRMAN_POWERFUL_VOICE_ID,
-  "Main Naija Warri Pidgin": CHAIRMAN_POWERFUL_VOICE_ID,
-
-  // New 5
+  // YOUR 5 MALE WARRI VOICES - All use your powerful voice
   "Main Naija Pidgin 1": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 2": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 3": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 3 - GREATEST": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 4": CHAIRMAN_POWERFUL_VOICE_ID,
   "Main Naija Pidgin 5": CHAIRMAN_POWERFUL_VOICE_ID,
+
+  // OLD NAMES - Keep for backward compatibility
+  "Lagos Male": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Abuja Female": FEMALE_VOICE_2_BELLA, // FIX: Now real female!
+  "Delta Warri": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Pidgin Narrator": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Yoruba Mix": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Chairman Original": CHAIRMAN_POWERFUL_VOICE_ID,
+  "Chairman Voice": CHAIRMAN_POWERFUL_VOICE_ID,
+
+  // ✅ NEW FEMALE VOICES - DIFFERENT SOUND!
+  "Naija Slay Queen": FEMALE_VOICE_2_BELLA, // Female - Bella
+  "Naija Slay Queen - Female": FEMALE_VOICE_2_BELLA,
+  "Warri Fine Girl": FEMALE_VOICE_3_ELLI, // Female - Elli
+  "Lagos Babe": FEMALE_VOICE_2_BELLA,
+  "PH Fine Girl": FEMALE_VOICE_3_ELLI,
+  "Female Voice 1": FEMALE_VOICE_2_BELLA,
+  "Female Voice 2": FEMALE_VOICE_3_ELLI,
 };
 
 export async function POST(req: NextRequest) {
@@ -55,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     if (text.length > 5000) {
       return NextResponse.json(
-        { success: false, error: "Text too long. Maximum 5000 characters for eleven_v3." },
+        { success: false, error: "Text too long. Maximum 5000 characters" },
         { status: 400 }
       );
     }
@@ -63,12 +72,11 @@ export async function POST(req: NextRequest) {
     const elevenKey = process.env.ELEVENLABS_API_KEY;
     if (!elevenKey) {
       return NextResponse.json(
-        { success: false, error: "ELEVENLABS_API_KEY not set in environment" },
+        { success: false, error: "ELEVENLABS_API_KEY not set" },
         { status: 500 }
       );
     }
 
-    // Strict check so we never fall back to the old fake ID
     if (
       !CHAIRMAN_POWERFUL_VOICE_ID ||
       CHAIRMAN_POWERFUL_VOICE_ID === OLD_FAKE_ID ||
@@ -76,7 +84,7 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json({
         success: false,
-        error: "Chairman! Voice ID still wrong. Go to Render → Environment and set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O"
+        error: "Chairman! Voice ID wrong. Set CHAIRMAN_VOICE_ID = BXStbbwwT5cKeWf2Ik8O in Render"
       }, { status: 500 });
     }
 
@@ -93,7 +101,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid session" }, { status: 401 });
     }
 
-    // Get active API key + credits
+    // Get credits
     const { data: keyData, error: keyError } = await supabase
       .from("api_keys")
       .select("*")
@@ -121,9 +129,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Resolve voice
+    // Resolve voice - Now female will use different ID!
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_POWERFUL_VOICE_ID;
-    console.log(`🎤 Voice requested: "${voice}" → Using ID: ${voiceId}`);
+    console.log(`🎤 Voice requested: "${voice}" → Using ID: ${voiceId} ${voiceId === FEMALE_VOICE_2_BELLA ? '(FEMALE BELLA)' : voiceId === FEMALE_VOICE_3_ELLI ? '(FEMALE ELLI)' : '(MALE WARRI)'}`);
 
     // Call ElevenLabs
     const elevenRes = await fetch(
@@ -139,9 +147,9 @@ export async function POST(req: NextRequest) {
           text: text.trim(),
           model_id: "eleven_v3",
           voice_settings: {
-            stability: 0.5,
+            stability: voiceId === FEMALE_VOICE_2_BELLA || voiceId === FEMALE_VOICE_3_ELLI ? 0.6 : 0.5,
             similarity_boost: 0.9,
-            style: 0.8,
+            style: voiceId === FEMALE_VOICE_2_BELLA || voiceId === FEMALE_VOICE_3_ELLI ? 0.4 : 0.8,
             use_speaker_boost: true,
           },
         }),
@@ -151,14 +159,6 @@ export async function POST(req: NextRequest) {
     if (!elevenRes.ok) {
       const errText = await elevenRes.text();
       console.error("ElevenLabs error:", errText, "VoiceID:", voiceId);
-
-      if (errText.includes("voice_not_found") || errText.toLowerCase().includes("not found")) {
-        return NextResponse.json({
-          success: false,
-          error: `Voice ID ${voiceId} not found on ElevenLabs. Go to ElevenLabs → My Voices → copy the correct ID and set CHAIRMAN_VOICE_ID in Render.`,
-        }, { status: 400 });
-      }
-
       return NextResponse.json(
         { success: false, error: `ElevenLabs failed: ${errText}` },
         { status: 400 }
@@ -169,28 +169,20 @@ export async function POST(req: NextRequest) {
     const base64Audio = Buffer.from(audioBuffer).toString("base64");
     const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
 
-    // Deduct credit (free first)
+    // Deduct credit
     if (freeLeft > 0) {
-      await supabase
-        .from("api_keys")
-        .update({ free_requests_remaining: freeLeft - 1 })
-        .eq("id", keyData.id);
+      await supabase.from("api_keys").update({ free_requests_remaining: freeLeft - 1 }).eq("id", keyData.id);
     } else {
-      await supabase
-        .from("api_keys")
-        .update({ paid_requests_remaining: paidLeft - 1 })
-        .eq("id", keyData.id);
+      await supabase.from("api_keys").update({ paid_requests_remaining: paidLeft - 1 }).eq("id", keyData.id);
     }
-
-    const remaining = totalLeft - 1;
 
     return NextResponse.json({
       success: true,
       audio_url: audioUrl,
-      remaining_credits: remaining,
+      remaining_credits: totalLeft - 1,
       voice_used: voice,
       voice_id_used: voiceId,
-      message: "Voice generated successfully with Chairman Warri voice!",
+      message: voiceId === FEMALE_VOICE_2_BELLA || voiceId === FEMALE_VOICE_3_ELLI ? "Female voice generated!" : "Chairman Warri voice generated!",
     });
 
   } catch (e: any) {
