@@ -41,9 +41,6 @@ export default function Marketplace() {
   const [myLocalVoices, setMyLocalVoices] = useState([]);
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
-  // ... REST OF YOUR CODE FROM HERE REMAINS SAME - DON'T DELETE THE FUNCTIONS BELOW ...
-  // Paste your remaining functions (handlePlay, handleBuy, etc.) and return JSX here
-
   useEffect(() => {
     loadData();
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
