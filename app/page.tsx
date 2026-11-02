@@ -1,8 +1,5 @@
 "use client";
-
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,54 +8,41 @@ const supabase = createClient(
 
 type AuthMode = "login" | "signup";
 
-// ✅ FIXED - 7 VOICES - EACH DIFFERENT SOUND - ZERO SPACE!
+// ✅ FINAL CLEAN - 6 VOICES ONLY - NO DUPLICATE - NO BELLA/ELLI - NO ID 6 & 7
 const DEFAULT_VOICES = [
+  { id: "w5p3k3PueAgQOT4lq0SF", name: "Warri Babe", accent: "Sweet - Expressive - Professional - BEST SELLER", category: "Female", sample_text: "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!", sample_url: "/samples/ElevenLabs_2026-11-02T13_24_07_Warri babe ivc_sp100_s50_sb75_v4.mp3", rating: 5.0, sales: 1200, isBestSeller: true, isFeatured: true, tag: "FEMALE" },
   { id: "1", name: "Main Naija Pidgin 1", accent: "Natural - Young - Fast", category: "Lagos", sample_text: "How far boss! Main Naija Pidgin 1 dey here - Fast young vibe!", sample_url: "", rating: 4.8, sales: 312, isBestSeller: false, isFeatured: false, tag: "MALE" },
   { id: "2", name: "Main Naija Pidgin 2", accent: "Warm - Professional - Calm", category: "PH", sample_text: "Good morning, na Main Naija Pidgin 2 - Warm professional.", sample_url: "", rating: 4.9, sales: 456, isBestSeller: true, isFeatured: false, tag: "MALE" },
-  { id: "3", name: "Main Naija Pidgin 3", accent: "Story - Expressive - BESTSELLER", category: "Warri", sample_text: "For inside this life, na story dey sweet pass!", sample_url: "", rating: 5.0, sales: 892, isBestSeller: true, isFeatured: true, tag: "MALE" },
+  { id: "3", name: "Main Naija Pidgin 3", accent: "Story - Expressive - BESTSELLER", category: "Warri", sample_text: "For inside this life, na story dey sweet pass!", sample_url: "", rating: 5.0, sales: 892, isBestSeller: true, isFeatured: false, tag: "MALE" },
   { id: "4", name: "Main Naija Pidgin 4", accent: "Rugged - Local - Street", category: "Warri", sample_text: "Warri no dey carry last! Rugged local vibe!", sample_url: "", rating: 4.7, sales: 234, isBestSeller: false, isFeatured: false, tag: "MALE" },
   { id: "5", name: "Main Naija Pidgin 5", accent: "Hybrid - Bilingual - Balanced", category: "Lagos", sample_text: "E kaaro! I fit speak Yoruba and pidgin join - Hybrid!", sample_url: "", rating: 4.8, sales: 189, isBestSeller: false, isFeatured: false, tag: "MALE" },
-  // ✅ NEW FEMALE - DIFFERENT VOICE ID - BELLA & ELLI
-  { id: "6", name: "Naija Slay Queen", accent: "Lagos Female - Sweet Babe", category: "Female", sample_text: "How far baby, you fine die! Na slay queen dey here!", sample_url: "", rating: 4.9, sales: 521, isBestSeller: true, isFeatured: false, tag: "FEMALE" },
-  { id: "7", name: "Warri Fine Girl", accent: "Warri Female - Sharp Funny", category: "Female", sample_text: "Warri fine girl no dey carry last, how far my guy!", sample_url: "", rating: 4.8, sales: 334, isBestSeller: false, isFeatured: false, tag: "FEMALE" },
 ];
 
 const CATEGORIES = ["All", "Lagos", "Warri", "PH", "Female", "Chairman"];
 
 export default function Marketplace() {
-  const [user, setUser] = useState<any>(null);
-  const [apiKey, setApiKey] = useState("");
-  const [realKey, setRealKey] = useState("");
+  const [user, setUser] = useState(null);
+  const [apiKey, setApiKey] = useState('');
+  const [realKey, setRealKey] = useState('');
   const [freeLeft, setFreeLeft] = useState(0);
   const [paidLeft, setPaidLeft] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState("home");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
-  const [cart, setCart] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('home');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [showCart, setShowCart] = useState(false);
-  const [realStats, setRealStats] = useState({ totalUsers: 0, totalSales: 0, totalVoices: 7 });
-  const [voices, setVoices] = useState<any[]>(DEFAULT_VOICES);
-  const [playingId, setPlayingId] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [toast, setToast] = useState("");
-  const [toastType, setToastType] = useState<"success" | "error">("success");
+  const [realStats, setRealStats] = useState({ totalUsers: 0, totalVoices: 6 });
+  const [voices, setVoices] = useState(DEFAULT_VOICES);
+  const [playingId, setPlayingId] = useState(null);
+  const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
+  const [toast, setToast] = useState('');
+  const [toastType, setToastType] = useState('success');
   const [announces, setAnnounces] = useState<any[]>([]);
-  const [myLocalVoices, setMyLocalVoices] = useState<any[]>([]);
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any>(null);
-  const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [pendingAction, setPendingAction] = useState<string | null>(null);
-  const [testText, setTestText] = useState("How far boss! Welcome to Main Naija Pidgin.");
-  const [testVoice, setTestVoice] = useState("Main Naija Pidgin 1");
-  const [testingApi, setTestingApi] = useState(false);
-  const [testAudio, setTestAudio] = useState("");
-  const [testStatus, setTestStatus] = useState("");
-  const [testTime, setTestTime] = useState<number | null>(null);
-  const [testCredits, setTestCredits] = useState<number | null>(null);
+  const [myLocalVoices, setMyLocalVoices] = useState([]);
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+
+  // ... REST OF YOUR CODE FROM HERE REMAINS SAME - DON'T DELETE THE FUNCTIONS BELOW ...
+  // Paste your remaining functions (handlePlay, handleBuy, etc.) and return JSX here
 
   useEffect(() => {
     loadData();
