@@ -5,335 +5,304 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
-const MAX_AUDIO_SIZE = 20 * 1024 * 1024;
+
+const EXISTING_VOICES = [
+"BXStbbwwT5cKeWf2Ik8O",
+"w5p3k3PueAgQOT4lq0SF",
+];
+
+const MAX_TEXT_LENGTH = 5000;
+const TTS_TIMEOUT_MS = 30000;
 
 class RouteError extends Error {
-  status: number;
+status: number;
 
-  constructor(message: string, status: number) {
-    super(message);
-    this.status = status;
-  }
+constructor(message: string, status: number) {
+super(message);
+this.status = status;
 }
-
-function json(data: any, status = 200) {
-  return NextResponse.json(data, {
-    status,
-    headers: {
-      "Cache-Control": "no-store",
-    },
-  });
 }
 
 function getEnv(name: string) {
-  const value = process.env[name];
+const value = process.env[name];
 
-  if (!value) {
-    throw new RouteError(
-      `Server configuration missing: ${name}`,
+if (!value) {
+throw new RouteError("Missing server configuration: ${name}", 500);
+}
+
+return value;
+}
+
+function jsonError(message: string, status: number) {
+return NextResponse.json(
+{
+success: false,
+error: message,
+},
+{
+status,
+headers: {
+"Cache-Control": "no-store",
+},
+}
+);
+}
+
+async function authorize(req: NextRequest) {
+const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
+const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+
+const authorization = req.headers.get("authorization");
+
+if (!authorization?.startsWith("Bearer ")) {
+throw new RouteError("Please log in as Chairman.", 401);
+}
+
+const token = authorization.slice(7).trim();
+
+if (!token) {
+throw new RouteError("Invalid session. Please log in again.", 401);
+}
+
+const authClient = createClient(
+supabaseUrl,
+anonKey,
+{
+auth: {
+persistSession: false,
+autoRefreshToken: false,
+},
+}
+);
+
+const {
+data: { user },
+error,
+} = await authClient.auth.getUser(token);
+
+if (error || !user) {
+throw new RouteError("Invalid session. Please log in again.", 401);
+}
+
+if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
+throw new RouteError("Access denied. Chairman only.", 403);
+}
+
+return user;
+}
+
+export async function POST(req: NextRequest) {
+try {
+await authorize(req);
+
+const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
+const serviceKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
+const elevenKey = getEnv("ELEVENLABS_API_KEY");
+
+const admin = createClient(
+  supabaseUrl,
+  serviceKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  }
+);
+
+const body = await req.json().catch(() => ({}));
+
+const text = String(body.text || "").trim();
+const voiceId = String(body.voice_id || "").trim();
+
+if (!text) {
+  return jsonError("Text is required to generate speech.", 400);
+}
+
+if (text.length > MAX_TEXT_LENGTH) {
+  return jsonError(
+    `Text exceeds the ${MAX_TEXT_LENGTH}-character limit.`,
+    400
+  );
+}
+
+if (!voiceId) {
+  return jsonError("Voice ID is required.", 400);
+}
+
+// Validate ElevenLabs voice ID format.
+if (!/^[a-zA-Z0-9_-]{10,100}$/.test(voiceId)) {
+  return jsonError("Invalid voice ID format.", 400);
+}
+
+let elevenLabsVoiceId = voiceId;
+
+// Existing authorized voices.
+// Custom voices must be present and active in chairman_voices.
+if (!EXISTING_VOICES.includes(voiceId)) {
+  const {
+    data: dbVoice,
+    error: dbError,
+  } = await admin
+    .from("chairman_voices")
+    .select(
+      "elevenlabs_voice_id, is_active, requires_verification, name"
+    )
+    .eq("elevenlabs_voice_id", voiceId)
+    .maybeSingle();
+
+  if (dbError) {
+    console.error("Chairman voice lookup failed:", dbError);
+
+    return jsonError(
+      "Could not verify this voice. Please try again.",
       500
     );
   }
 
-  return value;
-}
-
-async function authorize(req: NextRequest) {
-  const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-
-  const authorization = req.headers.get("authorization");
-
-  if (!authorization?.startsWith("Bearer ")) {
-    throw new RouteError("Please log in as Chairman.", 401);
-  }
-
-  const token = authorization.slice(7).trim();
-
-  if (!token) {
-    throw new RouteError("Invalid login session.", 401);
-  }
-
-  const authClient = createClient(
-    supabaseUrl,
-    anonKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser(token);
-
-  if (error || !user) {
-    throw new RouteError(
-      "Your session is invalid. Please log in again.",
-      401
+  if (!dbVoice) {
+    return jsonError(
+      "Voice not found in Chairman Studio. Please reload voices.",
+      404
     );
   }
 
-  if (
-    user.email?.toLowerCase() !== CHAIRMAN_EMAIL
-  ) {
-    throw new RouteError(
-      "Access denied. Chairman only.",
+  if (dbVoice.requires_verification) {
+    return jsonError(
+      `Voice "${dbVoice.name}" is awaiting verification.`,
       403
     );
   }
 
-  return user;
-}
-
-/* =================================
-   CREATE CHAIRMAN VOICE CLONE
-================================= */
-
-export async function POST(req: NextRequest) {
-  let createdVoiceId: string | null = null;
-
-  try {
-    await authorize(req);
-
-    const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-    const serviceKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-    const elevenLabsKey = getEnv("ELEVENLABS_API_KEY");
-
-    const admin = createClient(
-      supabaseUrl,
-      serviceKey,
-      {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-        },
-      }
-    );
-
-    const formData = await req.formData();
-
-    const name = String(
-      formData.get("name") || ""
-    ).trim();
-
-    const category = String(
-      formData.get("gender") ||
-      formData.get("category") ||
-      "custom"
-    ).trim().toLowerCase();
-
-    const audio = formData.get("audio");
-
-    // Validate voice name
-    if (name.length < 2 || name.length > 80) {
-      throw new RouteError(
-        "Voice name must contain 2–80 characters.",
-        400
-      );
-    }
-
-    // Validate audio file
-    if (!(audio instanceof File)) {
-      throw new RouteError(
-        "Please record or upload an audio sample.",
-        400
-      );
-    }
-
-    if (
-      audio.type &&
-      !audio.type.startsWith("audio/")
-    ) {
-      throw new RouteError(
-        "Please upload a valid audio file.",
-        400
-      );
-    }
-
-    if (audio.size < 10_000) {
-      throw new RouteError(
-        "Audio sample is too small. Record a longer sample.",
-        400
-      );
-    }
-
-    if (audio.size > MAX_AUDIO_SIZE) {
-      throw new RouteError(
-        "Maximum audio upload size is 20 MB.",
-        400
-      );
-    }
-
-    // Prepare ElevenLabs upload
-    const elevenForm = new FormData();
-
-    elevenForm.append("name", name);
-
-    elevenForm.append(
-      "description",
-      "Main Naija Pidgin authorized Chairman voice clone"
-    );
-
-    elevenForm.append(
-      "labels",
-      JSON.stringify({
-        language: "English",
-        accent: "Nigerian",
-        gender: category,
-        use_case: "text_to_speech",
-      })
-    );
-
-    elevenForm.append(
-      "files",
-      audio,
-      audio.name || "voice-sample.webm"
-    );
-
-    // Create actual ElevenLabs clone
-    const cloneResponse = await fetch(
-      "https://api.elevenlabs.io/v1/voices/add",
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": elevenLabsKey,
-          Accept: "application/json",
-        },
-        body: elevenForm,
-        cache: "no-store",
-      }
-    );
-
-    const responseText = await cloneResponse.text();
-
-    let cloneData: any;
-
-    try {
-      cloneData = JSON.parse(responseText);
-    } catch {
-      cloneData = {};
-    }
-
-    if (
-      !cloneResponse.ok ||
-      !cloneData.voice_id
-    ) {
-      console.error(
-        "ElevenLabs cloning error:",
-        responseText.slice(0, 2000)
-      );
-
-      throw new RouteError(
-        cloneData?.detail?.message ||
-        cloneData?.detail ||
-        cloneData?.message ||
-        "ElevenLabs could not create this voice.",
-        502
-      );
-    }
-
-    createdVoiceId = cloneData.voice_id;
-
-    const requiresVerification = Boolean(
-      cloneData.requires_verification
-    );
-
-    // Save to the SAME table used by Chairman Studio
-    const { data: savedVoice, error: saveError } =
-      await admin
-        .from("chairman_voices")
-        .insert({
-          name,
-          description:
-            `Chairman-created ${category} voice`,
-          elevenlabs_voice_id: createdVoiceId,
-          category,
-          accent: "Naija Pidgin",
-          is_active: !requiresVerification,
-          is_published: false,
-          requires_verification: requiresVerification,
-        })
-        .select()
-        .single();
-
-    if (saveError || !savedVoice) {
-      console.error(
-        "Chairman voice database save failed:",
-        saveError,
-        "ElevenLabs voice ID:",
-        createdVoiceId
-      );
-
-      // Preserve the newly created ElevenLabs voice.
-      // Do NOT automatically delete it.
-      return json(
-        {
-          success: false,
-          error:
-            "ElevenLabs created the voice, but Supabase could not save it. The voice has been preserved. Contact support with the voice ID below.",
-          elevenlabs_voice_id: createdVoiceId,
-        },
-        500
-      );
-    }
-
-    // Successful response
-    return json({
-      success: true,
-
-      message: requiresVerification
-        ? "Voice created. Verification is required before activation."
-        : "Your real voice clone was created successfully!",
-
-      voice_id: savedVoice.elevenlabs_voice_id,
-
-      elevenlabs_voice_id:
-        savedVoice.elevenlabs_voice_id,
-
-      requiresVerification,
-
-      voice: {
-        id: savedVoice.id,
-        name: savedVoice.name,
-
-        voice_id:
-          savedVoice.elevenlabs_voice_id,
-
-        elevenlabs_voice_id:
-          savedVoice.elevenlabs_voice_id,
-
-        accent: savedVoice.accent,
-        category: savedVoice.category,
-
-        is_active: savedVoice.is_active,
-        is_published: savedVoice.is_published,
-
-        requires_verification:
-          savedVoice.requires_verification,
-      },
-    });
-
-  } catch (error) {
-    console.error("Voice clone route error:", error);
-
-    const status =
-      error instanceof RouteError
-        ? error.status
-        : 500;
-
-    return json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unexpected server error.",
-      },
-      status
+  if (!dbVoice.is_active) {
+    return jsonError(
+      `Voice "${dbVoice.name}" is inactive.`,
+      403
     );
   }
+
+  elevenLabsVoiceId = dbVoice.elevenlabs_voice_id;
+}
+
+// Generate speech with timeout.
+const controller = new AbortController();
+
+const timeoutId = setTimeout(
+  () => controller.abort(),
+  TTS_TIMEOUT_MS
+);
+
+let ttsResponse: Response;
+
+try {
+  ttsResponse = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+      elevenLabsVoiceId
+    )}`,
+    {
+      method: "POST",
+      headers: {
+        "xi-api-key": elevenKey,
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.75,
+          style: 0,
+          use_speaker_boost: true,
+        },
+      }),
+      signal: controller.signal,
+      cache: "no-store",
+    }
+  );
+} catch (error) {
+  if (
+    error instanceof Error &&
+    error.name === "AbortError"
+  ) {
+    return jsonError(
+      "ElevenLabs request timed out after 30 seconds. Please try again.",
+      504
+    );
+  }
+
+  throw error;
+} finally {
+  clearTimeout(timeoutId);
+}
+
+if (!ttsResponse.ok) {
+  const errorText = await ttsResponse.text().catch(() => "");
+
+  console.error(
+    "ElevenLabs TTS error:",
+    ttsResponse.status,
+    errorText.slice(0, 1000)
+  );
+
+  if (ttsResponse.status === 401) {
+    return jsonError("ElevenLabs API key is invalid.", 502);
+  }
+
+  if (ttsResponse.status === 404) {
+    return jsonError(
+      "Voice was not found on ElevenLabs.",
+      404
+    );
+  }
+
+  if (ttsResponse.status === 429) {
+    return jsonError(
+      "ElevenLabs quota or rate limit reached.",
+      429
+    );
+  }
+
+  return jsonError(
+    `ElevenLabs speech generation failed (${ttsResponse.status}).`,
+    502
+  );
+}
+
+const audioBuffer = await ttsResponse.arrayBuffer();
+
+if (!audioBuffer.byteLength) {
+  return jsonError(
+    "ElevenLabs returned empty audio.",
+    502
+  );
+}
+
+return new NextResponse(audioBuffer, {
+  status: 200,
+  headers: {
+    "Content-Type": "audio/mpeg",
+    "Cache-Control": "no-store",
+    "Content-Length": String(audioBuffer.byteLength),
+    "Content-Disposition":
+      'inline; filename="Main-Naija-Pidgin-Voice.mp3"',
+  },
+});
+
+} catch (error) {
+console.error("Chairman voice test error:", error);
+
+const status =
+  error instanceof RouteError
+    ? error.status
+    : 500;
+
+return jsonError(
+  error instanceof Error
+    ? error.message
+    : "Unexpected server error.",
+  status
+);
+
+}
 }
