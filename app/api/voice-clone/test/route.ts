@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 const EXISTING_VOICES = ["BXStbbwwT5cKeWf2Ik8O", "w5p3k3PueAgQOT4lq0SF"];
 const MAX_TEXT_LENGTH = 5000;
-const TTS_TIMEOUT_MS = 30000;
+const TTS_TIMEOUT_MS = 45000; // Increased to 45s for high quality
 
 class RouteError extends Error {
   status: number;
@@ -60,8 +60,30 @@ export async function POST(req: NextRequest) {
     const timeoutId = setTimeout(() => controller.abort(), TTS_TIMEOUT_MS);
     let ttsResponse: Response;
     try {
-      ttsResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(elevenLabsVoiceId)}`, { method: "POST", headers: { "xi-api-key": elevenKey, "Content-Type": "application/json", Accept: "audio/mpeg" }, body: JSON.stringify({ text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true } }), signal: controller.signal, cache: "no-store" });
-    } catch (error) { if (error instanceof Error && error.name === "AbortError") return jsonError("ElevenLabs request timed out after 30 seconds. Please try again.", 504); throw error; } finally { clearTimeout(timeoutId); }
+      // FIXED FOR CLEAR NAIJA VOICE - HIGH QUALITY
+      ttsResponse = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(elevenLabsVoiceId)}?output_format=mp3_44100_192&optimize_streaming_latency=0`, 
+        { 
+          method: "POST", 
+          headers: { "xi-api-key": elevenKey, "Content-Type": "application/json", Accept: "audio/mpeg" }, 
+          body: JSON.stringify({ 
+            text, 
+            model_id: "eleven_multilingual_v2", 
+            voice_settings: { 
+              stability: 0.65,          // FIXED: High for clear stable Naija voice (was 0.5)
+              similarity_boost: 0.85,   // FIXED: Keep original Warri/Lagos tune (was 0.75)
+              style: 0.25,              // FIXED: Small style for clarity (was 0)
+              use_speaker_boost: true 
+            } 
+          }), 
+          signal: controller.signal, 
+          cache: "no-store" 
+        }
+      );
+    } catch (error) { 
+      if (error instanceof Error && error.name === "AbortError") return jsonError("ElevenLabs request timed out after 45 seconds (high quality takes longer). Please try again.", 504); 
+      throw error; 
+    } finally { clearTimeout(timeoutId); }
     if (!ttsResponse.ok) {
       const errorText = await ttsResponse.text().catch(() => "");
       console.error("ElevenLabs TTS error:", ttsResponse.status, errorText.slice(0, 1000));
@@ -72,6 +94,18 @@ export async function POST(req: NextRequest) {
     }
     const audioBuffer = await ttsResponse.arrayBuffer();
     if (!audioBuffer.byteLength) return jsonError("ElevenLabs returned empty audio.", 502);
-    return new NextResponse(audioBuffer, { status: 200, headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store", "Content-Length": String(audioBuffer.byteLength), "Content-Disposition": 'inline; filename="Main-Naija-Pidgin-Voice.mp3"' } });
-  } catch (error) { console.error("Chairman voice test error:", error); const status = error instanceof RouteError ? error.status : 500; return jsonError(error instanceof Error ? error.message : "Unexpected server error.", status); }
+    return new NextResponse(audioBuffer, { 
+      status: 200, 
+      headers: { 
+        "Content-Type": "audio/mpeg", 
+        "Cache-Control": "no-store", 
+        "Content-Length": String(audioBuffer.byteLength), 
+        "Content-Disposition": 'inline; filename="Main-Naija-Pidgin-Voice-Clear-192kbps.mp3"' 
+      } 
+    });
+  } catch (error) { 
+    console.error("Chairman voice test error:", error); 
+    const status = error instanceof RouteError ? error.status : 500; 
+    return jsonError(error instanceof Error ? error.message : "Unexpected server error.", status); 
+  }
 }
