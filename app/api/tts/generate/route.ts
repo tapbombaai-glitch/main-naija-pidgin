@@ -37,176 +37,119 @@ type VoiceConfig = {
   id: string;
   gender: "male" | "female";
   stability: number;
+  similarity_boost: number;
   style: number;
   label: string;
 };
 
+// WINNING FORMULA FROM YOUR FILES - sp100_s50_sb75
+const WINNER_MALE: Omit<VoiceConfig, "id" | "label"> = {
+  gender: "male",
+  stability: 0.50, // s50 - stable, not wobbly
+  similarity_boost: 1.0, // sp100 - full body, clean
+  style: 0.75, // s75 / sb75 - natural Warri ginger
+};
+
+const WINNER_FEMALE: Omit<VoiceConfig, "id" | "label"> = {
+  gender: "female",
+  stability: 0.50,
+  similarity_boost: 1.0,
+  style: 0.75,
+};
+
 const VOICES: Record<string, VoiceConfig> = {
-  // MAIN NAIJA PIDGIN - LOCKED TO CLEAN NATURAL VOICE - V3 SETTINGS
+  // MAIN NAIJA PIDGIN - LOCKED TO YOUR SWEET 311kB VOICE - sp100_s50_s75
   "Main Naija Pidgin 1": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.75,
-    label: "Chairman Original - Young",
+    ...WINNER_MALE,
+    label: "Main Pidgin 1 - sp100_s50_s75 - CLEAN",
   },
   "Main Naija Pidgin 2": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.72,
-    label: "Chairman Original - Warm",
+    ...WINNER_MALE,
+    label: "Main Pidgin 2 - sp100_s50_s75 - CLEAN",
   },
   "Main Naija Pidgin 3": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.32,
-    style: 0.75,
-    label: "Chairman Original - Expressive",
+    ...WINNER_MALE,
+    label: "Main Pidgin 3 - sp100_s50_s75 - CLEAN",
   },
   "Main Naija Pidgin 3 - GREATEST": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.32,
-    style: 0.75,
-    label: "Chairman Original - Greatest - LOCKED CLEAN VOICE",
+    ...WINNER_MALE,
+    label: "GREATEST - LOCKED sp100_s50_s75 - SWEETEST",
   },
   "Main Naija Pidgin 4": {
     id: ADAM,
     gender: "male",
-    stability: 0.40,
+    stability: 0.50,
+    similarity_boost: 1.0,
     style: 0.55,
     label: "Adam - Deep Male",
   },
   "Main Naija Pidgin 5": {
     id: ANTONI,
     gender: "male",
-    stability: 0.40,
+    stability: 0.50,
+    similarity_boost: 1.0,
     style: 0.55,
     label: "Antoni - Balanced Male",
   },
 
   "Warri Babe": {
     id: WARRI_BABE,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Warri Babe - Female",
+    ...WINNER_FEMALE,
+    label: "Warri Babe - sp100_s50_sb75 - CLEAN - 1.02MB WINNER",
   },
 
   "Lagos Male": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.75,
-    label: "Lagos Male",
+    ...WINNER_MALE,
+    label: "Lagos Male - sp100_s50_s75",
   },
   "Delta Warri": {
     id: ADAM,
     gender: "male",
-    stability: 0.40,
+    stability: 0.50,
+    similarity_boost: 1.0,
     style: 0.55,
     label: "Delta Warri Male",
   },
   "Pidgin Narrator": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.75,
-    label: "Pidgin Narrator",
+    ...WINNER_MALE,
+    label: "Pidgin Narrator - CLEAN",
   },
   "Yoruba Mix": {
     id: ANTONI,
     gender: "male",
-    stability: 0.40,
+    stability: 0.50,
+    similarity_boost: 1.0,
     style: 0.55,
     label: "Yoruba Mix Male",
   },
   "Chairman Original": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.75,
-    label: "Chairman Original",
+    ...WINNER_MALE,
+    label: "Chairman Original - CLEAN",
   },
   "Chairman Voice": {
     id: CHAIRMAN_VOICE,
-    gender: "male",
-    stability: 0.35,
-    style: 0.75,
-    label: "Chairman Voice",
+    ...WINNER_MALE,
+    label: "Chairman Voice - CLEAN",
   },
 
-  "Abuja Female": {
-    id: FEMALE_1,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Abuja Female",
-  },
-  "Naija Slay Queen": {
-    id: FEMALE_1,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Naija Slay Queen",
-  },
-  "Naija Slay Queen - Female": {
-    id: FEMALE_1,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Naija Slay Queen Female",
-  },
-  "Warri Fine Girl": {
-    id: FEMALE_2,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Warri Fine Girl",
-  },
-  "Lagos Babe": {
-    id: FEMALE_1,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Lagos Babe",
-  },
-  "PH Fine Girl": {
-    id: FEMALE_2,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "PH Fine Girl",
-  },
-  "Female Voice 1": {
-    id: FEMALE_1,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Female Voice 1",
-  },
-  "Female Voice 2": {
-    id: FEMALE_2,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Female Voice 2",
-  },
-  "Lagos Female": {
-    id: RACHEL,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Lagos Female",
-  },
-  "Warri Fine Girl - FEMALE": {
-    id: FEMALE_2,
-    gender: "female",
-    stability: 0.38,
-    style: 0.70,
-    label: "Warri Fine Girl Female",
-  },
+  // FEMALE - ALSO LOCKED TO WINNER FOR CONSISTENCY
+  "Abuja Female": { id: FEMALE_1, ...WINNER_FEMALE, label: "Abuja Female" },
+  "Naija Slay Queen": { id: FEMALE_1, ...WINNER_FEMALE, label: "Naija Slay Queen" },
+  "Naija Slay Queen - Female": { id: FEMALE_1, ...WINNER_FEMALE, label: "Naija Slay Queen Female" },
+  "Warri Fine Girl": { id: FEMALE_2, ...WINNER_FEMALE, label: "Warri Fine Girl" },
+  "Lagos Babe": { id: FEMALE_1, ...WINNER_FEMALE, label: "Lagos Babe" },
+  "PH Fine Girl": { id: FEMALE_2, ...WINNER_FEMALE, label: "PH Fine Girl" },
+  "Female Voice 1": { id: FEMALE_1, ...WINNER_FEMALE, label: "Female Voice 1" },
+  "Female Voice 2": { id: FEMALE_2, ...WINNER_FEMALE, label: "Female Voice 2" },
+  "Lagos Female": { id: RACHEL, ...WINNER_FEMALE, label: "Lagos Female" },
+  "Warri Fine Girl - FEMALE": { id: FEMALE_2, ...WINNER_FEMALE, label: "Warri Fine Girl Female" },
 };
 
 export async function POST(req: NextRequest) {
@@ -263,7 +206,7 @@ export async function POST(req: NextRequest) {
         model_id: "eleven_v3",
         voice_settings: {
           stability: voiceConfig.stability,
-          similarity_boost: 0.80,
+          similarity_boost: voiceConfig.similarity_boost,
           style: voiceConfig.style,
           use_speaker_boost: true,
         },
@@ -304,6 +247,7 @@ export async function POST(req: NextRequest) {
         voice_gender: voiceConfig.gender,
         voice_style: voiceConfig.label,
         model_used: "eleven_v3",
+        settings_used: `sp100_s50_s75 - stability:${voiceConfig.stability} similarity:${voiceConfig.similarity_boost} style:${voiceConfig.style}`,
         message: `${voiceConfig.label} generated successfully.`,
       },
       { headers: { "Cache-Control": "no-store" } }
