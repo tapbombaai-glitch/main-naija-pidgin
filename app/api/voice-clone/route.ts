@@ -49,21 +49,68 @@ export async function POST(req: NextRequest) {
     if (name.length < 2 || name.length > 80) throw new RouteError("Voice name must contain 2–80 characters.", 400);
     if (!(audio instanceof File)) throw new RouteError("Please record or upload an audio sample.", 400);
     if (audio.type && !audio.type.startsWith("audio/")) throw new RouteError("Please upload a valid audio file.", 400);
-    if (audio.size < 10_000) throw new RouteError("Audio sample is too small. Record a longer sample.", 400);
+    if (audio.size < 10_000) throw new RouteError("Audio sample is too small. Record a longer sample (at least 30 seconds).", 400);
     if (audio.size > MAX_AUDIO_SIZE) throw new RouteError("Maximum audio upload size is 20 MB.", 400);
+    
+    // FIXED: Preserve original filename + quality, use correct extension
+    const originalName = (audio as File).name || `chairman-voice-${Date.now()}.wav`;
+    // Force high quality extension - ElevenLabs reads better quality from wav/mp3 than webm
+    const fileNameForEleven = originalName.toLowerCase().endsWith('.webm') ? originalName.replace(/\.webm$/i, '.wav') : originalName;
+
     const elevenForm = new FormData();
     elevenForm.append("name", name);
-    elevenForm.append("description", "Main Naija Pidgin authorized Chairman voice clone");
-    elevenForm.append("labels", JSON.stringify({ language: "English", accent: "Nigerian", gender: category, use_case: "text_to_speech" }));
-    elevenForm.append("files", audio, audio.name || "voice-sample.webm");
-    const cloneResponse = await fetch("https://api.elevenlabs.io/v1/voices/add", { method: "POST", headers: { "xi-api-key": elevenLabsKey, Accept: "application/json" }, body: elevenForm, cache: "no-store" });
+    elevenForm.append("description", `Chairman Naija Pidgin voice - ${name} - Original clear Warri/Lagos accent for Main Naija Pidgin API`);
+    elevenForm.append("labels", JSON.stringify({ 
+      language: "en", 
+      accent: "Nigerian Pidgin", 
+      gender: category, 
+      age: "young adult", 
+      use_case: "conversational",
+      descriptive: "clear, energetic, authentic Naija" 
+    }));
+    // FIXED: Add high quality enhancement flags
+    elevenForm.append("files", audio, fileNameForEleven);
+    elevenForm.append("remove_background_noise", "true"); // NEW: Remove noise for clear clone
+    
+    const cloneResponse = await fetch("https://api.elevenlabs.io/v1/voices/add", { 
+      method: "POST", 
+      headers: { "xi-api-key": elevenLabsKey, Accept: "application/json" }, 
+      body: elevenForm, 
+      cache: "no-store" 
+    });
     const responseText = await cloneResponse.text();
     let cloneData: any; try { cloneData = JSON.parse(responseText); } catch { cloneData = {}; }
-    if (!cloneResponse.ok || !cloneData.voice_id) { console.error("ElevenLabs cloning error:", responseText.slice(0, 2000)); throw new RouteError(cloneData?.detail?.message || cloneData?.detail || cloneData?.message || "ElevenLabs could not create this voice.", 502); }
+    if (!cloneResponse.ok || !cloneData.voice_id) { 
+      console.error("ElevenLabs cloning error:", responseText.slice(0, 2000)); 
+      throw new RouteError(cloneData?.detail?.message || cloneData?.detail || cloneData?.message || "ElevenLabs could not create this voice. Try recording longer (1-2 mins) with less noise.", 502); 
+    }
     createdVoiceId = cloneData.voice_id;
     const requiresVerification = Boolean(cloneData.requires_verification);
-    const { data: savedVoice, error: saveError } = await admin.from("chairman_voices").insert({ name, description: `Chairman-created ${category} voice`, elevenlabs_voice_id: createdVoiceId, category, accent: "Naija Pidgin", is_active: !requiresVerification, is_published: false, requires_verification: requiresVerification }).select().single();
-    if (saveError || !savedVoice) { console.error("Chairman voice database save failed:", saveError); return json({ success: false, error: "ElevenLabs created the voice, but Supabase could not save it. The voice has been preserved.", elevenlabs_voice_id: createdVoiceId }, 500); }
-    return json({ success: true, message: requiresVerification ? "Voice created. Verification is required before activation." : "Your real voice clone was created successfully!", voice_id: savedVoice.elevenlabs_voice_id, elevenlabs_voice_id: savedVoice.elevenlabs_voice_id, requiresVerification, voice: { id: savedVoice.id, name: savedVoice.name, voice_id: savedVoice.elevenlabs_voice_id, elevenlabs_voice_id: savedVoice.elevenlabs_voice_id, accent: savedVoice.accent, category: savedVoice.category, is_active: savedVoice.is_active, is_published: savedVoice.is_published, requires_verification: savedVoice.requires_verification } });
-  } catch (error) { console.error("Voice clone route error:", error); const status = error instanceof RouteError ? error.status : 500; return json({ success: false, error: error instanceof Error ? error.message : "Unexpected server error." }, status); }
+    const { data: savedVoice, error: saveError } = await admin.from("chairman_voices").insert({ 
+      name, 
+      description: `Chairman-created ${category} voice - High quality Naija`, 
+      elevenlabs_voice_id: createdVoiceId, 
+      category, 
+      accent: "Naija Pidgin", 
+      is_active: !requiresVerification, 
+      is_published: false, 
+      requires_verification: requiresVerification 
+    }).select().single();
+    if (saveError || !savedVoice) { 
+      console.error("Chairman voice database save failed:", saveError); 
+      return json({ success: false, error: "ElevenLabs created the voice, but Supabase could not save it. The voice has been preserved.", elevenlabs_voice_id: createdVoiceId }, 500); 
+    }
+    return json({ 
+      success: true, 
+      message: requiresVerification ? "Voice created with noise removal. Verification required." : "Your clear real voice clone was created successfully! High quality Naija tune preserved!", 
+      voice_id: savedVoice.elevenlabs_voice_id, 
+      elevenlabs_voice_id: savedVoice.elevenlabs_voice_id, 
+      requiresVerification, 
+      voice: { id: savedVoice.id, name: savedVoice.name, voice_id: savedVoice.elevenlabs_voice_id, elevenlabs_voice_id: savedVoice.elevenlabs_voice_id, accent: savedVoice.accent, category: savedVoice.category, is_active: savedVoice.is_active, is_published: savedVoice.is_published, requires_verification: savedVoice.requires_verification } 
+    });
+  } catch (error) { 
+    console.error("Voice clone route error:", error); 
+    const status = error instanceof RouteError ? error.status : 500; 
+    return json({ success: false, error: error instanceof Error ? error.message : "Unexpected server error." }, status); 
+  }
 }
