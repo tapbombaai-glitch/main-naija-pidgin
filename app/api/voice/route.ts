@@ -11,12 +11,13 @@ function hashKey(key: string) {
   return crypto.createHash("sha256").update(key).digest("hex");
 }
 
+// ✅ REAL NAIJA VOICE - NO MORE OYIBO!
 const VOICE_MAP: any = {
-  chairman: "pFZP5JQG7iQjIQuC4Bku",
-  madam: "XrExE9yKIg1WjnnlVkGX",
-  pikin: "EXAVITQu4vr4xnSDxMaL"
+  chairman: "8P18CIVcRlwP98FOjZDm", // REAL NAIJA - Ola - Nigerian Storyteller
+  madam: "9Dbo4hEvXQ5l7MXGZFQA", // REAL NAIJA - Olufunmilola - Yoruba Female
+  pikin: "3VLOGFyfrjYS746NxFiT", // REAL NAIJA - ASegun - Naija Male
 };
-const CHAIRMAN_VOICE_ID = "pFZP5JQG7iQjIQuC4Bku";
+const CHAIRMAN_VOICE_ID = "8P18CIVcRlwP98FOjZDm"; // REAL NAIJA DEFAULT
 
 export async function POST(req: Request) {
   try {
@@ -43,12 +44,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid API Key" }, { status: 401 });
     }
 
-    // 2. CHECK CREDITS - Your free keys control
+    // 2. CHECK CREDITS
     const freeLeft = keyData.free_requests_remaining ?? 100;
     const paidLeft = keyData.paid_requests_remaining ?? 0;
     const totalLeft = freeLeft + paidLeft;
     
-    // If you use old schema with no free/paid columns, use usage_count logic
     if (keyData.max_requests && keyData.usage_count >= keyData.max_requests) {
        return NextResponse.json({ error: "No credits left. Buy more!" }, { status: 403 });
     }
@@ -63,7 +63,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Text required" }, { status: 400 });
     }
 
-    // ✅ SAVE YOUR 35k - LIMIT FREE USERS
     const isFreeUser = freeLeft > 0;
     if (isFreeUser && text.length > 100) {
       return NextResponse.json({ 
@@ -76,7 +75,6 @@ export async function POST(req: Request) {
 
     const voiceId = VOICE_MAP[voice] || CHAIRMAN_VOICE_ID;
 
-    // ✅ FIX YOUR 35k PLENTY ISSUE - KEY ROTATION
     const elevenKeys = [
       process.env.ELEVENLABS_API_KEY,
       process.env.ELEVENLABS_API_KEY_1,
@@ -90,10 +88,9 @@ export async function POST(req: Request) {
 
     const elevenKey = elevenKeys[Math.floor(Math.random() * elevenKeys.length)];
 
-    const hasEmotionTag = text.includes("[laughs]") || text.includes("[laugh]") || text.includes("[whispers]");
-    const modelToUse = hasEmotionTag ? "eleven_v3" : "eleven_multilingual_v2";
+    // ✅ REAL NAIJA FIX - ALWAYS USE v3 FOR NAIJA PIDGIN!
+    const modelToUse = "eleven_v3";
 
-    // ✅ FIX: NO output_format - No more subscription_required error!
     const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
       method: "POST",
       headers: {
@@ -102,11 +99,11 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         text: text,
-        model_id: modelToUse,
+        model_id: modelToUse, // v3 sabi [laughs] [excited] and real Naija!
         voice_settings: {
-          stability: 0.70,
-          similarity_boost: 0.85,
-          style: hasEmotionTag ? 0.45 : 0.0,
+          stability: 0.55, // Lower = more Naija ginger!
+          similarity_boost: 0.80,
+          style: 0.40, // More style = more Naija expression!
           use_speaker_boost: true
         }
       })
@@ -122,13 +119,12 @@ export async function POST(req: Request) {
     const audioBase64 = Buffer.from(audioBuffer).toString("base64");
     const audioUrl = `data:audio/mpeg;base64,${audioBase64}`;
 
-    // 4. UPDATE USAGE - Deduct only on success!
+    // 4. UPDATE USAGE
     const updates: any = {
       last_used_at: new Date().toISOString(),
       usage_count: (keyData.usage_count || 0) + 1
     };
     
-    // If your table get free/paid columns
     if (keyData.free_requests_remaining !== undefined) {
       if (keyData.free_requests_remaining > 0) {
         updates.free_requests_remaining = keyData.free_requests_remaining - 1;
@@ -139,7 +135,7 @@ export async function POST(req: Request) {
 
     await supabase.from("api_keys").update(updates).eq("id", keyData.id);
 
-    // 5. SUCCESS
+    // 5. SUCCESS - REAL NAIJA VOICE!
     return NextResponse.json({
       success: true,
       audio_url: audioUrl,
@@ -148,7 +144,7 @@ export async function POST(req: Request) {
       model_used: modelToUse,
       remaining: (totalLeft - 1),
       usage: keyData.usage_count + 1,
-      message: "Voice generated! 35k saved with rotation!"
+      message: "Real Naija voice generated! No more oyibo!"
     });
 
   } catch (err: any) {
