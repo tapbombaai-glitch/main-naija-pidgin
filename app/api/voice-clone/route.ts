@@ -121,7 +121,6 @@ export async function POST(req: NextRequest) {
     if (!cloneResponse.ok) {
       console.error("ElevenLabs cloning failed:", cloneResponse.status, cloneData);
 
-      // Handle different ElevenLabs error shapes
       let errorMessage = "ElevenLabs could not clone this voice.";
       if (typeof cloneData?.detail === "string") {
         errorMessage = cloneData.detail;
