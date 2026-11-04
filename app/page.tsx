@@ -1,393 +1,2033 @@
 "use client";
 
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+
+import type { FormEvent } from "react";
 import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
 
-export default function HomePage() {
-  return (
-    <main className="home">
+/* =========================================
+   SUPABASE BROWSER CONFIGURATION
+========================================= */
 
-      <div className="container">
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-        {/* BRAND HEADER */}
-        <header className="header">
-          <div className="logo">♛</div>
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-          <div className="brand">
-            <h1>MAIN NAIJA PIDGIN</h1>
-            <p>YOUR VOICE. OUR BUSINESS.</p>
-          </div>
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Supabase environment variables are missing.");
+}
 
-          <div className="status">
-            <span className="dot"></span>
-            LIVE
-          </div>
-        </header>
+const supabase = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseKey || "placeholder-key"
+);
 
-        {/* HERO */}
-        <section className="hero">
-          <div className="hero-tag">
-            🇳🇬 BUILT FOR NIGERIA
-          </div>
+/* =========================================
+   TYPES
+========================================= */
 
-          <h2>
-            Welcome to
-            <span> Main Naija Pidgin</span>
-          </h2>
+type AuthMode = "login" | "signup";
 
-          <p>
-            The home of Nigerian voices, voice technology
-            and opportunities for everyone.
-          </p>
-        </section>
+type Voice = {
+  id: string;
+  name: string;
+  accent: string;
+  category: string;
+  sample_text: string;
+  sample_url: string;
+  rating: number;
+  sales: number;
+  isBestSeller: boolean;
+  isFeatured: boolean;
+  tag: string;
+};
 
-        {/* MAIN PANELS */}
-        <section className="panels">
+/* =========================================
+   VOICE CATALOGUE
+   KEEP ALL SIX VOICES
+========================================= */
 
-          {/* WORKER */}
-          <Link href="/worker" className="panel worker">
-            <div className="panel-top">
-              <span className="panel-icon">👷</span>
-              <span className="panel-badge">WORKSPACE</span>
-            </div>
+const DEFAULT_VOICES: Voice[] = [
+  {
+    id: "w5p3k3PueAgQOT4lq0SF",
+    name: "Warri Babe",
+    accent: "Sweet - Expressive - Professional - BEST SELLER",
+    category: "Female",
+    sample_text:
+      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
+    sample_url:
+      "/samples/ElevenLabs_2026-11-02T13_24_07_Warri babe ivc_sp100_s50_sb75_v4.mp3",
+    rating: 5.0,
+    sales: 1200,
+    isBestSeller: true,
+    isFeatured: true,
+    tag: "FEMALE",
+  },
+  {
+    id: "1",
+    name: "Main Naija Pidgin 1",
+    accent: "Natural - Young - Fast",
+    category: "Lagos",
+    sample_text:
+      "How far boss! Main Naija Pidgin 1 dey here - Fast young vibe!",
+    sample_url: "/voices/main-naija-pidgin-1.mp3",
+    rating: 4.8,
+    sales: 312,
+    isBestSeller: false,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "2",
+    name: "Main Naija Pidgin 2",
+    accent: "Warm - Professional - Calm",
+    category: "PH",
+    sample_text:
+      "Good morning, na Main Naija Pidgin 2 - Warm professional.",
+    sample_url: "/voices/main-naija-pidgin-2.mp3",
+    rating: 4.9,
+    sales: 456,
+    isBestSeller: true,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "3",
+    name: "Main Naija Pidgin 3",
+    accent: "Story - Expressive - BESTSELLER",
+    category: "Warri",
+    sample_text:
+      "For inside this life, na story dey sweet pass!",
+    sample_url: "/voices/main-naija-pidgin-3.mp3",
+    rating: 5.0,
+    sales: 892,
+    isBestSeller: true,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "4",
+    name: "Main Naija Pidgin 4",
+    accent: "Rugged - Local - Street",
+    category: "Warri",
+    sample_text:
+      "Warri no dey carry last! Rugged local vibe!",
+    sample_url: "/voices/main-naija-pidgin-4.mp3",
+    rating: 4.7,
+    sales: 234,
+    isBestSeller: false,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "5",
+    name: "Main Naija Pidgin 5",
+    accent: "Hybrid - Bilingual - Balanced",
+    category: "Lagos",
+    sample_text:
+      "E kaaro! I fit speak Yoruba and pidgin join - Hybrid!",
+    sample_url: "/voices/main-naija-pidgin-5.mp3",
+    rating: 4.8,
+    sales: 189,
+    isBestSeller: false,
+    isFeatured: false,
+    tag: "MALE",
+  },
+];
 
-            <h3>Worker Panel</h3>
+const CATEGORIES = [
+  "All",
+  "Lagos",
+  "Warri",
+  "PH",
+  "Female",
+  "Chairman",
+];
 
-            <p>
-              Access your workspace, record Nigerian voices,
-              submit tasks and monitor your earnings.
-            </p>
+/* =========================================
+   MAIN MARKETPLACE
+========================================= */
 
-            <div className="panel-bottom">
-              <span>Enter Worker Workspace</span>
-              <strong>→</strong>
-            </div>
-          </Link>
+export default function Marketplace() {
+  /* AUTHENTICATION */
 
-          {/* CHAIRMAN */}
-          <Link href="/admin/login" className="panel chairman">
-            <div className="panel-top">
-              <span className="panel-icon">👑</span>
-              <span className="panel-badge">ADMINISTRATION</span>
-            </div>
+  const [user, setUser] = useState<any>(null);
 
-            <h3>Chairman Dashboard</h3>
+  const [apiKey, setApiKey] = useState("");
+  const [realKey, setRealKey] = useState("");
 
-            <p>
-              Manage workers, recordings, payments,
-              Voice Studio, API services and platform activities.
-            </p>
+  const [freeLeft, setFreeLeft] = useState(0);
+  const [paidLeft, setPaidLeft] = useState(0);
 
-            <div className="panel-bottom">
-              <span>Open Chairman Control</span>
-              <strong>→</strong>
-            </div>
-          </Link>
+  /* LOADING */
 
-        </section>
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-        {/* PLATFORM FEATURES */}
-        <section className="features">
-          <h3>OUR PLATFORM</h3>
+  /* NAVIGATION */
 
-          <div className="feature-grid">
-            <div className="feature">
-              <span>🎙️</span>
-              <p>Voice Recording</p>
-            </div>
+  const [activeTab, setActiveTab] = useState("home");
 
-            <div className="feature">
-              <span>🤖</span>
-              <p>AI Voice Technology</p>
-            </div>
+  /* SEARCH */
 
-            <div className="feature">
-              <span>🌍</span>
-              <p>Nigerian Languages</p>
-            </div>
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] =
+    useState("All");
 
-            <div className="feature">
-              <span>🚀</span>
-              <p>Voice Innovation</p>
-            </div>
-          </div>
-        </section>
+  /* MARKETPLACE */
 
-        {/* FOOTER */}
-        <footer>
-          <div className="footer-logo">♛</div>
+  const [voices, setVoices] =
+    useState<Voice[]>(DEFAULT_VOICES);
 
-          <strong>MAIN NAIJA PIDGIN</strong>
+  const [realStats, setRealStats] = useState({
+    totalUsers: 0,
+    totalVoices: 6,
+    totalSales: 0,
+  });
 
-          <p>Building the future with Nigerian voices.</p>
+  /* AUDIO */
 
-          <small>© 2026 Main Naija Pidgin. All rights reserved.</small>
-        </footer>
+  const [playingId, setPlayingId] =
+    useState<string | null>(null);
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /* CART */
+
+  const [showCart, setShowCart] = useState(false);
+  const [cart, setCart] = useState<any[]>([]);
+
+  /* NOTIFICATIONS */
+
+  const [toast, setToast] = useState("");
+  const [toastType, setToastType] = useState("success");
+
+  const [announces, setAnnounces] = useState<any[]>([]);
+  const [selectedAnnouncement, setSelectedAnnouncement] =
+    useState<any>(null);
+
+  const [myLocalVoices, setMyLocalVoices] =
+    useState<any[]>([]);
+
+  /* AUTH MODAL */
+
+  const [showAuth, setShowAuth] = useState(false);
+
+  const [authMode, setAuthMode] =
+    useState<AuthMode>("login");
+
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [pendingAction, setPendingAction] =
+    useState<string | null>(null);
+
+  /* API TESTING */
+
+  const [testText, setTestText] = useState("");
+  const [testVoice, setTestVoice] = useState("Warri Babe");
+
+  const [testingApi, setTestingApi] = useState(false);
+
+  const [testAudio, setTestAudio] = useState("");
+  const [testStatus, setTestStatus] = useState("");
+
+  const [testTime, setTestTime] =
+    useState<number | null>(null);
+
+  const [testCredits, setTestCredits] =
+    useState<number | null>(null);  /* =========================================
+     NOTIFICATION
+  ========================================= */
+
+  const showToast = useCallback(
+    (message: string, type: "success" | "error" = "success") => {
+      setToast(message);
+      setToastType(type);
+
+      window.setTimeout(() => {
+        setToast("");
+      }, 3000);
+    },
+    []
+  );
+
+  /* =========================================
+     LOAD MARKETPLACE DATA
+  ========================================= */
+
+  const loadData = useCallback(async () => {
+    try {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      setUser(currentUser || null);
+
+      /* PUBLIC MARKETPLACE STATISTICS */
+
+      try {
+        const { count } = await supabase
+          .from("api_keys")
+          .select("id", {
+            count: "exact",
+            head: true,
+          });
+
+        setRealStats((previous) => ({
+          ...previous,
+          totalUsers: count || 0,
+        }));
+      } catch (error) {
+        console.error("Marketplace statistics:", error);
+      }
+
+      /* USER DATA */
+
+      if (typeof window !== "undefined") {
+        const guestId =
+          localStorage.getItem("guest_id") ||
+          `guest_${Date.now()}`;
+
+        localStorage.setItem("guest_id", guestId);
+
+        const uid = currentUser?.id || guestId;
+
+        /*
+          Existing API key retrieval is preserved here
+          temporarily. It should move to a protected
+          server endpoint before production.
+        */
+
+        if (currentUser) {
+          const { data: keys, error } = await supabase
+            .from("api_keys")
+            .select("*")
+            .eq("user_id", uid)
+            .eq("is_active", true)
+            .order("created_at", {
+              ascending: false,
+            })
+            .limit(1);
+
+          if (!error && keys?.[0]) {
+            setApiKey(keys[0].key_prefix || "");
+            setRealKey(keys[0].key || "");
+            setFreeLeft(
+              keys[0].free_requests_remaining || 0
+            );
+            setPaidLeft(
+              keys[0].paid_requests_remaining || 0
+            );
+          } else {
+            setApiKey("");
+            setRealKey("");
+            setFreeLeft(0);
+            setPaidLeft(0);
+          }
+        }
+
+        try {
+          const saved = JSON.parse(
+            localStorage.getItem("gin_recordings") || "[]"
+          );
+
+          setMyLocalVoices(
+            saved.filter((item: any) => item.audioData)
+          );
+
+          setCart(
+            JSON.parse(
+              localStorage.getItem("gin_cart") || "[]"
+            )
+          );
+        } catch {
+          setCart([]);
+          setMyLocalVoices([]);
+        }
+      }
+
+      /* ANNOUNCEMENTS */
+
+      try {
+        const { data: announcements } = await supabase
+          .from("announcements")
+          .select("*")
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(3);
+
+        if (announcements) {
+          setAnnounces(announcements);
+        }
+      } catch (error) {
+        console.error("Announcements:", error);
+      }
+    } catch (error) {
+      console.error("Marketplace loading error:", error);
+    }
+  }, []);
+
+  /* =========================================
+     AUTHENTICATION LISTENER
+  ========================================= */
+
+  useEffect(() => {
+    setMounted(true);
+
+    loadData();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null);
+
+        if (session?.user) {
+          loadData();
+        } else {
+          setApiKey("");
+          setRealKey("");
+          setFreeLeft(0);
+          setPaidLeft(0);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [loadData]);
+
+  /* =========================================
+     SEARCH AND FILTER
+  ========================================= */
+
+  const filteredVoices = voices.filter((voice) => {
+    const search = searchTerm.toLowerCase();
+
+    const matchSearch =
+      voice.name.toLowerCase().includes(search) ||
+      voice.accent.toLowerCase().includes(search);
+
+    const matchCategory =
+      selectedCategory === "All" ||
+      voice.category === selectedCategory;
+
+    return matchSearch && matchCategory;
+  });
+
+  /* =========================================
+     CART FUNCTIONS
+  ========================================= */
+
+  const addToCart = (voice: Voice) => {
+    if (cart.some((item) => item.id === voice.id)) {
+      showToast("This voice is already in your cart.", "error");
+      return;
+    }
+
+    const updatedCart = [...cart, voice];
+
+    setCart(updatedCart);
+
+    localStorage.setItem(
+      "gin_cart",
+      JSON.stringify(updatedCart)
+    );
+
+    showToast(`${voice.name} added to cart.`);
+  };
+
+  const removeFromCart = (id: string) => {
+    const updatedCart = cart.filter(
+      (item) => item.id !== id
+    );
+
+    setCart(updatedCart);
+
+    localStorage.setItem(
+      "gin_cart",
+      JSON.stringify(updatedCart)
+    );
+  };
+
+  /* =========================================
+     AUDIO PREVIEW
+  ========================================= */
+
+  const playSample = async (voice: Voice) => {
+    if (!user) {
+      showToast("Login first to listen to voice previews.", "error");
+      setAuthMode("login");
+      setShowAuth(true);
+      return;
+    }
+
+    try {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+
+      window.speechSynthesis?.cancel();
+
+      if (playingId === voice.id) {
+        setPlayingId(null);
+        return;
+      }
+
+      setPlayingId(voice.id);
+
+      if (voice.sample_url) {
+        const audio = new Audio(voice.sample_url);
+
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setPlayingId(null);
+        };
+
+        audio.onerror = () => {
+          setPlayingId(null);
+          showToast(
+            `Audio file unavailable for ${voice.name}.`,
+            "error"
+          );
+        };
+
+        await audio.play();
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(
+        voice.sample_text
+      );
+
+      utterance.onend = () => {
+        setPlayingId(null);
+      };
+
+      utterance.onerror = () => {
+        setPlayingId(null);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error("Audio playback:", error);
+      setPlayingId(null);
+      showToast("Could not play this voice.", "error");
+    }
+  };
+
+  /* =========================================
+     ACCOUNT REQUIREMENT
+  ========================================= */
+
+  const requireAccount = (packageId: string) => {
+    if (user) {
+      continuePurchase(packageId);
+      return;
+    }
+
+    setPendingAction(packageId);
+    setAuthMode("login");
+    setShowAuth(true);
+  };
+
+  /* =========================================
+     CLAIM FREE 100 REQUESTS
+  ========================================= */
+
+  const claimFree = async () => {
+    if (!user) {
+      requireAccount("free_100");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        "/api/keys/create-free",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            userId: user.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Free key request failed.");
+      }
+
+      if (data.api_key) {
+        setRealKey(data.api_key);
+        setApiKey(data.key_prefix || "");
+        setFreeLeft(100);
+
+        showToast("100 FREE API requests claimed!");
+
+        await loadData();
+      } else {
+        showToast(
+          data.error || "Free key already claimed.",
+          "error"
+        );
+      }
+    } catch (error: any) {
+      showToast(error.message || "Failed to claim free key.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================================
+     PAYSTACK PACKAGE PURCHASE
+  ========================================= */
+
+  const buy = async (packageId: string) => {
+    if (!user) {
+      requireAccount(packageId);
+      return;
+    }
+
+    if (packageId === "free_100") {
+      await claimFree();
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Please log in again.");
+      }
+
+      const response = await fetch(
+        "/api/paystack/initialize",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            packageId,
+            email: user.email,
+            userId: user.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Paystack initialization failed.");
+      }
+
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        throw new Error("Paystack did not return a payment link.");
+      }
+    } catch (error: any) {
+      showToast(error.message || "Payment connection failed.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const continuePurchase = async (packageId: string) => {
+    setPendingAction(null);
+    setShowAuth(false);
+
+    if (packageId === "free_100") {
+      await claimFree();
+    } else {
+      await buy(packageId);
+    }
+  };
+
+  /* =========================================
+     LOGIN AND SIGNUP
+  ========================================= */
+
+  const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const email = authEmail.trim().toLowerCase();
+
+    if (!email || !authPassword) {
+      showToast("Enter your email and password.", "error");
+      return;
+    }
+
+    if (authMode === "signup" && authPassword.length < 6) {
+      showToast("Password must contain at least 6 characters.", "error");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (authMode === "signup") {
+        const { data, error } =
+          await supabase.auth.signUp({
+            email,
+            password: authPassword,
+          });
+
+        if (error) throw error;
+
+        if (!data.session) {
+          showToast("Check your email to confirm your account.");
+          setAuthMode("login");
+          return;
+        }
+
+        setUser(data.user);
+        setShowAuth(false);
+        showToast("Account created successfully.");
+      } else {
+        const { data, error } =
+          await supabase.auth.signInWithPassword({
+            email,
+            password: authPassword,
+          });
+
+        if (error) throw error;
+
+        setUser(data.user);
+        setShowAuth(false);
+        showToast("Login successful.");
+      }
+
+      if (pendingAction) {
+        await continuePurchase(pendingAction);
+      } else {
+        await loadData();
+      }
+    } catch (error: any) {
+      showToast(error.message || "Authentication failed.", "error");
+    } finally {
+      setLoading(false);
+      setAuthPassword("");
+      setConfirmPassword("");
+    }
+  };
+
+  /* =========================================
+     API TESTING
+  ========================================= */
+
+  const testMyApi = async () => {
+    if (!user) {
+      setAuthMode("login");
+      setShowAuth(true);
+      showToast("Please login first.", "error");
+      return;
+    }
+
+    if (!realKey) {
+      showToast("Collect your free API key first.", "error");
+      return;
+    }
+
+    if (!testText.trim()) {
+      showToast("Enter text to generate speech.", "error");
+      return;
+    }
+
+    setTestingApi(true);
+    setTestAudio("");
+    setTestStatus("Generating...");
+    setTestTime(null);
+
+    const started = Date.now();
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Your session has expired.");
+      }
+
+      const response = await fetch(
+        "/api/tts/generate",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            text: testText.trim(),
+            voice: testVoice,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || `Generation failed: ${response.status}`
+        );
+      }
+
+      const audioUrl =
+        result.audio_url || result.audioUrl;
+
+      if (!audioUrl) {
+        throw new Error("No audio was returned.");
+      }
+
+      setTestAudio(audioUrl);
+      setTestTime(Date.now() - started);
+      setTestCredits(result.remaining_credits ?? null);
+      setTestStatus("Success!");
+
+      showToast("API test successful!");
+
+      await loadData();
+    } catch (error: any) {
+      setTestStatus(error.message);
+      showToast(error.message, "error");
+    } finally {
+      setTestingApi(false);
+    }
+  };
+
+  /* =========================================
+     LOGOUT
+  ========================================= */
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+
+    setUser(null);
+    setApiKey("");
+    setRealKey("");
+    setFreeLeft(0);
+    setPaidLeft(0);
+
+    showToast("Logged out successfully.");
+  };  /* =========================================
+     LOADING SCREEN
+  ========================================= */
+
+  if (!mounted) {
+    return (
+      <div
+        style={{
+          padding: 40,
+          textAlign: "center",
+          background: "#080C08",
+          color: "white",
+          minHeight: "100vh",
+        }}
+      >
+        Loading Main Naija Pidgin Marketplace...
       </div>
+    );
+  }
 
-      <style jsx>{`
+  /* =========================================
+     MAIN INTERFACE
+  ========================================= */
+
+  return (
+    <div
+      style={{
+        background: "#080C08",
+        minHeight: "100vh",
+        width: "100%",
+        paddingBottom: 90,
+        color: "white",
+      }}
+    >
+      <style>{`
         * {
           box-sizing: border-box;
         }
 
-        .home {
-          min-height: 100vh;
-          background:
-            radial-gradient(ellipse at top, #06451e 0%, #001b0a 42%, #000 100%);
-          color: white;
-          padding: 20px 14px;
-          font-family: Arial, Helvetica, sans-serif;
+        button {
+          cursor: pointer;
         }
 
-        .container {
+        button:active {
+          transform: scale(.97);
+        }
+
+        .market-modal {
+          position: fixed;
+          inset: 0;
+          z-index: 200;
+          background: rgba(0,0,0,.85);
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+        }
+
+        .market-modal-card {
           width: 100%;
-          max-width: 850px;
-          margin: auto;
+          max-width: 420px;
+          max-height: 88vh;
+          overflow-y: auto;
+          background: #0D170D;
+          border-top: 2px solid #00E676;
+          border-radius: 20px 20px 0 0;
+          padding: 18px 14px 30px;
         }
 
-        .header {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 0 25px;
-          border-bottom: 1px solid #1c5930;
-        }
-
-        .logo {
-          color: #ffcf32;
-          font-size: 48px;
-          text-shadow: 0 0 20px #d49c00;
-        }
-
-        .brand {
-          flex: 1;
-        }
-
-        .brand h1 {
-          margin: 0;
-          font-size: clamp(15px, 4vw, 25px);
-          font-weight: 900;
-        }
-
-        .brand p {
-          margin: 5px 0 0;
-          color: #ffcf32;
-          font-size: 10px;
-          letter-spacing: 2px;
-        }
-
-        .status {
-          border: 1px solid #00e943;
-          background: #003a16;
-          color: #00ff49;
-          padding: 8px 11px;
-          border-radius: 20px;
-          font-size: 11px;
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .dot {
-          width: 8px;
-          height: 8px;
-          background: #00ff49;
-          border-radius: 50%;
-        }
-
-        .hero {
-          text-align: center;
-          padding: 42px 8px 35px;
-        }
-
-        .hero-tag {
-          display: inline-block;
-          padding: 9px 16px;
-          border: 1px solid #00d93d;
-          border-radius: 30px;
-          color: #8affaa;
-          font-size: 11px;
-          letter-spacing: 1px;
-          margin-bottom: 18px;
-        }
-
-        .hero h2 {
-          font-size: clamp(27px, 7vw, 43px);
-          line-height: 1.2;
-          margin: 0;
-          font-weight: 900;
-        }
-
-        .hero h2 span {
-          display: block;
-          color: #ffd337;
-          margin-top: 7px;
-        }
-
-        .hero p {
-          max-width: 450px;
-          margin: 18px auto 0;
-          color: #c5d8ca;
-          font-size: 14px;
-          line-height: 1.7;
-        }
-
-        .panels {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 15px;
-        }
-
-        .panel {
-          text-decoration: none;
+        .market-input {
+          width: 100%;
+          background: #071007;
           color: white;
-          padding: 20px 16px;
-          border-radius: 24px;
-          min-height: 235px;
+          border: 1px solid #1E4D2B;
+          border-radius: 10px;
+          padding: 14px;
+          outline: none;
+          font-size: 14px;
+          margin-top: 6px;
+        }
+
+        .market-label {
+          display: block;
+          color: #A5D6A7;
+          font-size: 11px;
+          font-weight: 800;
+          margin-top: 14px;
+        }
+
+        .cat-scroll {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          padding: 10px 0 6px;
+          scrollbar-width: none;
+        }
+
+        .cat-scroll::-webkit-scrollbar {
+          display: none;
+        }
+
+        .voice-card {
+          background: #121C12;
+          border: 1px solid #1E2F1E;
+          border-radius: 16px;
+          padding: 14px;
+          margin-top: 10px;
+        }
+
+        .bottom-nav {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: #0A150A;
+          border-top: 1px solid #1E2F1E;
+          display: flex;
+          justify-content: space-around;
+          padding: 8px 0 12px;
+          z-index: 100;
+          max-width: 420px;
+          margin: 0 auto;
+        }
+
+        .nav-item {
           display: flex;
           flex-direction: column;
-          box-shadow: 0 10px 25px #0008;
-          transition: transform 0.2s;
-        }
-
-        .panel:active {
-          transform: scale(0.97);
-        }
-
-        .worker {
-          background: linear-gradient(145deg, #007e2c, #003b17);
-          border: 1px solid #00ed45;
-        }
-
-        .chairman {
-          background: linear-gradient(145deg, #725000, #302000);
-          border: 1px solid #ffd338;
-        }
-
-        .panel-top {
-          display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 5px;
-        }
-
-        .panel-icon {
-          font-size: 39px;
-        }
-
-        .panel-badge {
+          gap: 3px;
+          background: none;
+          border: none;
+          color: #777;
           font-size: 9px;
-          border: 1px solid #ffffff66;
-          border-radius: 20px;
-          padding: 7px;
-          color: #fff;
+          font-weight: 800;
+          text-decoration: none;
         }
 
-        .panel h3 {
-          font-size: clamp(17px, 4vw, 23px);
-          margin: 20px 0 9px;
+        .nav-item.active {
+          color: #00E676;
         }
 
-        .panel p {
-          font-size: 12px;
-          line-height: 1.7;
-          color: #e1f0e4;
-          margin: 0 0 20px;
+        .nav-icon {
+          font-size: 20px;
         }
 
-        .panel-bottom {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 5px;
-          margin-top: auto;
-          padding-top: 12px;
-          border-top: 1px solid #ffffff55;
-          font-size: 11px;
-          font-weight: bold;
-        }
-
-        .panel-bottom strong {
-          font-size: 23px;
-        }
-
-        .features {
-          margin-top: 35px;
-          padding: 20px 15px;
-          border: 1px solid #14532b;
-          border-radius: 22px;
-          background: #001a0b;
-        }
-
-        .features h3 {
-          font-size: 12px;
-          letter-spacing: 2px;
-          color: #ffd337;
-          text-align: center;
-          margin: 0 0 20px;
-        }
-
-        .feature-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 18px 10px;
-        }
-
-        .feature {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          min-width: 0;
-        }
-
-        .feature span {
-          font-size: 24px;
-        }
-
-        .feature p {
-          font-size: 11px;
-          color: #d4e9d9;
-        }
-
-        footer {
-          text-align: center;
-          padding: 35px 10px 15px;
-          color: #b5c9b9;
-        }
-
-        .footer-logo {
-          color: #ffd337;
-          font-size: 42px;
-          margin-bottom: 7px;
-        }
-
-        footer strong {
-          color: white;
-          font-size: 14px;
-        }
-
-        footer p {
-          font-size: 12px;
-          margin: 9px 0 20px;
-        }
-
-        footer small {
-          font-size: 10px;
-          color: #82978a;
-        }
-
-        @media (max-width: 380px) {
-          .panels {
-            grid-template-columns: 1fr;
-          }
-
-          .panel {
-            min-height: 205px;
+        @media (min-width: 600px) {
+          .market-content {
+            max-width: 420px;
+            margin: auto;
           }
         }
       `}</style>
 
-    </main>
+      {/* TOAST */}
+
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background:
+              toastType === "error" ? "#FF5252" : "#00E676",
+            color: toastType === "error" ? "white" : "black",
+            padding: "10px 18px",
+            borderRadius: 20,
+            fontSize: 11,
+            fontWeight: 900,
+            zIndex: 300,
+            maxWidth: "90%",
+            textAlign: "center",
+          }}
+        >
+          {toast}
+        </div>
+      )}
+
+      {/* CART MODAL */}
+
+      {showCart && (
+        <div
+          className="market-modal"
+          onClick={() => setShowCart(false)}
+        >
+          <div
+            className="market-modal-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ color: "white", fontWeight: 900 }}>
+                🛒 Cart ({cart.length})
+              </div>
+
+              <button
+                onClick={() => setShowCart(false)}
+                style={{
+                  background: "#263326",
+                  border: "none",
+                  color: "white",
+                  borderRadius: "50%",
+                  width: 34,
+                  height: 34,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {cart.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 30,
+                  color: "#777",
+                }}
+              >
+                Your cart is empty.
+              </div>
+            ) : (
+              <>
+                {cart.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      background: "#121C12",
+                      padding: 12,
+                      borderRadius: 10,
+                      marginTop: 10,
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          color: "white",
+                          fontWeight: 800,
+                        }}
+                      >
+                        {item.name}
+                      </div>
+
+                      <div
+                        style={{
+                          color: "#FFD600",
+                          fontSize: 11,
+                        }}
+                      >
+                        Voice preview
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      style={{
+                        background: "#FF5252",
+                        color: "white",
+                        border: "none",
+                        padding: "8px 12px",
+                        borderRadius: 8,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                <p
+                  style={{
+                    color: "#FFD600",
+                    fontSize: 11,
+                    marginTop: 15,
+                  }}
+                >
+                  Checkout is not connected to voice purchases yet.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AUTH MODAL */}
+
+      {showAuth && (
+        <div
+          className="market-modal"
+          onClick={() => !loading && setShowAuth(false)}
+        >
+          <div
+            className="market-modal-card"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <h2 style={{ color: "white" }}>
+                {authMode === "signup"
+                  ? "Create Account"
+                  : "Welcome Back"}
+              </h2>
+
+              <button
+                onClick={() => setShowAuth(false)}
+                style={{
+                  background: "#263326",
+                  border: "none",
+                  color: "white",
+                  borderRadius: "50%",
+                  width: 34,
+                  height: 34,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={submitAuth}>
+              <label className="market-label">EMAIL</label>
+
+              <input
+                className="market-input"
+                type="email"
+                value={authEmail}
+                onChange={(event) =>
+                  setAuthEmail(event.target.value)
+                }
+                required
+              />
+
+              <label className="market-label">PASSWORD</label>
+
+              <input
+                className="market-input"
+                type="password"
+                value={authPassword}
+                onChange={(event) =>
+                  setAuthPassword(event.target.value)
+                }
+                required
+              />
+
+              {authMode === "signup" && (
+                <>
+                  <label className="market-label">
+                    CONFIRM PASSWORD
+                  </label>
+
+                  <input
+                    className="market-input"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) =>
+                      setConfirmPassword(event.target.value)
+                    }
+                    required
+                  />
+                </>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  marginTop: 20,
+                  background: "#00E676",
+                  color: "black",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: 16,
+                  fontWeight: 900,
+                }}
+              >
+                {loading
+                  ? "PLEASE WAIT..."
+                  : authMode === "signup"
+                  ? "CREATE ACCOUNT →"
+                  : "LOGIN →"}
+              </button>
+            </form>
+
+            <div
+              style={{
+                textAlign: "center",
+                color: "#999",
+                fontSize: 11,
+                marginTop: 18,
+              }}
+            >
+              {authMode === "signup"
+                ? "Already have an account?"
+                : "Don't have an account?"}
+
+              <button
+                onClick={() =>
+                  setAuthMode(
+                    authMode === "signup" ? "login" : "signup"
+                  )
+                }
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#00E676",
+                  fontWeight: 900,
+                  marginLeft: 6,
+                }}
+              >
+                {authMode === "signup" ? "Login" : "Register"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN CONTENT */}
+
+      <div
+        className="market-content"
+        style={{
+          maxWidth: 420,
+          margin: "0 auto",
+          padding: 12,
+        }}
+      >
+        {/* HEADER */}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 900,
+              color: "white",
+              fontSize: 15,
+            }}
+          >
+            MAIN NAIJA PIDGIN
+          </div>
+
+          <button
+            onClick={() => setShowCart(true)}
+            style={{
+              background: "#FFD600",
+              border: "none",
+              borderRadius: 20,
+              padding: "7px 14px",
+              fontWeight: 900,
+            }}
+          >
+            🛒 {cart.length}
+          </button>
+        </div>
+
+        {/* STATISTICS */}
+
+        <div
+          style={{
+            marginTop: 12,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              background: "#121C12",
+              borderRadius: 12,
+              padding: 10,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#00E676" }}>
+              {realStats.totalUsers || "—"}
+            </div>
+
+            <div style={{ fontSize: 8, color: "#777" }}>
+              USERS
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#121C12",
+              borderRadius: 12,
+              padding: 10,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "#FFD600" }}>
+              {realStats.totalVoices}
+            </div>
+
+            <div style={{ fontSize: 8, color: "#777" }}>
+              VOICES
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#121C12",
+              borderRadius: 12,
+              padding: 10,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontWeight: 900, color: "white" }}>
+              {realStats.totalSales || "—"}
+            </div>
+
+            <div style={{ fontSize: 8, color: "#777" }}>
+              API USED
+            </div>
+          </div>
+        </div>
+
+        {/* ANNOUNCEMENTS */}
+
+        {announces.length > 0 && (
+          <div
+            style={{
+              background: "#102010",
+              padding: 12,
+              borderRadius: 12,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                color: "#00E676",
+                fontWeight: 900,
+                fontSize: 11,
+              }}
+            >
+              📢 ANNOUNCEMENTS
+            </div>
+
+            {announces.map((announcement) => (
+              <button
+                key={announcement.id}
+                onClick={() =>
+                  setSelectedAnnouncement(announcement)
+                }
+                style={{
+                  display: "block",
+                  width: "100%",
+                  background: "transparent",
+                  color: "white",
+                  textAlign: "left",
+                  border: "none",
+                  padding: "8px 0",
+                  fontSize: 12,
+                }}
+              >
+                {announcement.title}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ANNOUNCEMENT DETAILS */}
+
+        {selectedAnnouncement && (
+          <div
+            style={{
+              background: "#142414",
+              padding: 14,
+              borderRadius: 12,
+              marginTop: 10,
+            }}
+          >
+            <div style={{ fontWeight: 900 }}>
+              {selectedAnnouncement.title}
+            </div>
+
+            <p style={{ fontSize: 12, color: "#CCC" }}>
+              {selectedAnnouncement.message}
+            </p>
+
+            <button
+              onClick={() => setSelectedAnnouncement(null)}
+              style={{
+                background: "#00E676",
+                border: "none",
+                borderRadius: 8,
+                padding: 8,
+                fontWeight: 900,
+              }}
+            >
+              Close
+            </button>
+          </div>
+        )}
+
+        {/* HOME TAB */}
+
+        {activeTab === "home" && (
+          <>
+            <input
+              placeholder="🔍 Search voices..."
+              value={searchTerm}
+              onChange={(event) =>
+                setSearchTerm(event.target.value)
+              }
+              style={{
+                width: "100%",
+                marginTop: 14,
+                background: "#121C12",
+                border: "1px solid #00E676",
+                borderRadius: 12,
+                padding: "13px 14px",
+                color: "white",
+                outline: "none",
+              }}
+            />
+
+            {/* CATEGORY FILTER */}
+
+            <div className="cat-scroll">
+              {CATEGORIES.map((category) => (
+                <button
+                  key={category}
+                  onClick={() =>
+                    setSelectedCategory(category)
+                  }
+                  style={{
+                    background:
+                      selectedCategory === category
+                        ? "#00E676"
+                        : "#121C12",
+                    color:
+                      selectedCategory === category
+                        ? "black"
+                        : "#AAA",
+                    border: "1px solid #1E2F1E",
+                    padding: "8px 14px",
+                    borderRadius: 20,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                fontWeight: 900,
+                color: "white",
+              }}
+            >
+              Voices • 🔒 Login to Listen • {filteredVoices.length} found
+            </div>
+
+            {/* VOICE CARDS */}
+
+            {filteredVoices.length === 0 && (
+              <p style={{ color: "#888", fontSize: 12 }}>
+                No voices found.
+              </p>
+            )}
+
+            {filteredVoices.map((voice) => (
+              <div
+                key={voice.id}
+                className="voice-card"
+                style={{
+                  border: voice.isFeatured
+                    ? "1.5px solid #FFD600"
+                    : "1px solid #1E2F1E",
+                  background:
+                    voice.tag === "FEMALE"
+                      ? "#1A1218"
+                      : "#121C12",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "center",
+                  }}
+                >
+                  <button
+                    onClick={() => playSample(voice)}
+                    style={{
+                      width: 50,
+                      height: 50,
+                      flexShrink: 0,
+                      background:
+                        playingId === voice.id
+                          ? "#FF5252"
+                          : "#1E2F1E",
+                      borderRadius: "50%",
+                      border: "none",
+                      color: "#00E676",
+                    }}
+                  >
+                    {playingId === voice.id ? "■" : "▶"}
+                  </button>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        color: "white",
+                        fontWeight: 900,
+                        fontSize: 13,
+                      }}
+                    >
+                      {voice.name}
+                      {voice.isFeatured && " 🏆"}
+                      {voice.tag === "FEMALE" && " 👩"}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#888",
+                        fontSize: 11,
+                      }}
+                    >
+                      {voice.accent}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#FFD600",
+                        fontSize: 10,
+                      }}
+                    >
+                      ⭐ {voice.rating} • {voice.sales} sales
+                    </div>
+
+                    {voice.isBestSeller && (
+                      <div
+                        style={{
+                          color: "#00E676",
+                          fontSize: 9,
+                          fontWeight: 900,
+                          marginTop: 4,
+                        }}
+                      >
+                        ★ BEST SELLER
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                    marginTop: 12,
+                  }}
+                >
+                  <button
+                    onClick={() => addToCart(voice)}
+                    style={{
+                      background: "#0A1A0A",
+                      color: "#00E676",
+                      border: "1px solid #1E4D2B",
+                      padding: 12,
+                      borderRadius: 10,
+                      fontWeight: 900,
+                      fontSize: 11,
+                    }}
+                  >
+                    🛒 Add to Cart
+                  </button>
+
+                  <button
+                    onClick={() => buy("pro")}
+                    style={{
+                      background:
+                        voice.tag === "FEMALE"
+                          ? "#FF1493"
+                          : "white",
+                      color:
+                        voice.tag === "FEMALE"
+                          ? "white"
+                          : "black",
+                      border: "none",
+                      padding: 12,
+                      borderRadius: 10,
+                      fontWeight: 900,
+                      fontSize: 11,
+                    }}
+                  >
+                    💳 Buy ₦5,000
+                  </button>
+                </div>
+              </div>
+            ))}
+          </>
+        )}        {/* =====================================
+            API TESTING TAB
+        ===================================== */}
+
+        {activeTab === "api" && (
+          <div
+            style={{
+              marginTop: 12,
+              background: "#0F1A0F",
+              border: "1.5px solid #00E676",
+              borderRadius: 14,
+              padding: 14,
+            }}
+          >
+            <div
+              style={{
+                color: "#00E676",
+                fontWeight: 900,
+              }}
+            >
+              🧪 API TESTING - 6 VOICES
+            </div>
+
+            <div
+              style={{
+                color: "#AAA",
+                fontSize: 11,
+                marginTop: 8,
+              }}
+            >
+              Free requests: {freeLeft}
+              <br />
+              Paid requests: {paidLeft}
+            </div>
+
+            {!realKey && (
+              <button
+                onClick={claimFree}
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  background: "#FFD600",
+                  color: "black",
+                  border: "none",
+                  padding: 13,
+                  borderRadius: 10,
+                  fontWeight: 900,
+                }}
+              >
+                {loading ? "PLEASE WAIT..." : "GET 100 FREE REQUESTS"}
+              </button>
+            )}
+
+            <label className="market-label">TEXT</label>
+
+            <textarea
+              className="market-input"
+              value={testText}
+              onChange={(event) =>
+                setTestText(event.target.value)
+              }
+              rows={3}
+              placeholder="Type Pidgin text here..."
+            />
+
+            <label className="market-label">VOICE</label>
+
+            <select
+              className="market-input"
+              value={testVoice}
+              onChange={(event) =>
+                setTestVoice(event.target.value)
+              }
+            >
+              {DEFAULT_VOICES.map((voice) => (
+                <option
+                  key={voice.id}
+                  value={voice.name}
+                >
+                  {voice.name} - {voice.tag}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={testMyApi}
+              disabled={testingApi}
+              style={{
+                width: "100%",
+                marginTop: 14,
+                padding: 16,
+                border: "none",
+                borderRadius: 12,
+                background: "#00E676",
+                color: "black",
+                fontWeight: 900,
+              }}
+            >
+              {testingApi
+                ? "GENERATING..."
+                : "▶ TEST MY API"}
+            </button>
+
+            {testStatus && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 10,
+                  background: "#071007",
+                  color: "#00E676",
+                  fontSize: 11,
+                }}
+              >
+                {testStatus}
+              </div>
+            )}
+
+            {testAudio && (
+              <audio
+                controls
+                src={testAudio}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                }}
+              />
+            )}
+
+            {testTime !== null && (
+              <div
+                style={{
+                  color: "#AAA",
+                  fontSize: 11,
+                  marginTop: 8,
+                }}
+              >
+                Generation time: {testTime} ms
+              </div>
+            )}
+
+            {testCredits !== null && (
+              <div
+                style={{
+                  color: "#AAA",
+                  fontSize: 11,
+                  marginTop: 5,
+                }}
+              >
+                Remaining credits: {testCredits}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =====================================
+            PRICING TAB
+        ===================================== */}
+
+        {activeTab === "pricing" && (
+          <div style={{ marginTop: 12 }}>
+            <div
+              style={{
+                fontWeight: 900,
+                color: "white",
+                fontSize: 17,
+              }}
+            >
+              Choose Your API Plan
+            </div>
+
+            {/* FREE PLAN */}
+
+            <div
+              style={{
+                background: "#102010",
+                border: "1px solid #00E676",
+                borderRadius: 16,
+                padding: 16,
+                marginTop: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 900,
+                  color: "#00E676",
+                }}
+              >
+                FREE STARTER
+              </div>
+
+              <div
+                style={{
+                  fontSize: 23,
+                  fontWeight: 900,
+                  color: "white",
+                  marginTop: 8,
+                }}
+              >
+                ₦0
+              </div>
+
+              <div
+                style={{
+                  color: "#AAA",
+                  fontSize: 12,
+                }}
+              >
+                100 free API requests
+              </div>
+
+              <button
+                onClick={claimFree}
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  background: "#00E676",
+                  color: "black",
+                  border: "none",
+                  padding: 14,
+                  borderRadius: 10,
+                  fontWeight: 900,
+                }}
+              >
+                GET FREE KEY
+              </button>
+            </div>
+
+            {/* PRO PLAN */}
+
+            <div
+              style={{
+                background: "#1A150A",
+                border: "2px solid #FFD600",
+                borderRadius: 16,
+                padding: 16,
+                marginTop: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 900,
+                  color: "white",
+                }}
+              >
+                👑 PRO - 1,000 REQUESTS
+              </div>
+
+              <div
+                style={{
+                  fontSize: 23,
+                  fontWeight: 900,
+                  color: "white",
+                  marginTop: 8,
+                }}
+              >
+                ₦5,000
+              </div>
+
+              <button
+                onClick={() => requireAccount("pro")}
+                disabled={loading}
+                style={{
+                  width: "100%",
+                  marginTop: 12,
+                  background: "#FFD600",
+                  color: "black",
+                  border: "none",
+                  padding: 14,
+                  borderRadius: 10,
+                  fontWeight: 900,
+                }}
+              >
+                BUY WITH PAYSTACK
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ACCOUNT DETAILS */}
+
+        <div
+          style={{
+            textAlign: "center",
+            fontSize: 9,
+            color: "#666",
+            marginTop: 20,
+            paddingBottom: 10,
+          }}
+        >
+          {user ? user.email : "Guest - Login to listen"}
+          <br />
+          6 Voices • Warri Babe Featured
+        </div>
+
+        {user && (
+          <button
+            onClick={logout}
+            style={{
+              display: "block",
+              margin: "10px auto",
+              background: "#263326",
+              color: "white",
+              border: "none",
+              borderRadius: 10,
+              padding: 10,
+              fontSize: 11,
+              fontWeight: 800,
+            }}
+          >
+            LOG OUT
+          </button>
+        )}
+      </div>
+
+      {/* =====================================
+          BOTTOM NAVIGATION
+      ===================================== */}
+
+      <div className="bottom-nav">
+        <button
+          className={`nav-item ${
+            activeTab === "home" ? "active" : ""
+          }`}
+          onClick={() => setActiveTab("home")}
+        >
+          <span className="nav-icon">🏠</span>
+          Home
+        </button>
+
+        <button
+          className={`nav-item ${
+            activeTab === "api" ? "active" : ""
+          }`}
+          onClick={() => setActiveTab("api")}
+        >
+          <span className="nav-icon">🧪</span>
+          Test API
+        </button>
+
+        <button
+          className={`nav-item ${
+            activeTab === "pricing" ? "active" : ""
+          }`}
+          onClick={() => setActiveTab("pricing")}
+        >
+          <span className="nav-icon">💳</span>
+          Pricing
+        </button>
+
+        <button
+          className="nav-item"
+          onClick={() => setShowCart(true)}
+        >
+          <span className="nav-icon">🛒</span>
+          Cart
+        </button>
+
+        <Link
+          href="/clone"
+          className="nav-item"
+        >
+          <span className="nav-icon">🎙️</span>
+          Clone
+        </Link>
+      </div>
+    </div>
   );
 }
