@@ -57,21 +57,6 @@ type Voice = {
 
 const DEFAULT_VOICES: Voice[] = [
   {
-    id: "w5p3k3PueAgQOT4lq0SF",
-    name: "Warri Babe",
-    accent: "Sweet - Expressive - Professional - BEST SELLER",
-    category: "Female",
-    sample_text:
-      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
-    sample_url:
-      "/samples/ElevenLabs_2026-11-02T13_24_07_Warri babe ivc_sp100_s50_sb75_v4.mp3",
-    rating: 5.0,
-    sales: 1200,
-    isBestSeller: true,
-    isFeatured: true,
-    tag: "FEMALE",
-  },
-  {
     id: "1",
     name: "Main Naija Pidgin 1",
     accent: "Natural - Young - Fast",
@@ -100,18 +85,19 @@ const DEFAULT_VOICES: Voice[] = [
     tag: "MALE",
   },
   {
-    id: "3",
-    name: "Main Naija Pidgin 3",
-    accent: "Story - Expressive - BESTSELLER",
-    category: "Warri",
+    id: "w5p3k3PueAgQOT4lq0SF",
+    name: "Warri Babe",
+    accent: "Sweet - Expressive - Professional - BEST SELLER",
+    category: "Female",
     sample_text:
-      "For inside this life, na story dey sweet pass!",
-    sample_url: "/voices/main-naija-pidgin-3.mp3",
+      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
+    sample_url:
+      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
     rating: 5.0,
-    sales: 892,
+    sales: 1200,
     isBestSeller: true,
-    isFeatured: false,
-    tag: "MALE",
+    isFeatured: true,
+    tag: "FEMALE",
   },
   {
     id: "4",
