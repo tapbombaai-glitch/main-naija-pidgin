@@ -1,135 +1,199 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomBytes } from "crypto";
+import { randomBytes, createHash } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const FREE_CREDITS = 1000;
+
 export async function POST(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
+    return NextResponse.json(
+      { success: false, error: "Server configuration missing." },
+      { status: 500 }
+    );
+  }
+
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { success: false, error: "Please log in first." },
+      { status: 401 }
+    );
+  }
+
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const token = authorization.slice(7);
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: "Server env missing" }, { status: 500 });
+    const authClient = createClient(supabaseUrl, anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    const { data: authData, error: authError } =
+      await authClient.auth.getUser(token);
+
+    const user = authData.user;
+
+    if (authError || !user || !user.email) {
+      return NextResponse.json(
+        { success: false, error: "Invalid or expired session." },
+        { status: 401 }
+      );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const bodyUserId = body.userId;
+    // Never trust a user ID supplied by the browser.
+    const userId = user.id;
+    const email = user.email.trim().toLowerCase();
 
-    // Try get user from auth header OR from body (your frontend sends body)
-    let userId: string | null = bodyUserId || null;
-    let userEmail = "";
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
 
-    const authHeader = request.headers.get("authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.slice(7);
-      const authClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } });
-      const { data } = await authClient.auth.getUser(token);
-      if (data.user) {
-        userId = data.user.id;
-        userEmail = data.user.email || "";
-      }
-    }
-
-    // If still no userId from token, fetch email from supabase using bodyUserId
-    if (!userId) {
-      return NextResponse.json({ error: "Please log in" }, { status: 401 });
-    }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-
-    // Get user email if we don't have it
-    if (!userEmail && bodyUserId) {
-      try {
-        const { data: userData } = await admin.auth.admin.getUserById(bodyUserId);
-        userEmail = userData.user?.email || "";
-      } catch {}
-    }
-
-    // 1. CHECK IF KEY ALREADY EXISTS - return it
-    const { data: existing } = await admin
+    // Check for an existing active key.
+    const { data: existing, error: existingError } = await admin
       .from("api_keys")
-      .select("*")
+      .select(
+        "id, key, api_key, key_prefix, free_requests_remaining, paid_requests_remaining"
+      )
       .eq("user_id", userId)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
+    if (existingError) {
+      console.error("KEY LOOKUP ERROR:", existingError.message);
+
+      return NextResponse.json(
+        { success: false, error: "Could not check your API key." },
+        { status: 500 }
+      );
+    }
+
+    // Existing key: return it without adding or resetting credits.
     if (existing) {
       const fullKey = existing.key || existing.api_key;
+
       return NextResponse.json({
         success: true,
+        existing_key: true,
         api_key: fullKey,
-        key: fullKey, // For your frontend compatibility
+        key: fullKey,
         key_prefix: existing.key_prefix,
-        free_requests_remaining: existing.free_requests_remaining ?? 100,
+        free_requests_remaining:
+          existing.free_requests_remaining ?? 0,
+        paid_requests_remaining:
+          existing.paid_requests_remaining ?? 0,
+        message: "Your existing API key was found. No extra free credits were added.",
       });
     }
 
-    // 2. CREATE NEW KEY
+    // Claim the one-time free allocation.
+    const { error: claimError } = await admin
+      .from("free_credit_claims")
+      .insert({
+        user_id: userId,
+        email: email,
+      });
+
+    if (claimError) {
+      if (claimError.code === "23505") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "This email has already claimed its free credits.",
+          },
+          { status: 409 }
+        );
+      }
+
+      console.error("FREE CLAIM ERROR:", claimError.message);
+
+      return NextResponse.json(
+        { success: false, error: "Could not process your free credit claim." },
+        { status: 500 }
+      );
+    }
+
+    // Generate a new API key.
     const fullKey = `sk_live_${randomBytes(32).toString("hex")}`;
     const keyPrefix = fullKey.slice(0, 20) + "...";
 
-    // Insert with BOTH 'key' and 'api_key' columns so your frontend (keys[0].key) will see it
-    const { data: newRow, error } = await admin
+    const keyHash = createHash("sha256")
+      .update(fullKey)
+      .digest("hex");
+
+    const insertData = {
+      user_id: userId,
+      email,
+      key: fullKey,
+      api_key: fullKey,
+      key_prefix: keyPrefix,
+      key_hash: keyHash,
+      free_requests_remaining: FREE_CREDITS,
+      paid_requests_remaining: 0,
+      is_active: true,
+      is_free: true,
+    };
+
+    const { data: newKey, error: insertError } = await admin
       .from("api_keys")
-      .insert({
-        user_id: userId,
-        email: userEmail,
-        key: fullKey, // Your frontend uses this
-        api_key: fullKey, // Backup
-        key_prefix: keyPrefix,
-        key_hash: keyPrefix,
-        free_requests_remaining: 100,
-        paid_requests_remaining: 0,
-        is_active: true,
-        is_free: true,
-      })
-      .select("*")
+      .insert(insertData)
+      .select(
+        "id, key, key_prefix, free_requests_remaining, paid_requests_remaining"
+      )
       .single();
 
-    if (error) {
-      console.error("INSERT FAILED:", error);
-      // Try minimal insert if columns don't exist
-      const { data: retry, error: retryError } = await admin
-        .from("api_keys")
-        .insert({
-          user_id: userId,
-          key: fullKey,
-          key_prefix: keyPrefix,
-          free_requests_remaining: 100,
-          paid_requests_remaining: 0,
-          is_active: true,
-        })
-        .select("*")
-        .single();
-      
-      if (retryError) {
-        return NextResponse.json({ error: retryError.message }, { status: 500 });
+    if (insertError || !newKey) {
+      console.error("API KEY INSERT ERROR:", insertError?.message);
+
+      // Allow this same account to retry if key creation failed.
+      const { error: rollbackError } = await admin
+        .from("free_credit_claims")
+        .delete()
+        .eq("user_id", userId);
+
+      if (rollbackError) {
+        console.error("CLAIM ROLLBACK ERROR:", rollbackError.message);
       }
-      
-      return NextResponse.json({
-        success: true,
-        api_key: fullKey,
-        key: fullKey,
-        key_prefix: keyPrefix,
-        free_requests_remaining: 100,
-      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: "API key creation failed. Please try again.",
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
       success: true,
-      api_key: fullKey,
-      key: fullKey,
-      key_prefix: newRow.key_prefix,
-      free_requests_remaining: 100,
+      existing_key: false,
+      api_key: newKey.key,
+      key: newKey.key,
+      key_prefix: newKey.key_prefix,
+      free_requests_remaining: FREE_CREDITS,
+      paid_requests_remaining: 0,
+      message: "Your 1,000 free credits have been activated!",
     });
+  } catch (error) {
+    console.error("CREATE FREE KEY ERROR:", error);
 
-  } catch (e: any) {
-    console.error("CREATE-FREE CRASH:", e);
-    return NextResponse.json({ error: e.message || "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: "Unexpected server error." },
+      { status: 500 }
+    );
   }
 }
