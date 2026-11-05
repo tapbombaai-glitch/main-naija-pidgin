@@ -2,7 +2,7 @@
 // FINE NAME: app/marketplace/page.tsx
 // APP NAME: MAIN NAIJA PIDGIN - MARKETPLACE
 // VOICES: 1. Warri Babe, 2. Main Naija Pidgin 1, 3. Main Naija Pidgin 2, 4. Main Naija Pidgin 4, 5. Main Naija Pidgin 5
-// FIX: Preview go play YOUR recorded voice first (audioData), if no recording, e go play MP3
+// FIX: Warri Babe now use /samples/warri-babe.mp3 - Warri Babe on top, Fine Boy comot
 // ============================================
 "use client";
 
@@ -64,14 +64,13 @@ type Voice = {
 
 const DEFAULT_VOICES: Voice[] = [
   {
-    id: "w5p3k3PueAgQOT4lq0SF",
+    id: "warri-babe",
     name: "Warri Babe",
     accent: "Sweet - Expressive - Professional - BEST SELLER",
     category: "Female",
     sample_text:
       "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
-    sample_url:
-      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
+    sample_url: "/samples/warri-babe.mp3",
     rating: 5.0,
     sales: 1200,
     isBestSeller: true,
