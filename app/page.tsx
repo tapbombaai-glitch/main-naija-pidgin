@@ -2,7 +2,7 @@
 // FINE NAME: app/marketplace/page.tsx
 // APP NAME: MAIN NAIJA PIDGIN - MARKETPLACE
 // VOICES: 1. Warri Babe, 2. Main Naija Pidgin 1, 3. Main Naija Pidgin 2, 4. Main Naija Pidgin 4, 5. Main Naija Pidgin 5
-// FIX: Preview go play YOUR recorded voice first (audioData), if no recording, e go play MP3
+// FIX: TOP 3 = MP3 ONLY (Protected), DOWN 2 = YOUR RECORDED VOICE
 // ============================================
 "use client";
 
@@ -60,6 +60,7 @@ type Voice = {
 /* =========================================
    VOICE CATALOGUE - ARRANGED
    5 VOICES - WARRI BABE NA NUMBER 1
+   TOP 3 = MP3 PROTECTED, DOWN 2 = RECORDING
 ========================================= */
 
 const DEFAULT_VOICES: Voice[] = [
@@ -71,7 +72,7 @@ const DEFAULT_VOICES: Voice[] = [
     sample_text:
       "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
     sample_url:
-      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
+      "/samples/warri-babe-nov5.mp3",
     rating: 5.0,
     sales: 1200,
     isBestSeller: true,
@@ -85,7 +86,7 @@ const DEFAULT_VOICES: Voice[] = [
     category: "Lagos",
     sample_text:
       "How far boss! Main Naija Pidgin 1 dey here - Fast young vibe!",
-    sample_url: "/voices/main-naija-pidgin-1.mp3",
+    sample_url: "/samples/main-naija-pidgin-test-3.mp3",
     rating: 4.8,
     sales: 312,
     isBestSeller: false,
@@ -99,7 +100,7 @@ const DEFAULT_VOICES: Voice[] = [
     category: "PH",
     sample_text:
       "Good morning, na Main Naija Pidgin 2 - Warm professional.",
-    sample_url: "/voices/main-naija-pidgin-2.mp3",
+    sample_url: "/samples/warri-babe-nov2.mp3",
     rating: 4.9,
     sales: 456,
     isBestSeller: true,
@@ -200,7 +201,7 @@ export default function Marketplace() {
   );
 
   /* =========================================
-     LOAD MARKETPLACE DATA - NOW WITH YOUR 5 RECORDINGS
+     LOAD MARKETPLACE DATA - TOP 3 PROTECTED
   ========================================= */
 
   const loadData = useCallback(async () => {
@@ -263,12 +264,18 @@ export default function Marketplace() {
             )
           );
 
-          // ===== YOUR 5 RECORDINGS - REPLACE DEFAULT WITH YOUR VOICE, KEEP NAMES =====
+          // ===== TOP 3 PROTECTED - MP3 ONLY, NO RECORDING GO CHANGE THEM =====
+          // TOP 3: Warri Babe, Main 1, Main 2 = Always MP3
+          // DOWN 2: Main 4, Main 5 = Recording fit change them
+          const PROTECTED_TOP_3 = ["Warri Babe", "Main Naija Pidgin 1", "Main Naija Pidgin 2"];
           if (myRecs.length > 0) {
             const mapped: Voice[] = myRecs.map((rec: any, i: number) => {
               const match = DEFAULT_VOICES.find(
                 (d) => d.name.toLowerCase() === (rec.name || "").toLowerCase()
               );
+              if (match && PROTECTED_TOP_3.includes(match.name)) {
+                return { ...match, audioData: undefined };
+              }
               return {
                 id: rec.id || match?.id || `rec-${i}`,
                 name: rec.name || match?.name || `My Voice ${i + 1}`,
@@ -284,14 +291,16 @@ export default function Marketplace() {
                 tag: rec.tag || match?.tag || "MALE",
               };
             });
-            if (mapped.length >= 5) {
-              setVoices(mapped.slice(0, 5));
-            } else {
-              const remaining = DEFAULT_VOICES.filter(
-                (d) => !mapped.some((m) => m.name.toLowerCase() === d.name.toLowerCase())
-              ).slice(0, 5 - mapped.length);
-              setVoices([...mapped, ...remaining]);
+            const top3 = DEFAULT_VOICES.filter((d) => PROTECTED_TOP_3.includes(d.name));
+            const down2FromRecs = mapped.filter((m) => !PROTECTED_TOP_3.includes(m.name));
+            const down2Defaults = DEFAULT_VOICES.filter((d) => !PROTECTED_TOP_3.includes(d.name));
+            const down2 = down2FromRecs.length > 0 ? down2FromRecs.slice(0, 2) : down2Defaults;
+            const finalDown2 = [...down2];
+            for (const d of down2Defaults) {
+              if (finalDown2.length >= 2) break;
+              if (!finalDown2.some((m) => m.name === d.name)) finalDown2.push(d);
             }
+            setVoices([...top3, ...finalDown2.slice(0, 2)]);
             setRealStats((prev) => ({ ...prev, totalVoices: 5 }));
           } else {
             setVoices(DEFAULT_VOICES);
@@ -384,11 +393,8 @@ export default function Marketplace() {
   };
 
   /* =========================================
-   AUDIO PREVIEW - YOUR RECORDED VOICE FIRST
-   1. If audioData dey (your recording) -> Play YOUR voice
-   2. If no recording, try MP3 (Warri Babe MP3)
-   3. If MP3 miss, use phone voice
-========================================= */
+   AUDIO PREVIEW - TOP 3 MP3 FIRST, DOWN 2 RECORDING FIRST
+  ========================================= */
 
   const playSample = async (voice: Voice) => {
     if (!user) {
@@ -415,8 +421,10 @@ export default function Marketplace() {
       window.speechSynthesis.speak(utterance);
     };
 
-    // 1. YOUR RECORDED VOICE FIRST - NA THIS BE THE FIX
-    if (voice.audioData) {
+    // 1. TOP 3 = MP3 FIRST, DOWN 2 = RECORDING FIRST
+    const TOP3_NAMES = ["Warri Babe", "Main Naija Pidgin 1", "Main Naija Pidgin 2"];
+    const isTop3 = TOP3_NAMES.includes(voice.name);
+    if (!isTop3 && voice.audioData) {
       try {
         const audio = new Audio(voice.audioData);
         audioRef.current = audio;
