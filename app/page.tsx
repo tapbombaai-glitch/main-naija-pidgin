@@ -254,95 +254,53 @@ export default function Marketplace() {
           const saved = JSON.parse(
             localStorage.getItem("gin_recordings") || "[]"
           );
-          const myRecs = saved.filter((item: any) => item.audioData);
-          setMyLocalVoices(myRecs);
-          setCart(
-            JSON.parse(
-              localStorage.getItem("gin_cart") || "[]"
-            )
-          );
-          if (myRecs.length > 0) {
-            const mapped: Voice[] = myRecs.map((rec: any, i: number) => {
-              const match = DEFAULT_VOICES.find(
-                (d) => d.name.toLowerCase() === (rec.name || "").toLowerCase()
-              );
-              return {
-                id: rec.id || match?.id || `rec-${i}`,
-                name: rec.name || match?.name || `My Voice ${i + 1}`,
-                accent: rec.accent || match?.accent || "Recorded - Real Voice",
-                category: rec.category || match?.category || "Lagos",
-                sample_text: rec.text || rec.sample_text || match?.sample_text || "My recorded voice",
-                sample_url: match?.sample_url || "",
-                audioData: rec.audioData,
-                rating: match?.rating || 5.0,
-                sales: match?.sales || 0,
-                isBestSeller: match?.isBestSeller || i === 0,
-                isFeatured: match?.isFeatured || i === 0,
-                tag: rec.tag || match?.tag || "MALE",
-              };
-            });
-            if (mapped.length >= 5) {
-              setVoices(mapped.slice(0, 5));
-            } else {
-              const remaining = DEFAULT_VOICES.filter(
-                (d) => !mapped.some((m) => m.name.toLowerCase() === d.name.toLowerCase())
-              ).slice(0, 5 - mapped.length);
-              setVoices([...mapped, ...remaining]);
-            }
-            setRealStats((prev) => ({ ...prev, totalVoices: 5 }));
-          } else {
-            setVoices(DEFAULT_VOICES);
-          }
-        } catch {
-          setCart([]);
-          setMyLocalVoices([]);
-        }
-      }
-      try {
-        const { data: announcements } = await supabase
-          .from("announcements")
-          .select("*")
-          .order("created_at", {
-            ascending: false,
-          })
-          .limit(3);
-        if (announcements) {
-          setAnnounces(announcements);
-        }
-      } catch (error) {
-        console.error("Announcements:", error);
-      }
-    } catch (error) {
-      console.error("Marketplace loading error:", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
-    loadData();
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setUser(session?.user || null);
-        if (session?.user) {
-          loadData();
-        } else {
-          setApiKey("");
-          setRealKey("");
-          setFreeLeft(0);
-          setPaidLeft(0);
-        }
-      }
+  const myRecs = saved.filter((item: any) => item.audioData);
+setMyLocalVoices(myRecs);
+setCart(
+  JSON.parse(
+    localStorage.getItem("gin_cart") || "[]"
+  )
+);
+if (myRecs.length > 0) {
+  const mapped: Voice[] = myRecs.map((rec: any, i: number) => {
+    const match = DEFAULT_VOICES.find(
+      (d) => d.name.toLowerCase() === (rec.name || "").toLowerCase()
     );
-    return () => {
-      subscription.unsubscribe();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+    return {
+      id: rec.id || match?.id || `rec-${i}`,
+      name: rec.name || match?.name || `My Voice ${i + 1}`,
+      accent: rec.accent || match?.accent || "Recorded - Real Voice",
+      category: rec.category || match?.category || "Lagos",
+      sample_text: rec.text || rec.sample_text || match?.sample_text || "My recorded voice",
+      sample_url: match?.sample_url || "",
+      audioData: rec.audioData,
+      rating: match?.rating || 5.0,
+      sales: match?.sales || 0,
+      isBestSeller: match?.isBestSeller || i === 0,
+      isFeatured: match?.isFeatured || i === 0,
+      tag: rec.tag || match?.tag || "MALE",
     };
-  }, [loadData]);
+  });
+  // Force Warri Babe to be first
+  const warriBabe = mapped.find((m) => m.name.toLowerCase().includes("warri babe"));
+  const others = mapped.filter((m) => !m.name.toLowerCase().includes("warri babe"));
+  const ordered = warriBabe ? [warriBabe, ...others] : mapped;
+  if (ordered.length >= 5) {
+    setVoices(ordered.slice(0, 5));
+  } else {
+    const remaining = DEFAULT_VOICES.filter(
+      (d) => !ordered.some((m) => m.name.toLowerCase() === d.name.toLowerCase())
+    ).slice(0, 5 - ordered.length);
+    setVoices([...ordered, ...remaining]);
+  }
+  setRealStats((prev) => ({ ...prev, totalVoices: 5 }));
+} else {
+  setVoices(DEFAULT_VOICES);
+}
+} catch {
+  setCart([]);
+  setMyLocalVoices([]);
+}
 
   const filteredVoices = voices.filter((voice) => {
     const search = searchTerm.toLowerCase();
