@@ -77,6 +77,7 @@ const DEFAULT_VOICES: Voice[] = [
     isFeatured: true,
     tag: "FEMALE",
   },
+
   {
     id: "1",
     name: "Main Naija Pidgin 1",
@@ -91,6 +92,7 @@ const DEFAULT_VOICES: Voice[] = [
     isFeatured: false,
     tag: "MALE",
   },
+
   {
     id: "2",
     name: "Main Naija Pidgin 2",
@@ -105,6 +107,7 @@ const DEFAULT_VOICES: Voice[] = [
     isFeatured: false,
     tag: "MALE",
   },
+
   {
     id: "4",
     name: "Main Naija Pidgin 4",
@@ -119,6 +122,7 @@ const DEFAULT_VOICES: Voice[] = [
     isFeatured: false,
     tag: "MALE",
   },
+
   {
     id: "5",
     name: "Main Naija Pidgin 5",
