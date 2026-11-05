@@ -1,0 +1,122 @@
+"use client";
+
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+
+import type { FormEvent } from "react";
+import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
+
+/* =========================================
+   SUPABASE BROWSER CONFIGURATION
+========================================= */
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error("Supabase environment variables are missing.");
+}
+
+const supabase = createClient(
+  supabaseUrl || "https://placeholder.supabase.co",
+  supabaseKey || "placeholder-key"
+);
+
+/* =========================================
+   TYPES
+========================================= */
+
+type AuthMode = "login" | "signup";
+
+type Voice = {
+  id: string;
+  name: string;
+  accent: string;
+  category: string;
+  sample_text: string;
+  sample_url: string;
+  rating: number;
+  sales: number;
+  isBestSeller: boolean;
+  isFeatured: boolean;
+  tag: string;
+};
+
+/* =========================================
+   VOICE CATALOGUE - ARRANGED
+   5 VOICES - WARRI BABE NA NUMBER 1
+========================================= */
+
+const DEFAULT_VOICES: Voice[] = [
+  {
+    id: "w5p3k3PueAgQOT4lq0SF",
+    name: "Warri Babe",
+    accent: "Sweet - Expressive - Professional - BEST SELLER",
+    category: "Female",
+    sample_text:
+      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
+    sample_url:
+      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
+    rating: 5.0,
+    sales: 1200,
+    isBestSeller: true,
+    isFeatured: true,
+    tag: "FEMALE",
+  },
+  {
+    id: "1",
+    name: "Main Naija Pidgin 1",
+    accent: "Natural - Young - Fast",
+    category: "Lagos",
+    sample_text:
+      "How far boss! Main Naija Pidgin 1 dey here - Fast young vibe!",
+    sample_url: "/voices/main-naija-pidgin-1.mp3",
+    rating: 4.8,
+    sales: 312,
+    isBestSeller: false,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "2",
+    name: "Main Naija Pidgin 2",
+    accent: "Warm - Professional - Calm",
+    category: "PH",
+    sample_text:
+      "Good morning, na Main Naija Pidgin 2 - Warm professional.",
+    sample_url: "/voices/main-naija-pidgin-2.mp3",
+    rating: 4.9,
+    sales: 456,
+    isBestSeller: true,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "4",
+    name: "Main Naija Pidgin 4",
+    accent: "Rugged - Local - Street",
+    category: "Warri",
+    sample_text:
+      "Warri no dey carry last! Rugged local vibe!",
+    sample_url: "/voices/main-naija-pidgin-4.mp3",
+    rating: 4.7,
+    sales: 234,
+    isBestSeller: false,
+    isFeatured: false,
+    tag: "MALE",
+  },
+  {
+    id: "5",
+    name: "Main Naija Pidgin 5",
+    accent: "Hybrid - Bilingual - Balanced",
+    category: "Lagos",
+    sample_text:
+      "E kaaro! I
