@@ -28,11 +28,12 @@ export default function Marketplace() {
     const { data: v } = await supabase.from('voices').select('*').eq('active', true).limit(10);
     if (v && v.length > 0) setVoices(v);
     else setVoices([
-      { id: "1", name: "Lagos Male", accent: "Natural - Young", sample_text: "How far boss! Lagos male voice dey here, ready to talk." },
-      { id: "2", name: "Abuja Female", accent: "Warm - Professional", sample_text: "Good morning, na Abuja female voice, calm and clear." },
-      { id: "3", name: "Pidgin Narrator", accent: "Story - Expressive", sample_text: "For inside this life, na story dey sweet pass, make I tell you!" },
-      { id: "4", name: "Delta Warri", accent: "Rugged - Local", sample_text: "Warri no dey carry last, you hear? Original Warri voice!" },
-      { id: "5", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_text: "E kaaro! I fit speak Yoruba and pidgin join together." },
+      // FIXED: All get real mp3 file, NO more sample_text robot
+      { id: "warri-babe", name: "Warri Babe", accent: "Sweet - Warri", sample_url: "/samples/warri-babe.mp3" },
+      { id: "2", name: "Abuja Female", accent: "Warm - Professional", sample_url: "/samples/warri-babe.mp3" },
+      { id: "3", name: "Pidgin Narrator", accent: "Story - Expressive", sample_url: "/samples/warri-babe.mp3" },
+      { id: "4", name: "Delta Warri", accent: "Rugged - Local", sample_url: "/samples/warri-babe.mp3" },
+      { id: "5", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_url: "/samples/warri-babe.mp3" },
     ]);
     const guestId = localStorage.getItem('guest_id') || `guest_${Date.now()}`;
     localStorage.setItem('guest_id', guestId);
@@ -44,15 +45,26 @@ export default function Marketplace() {
     }
   }
   const showToast = (m: string, type: "success"|"error" = "success") => { setToast(m); setToastType(type); setTimeout(()=>setToast(""), 3500); };
+
+  // KILLED OYIBO VOICE: No SpeechSynthesis anywhere again
   const playSample = async (voice: any) => {
     try {
       if (audio) { audio.pause(); }
       if (playingId === voice.id) { setPlayingId(null); return; }
       setPlayingId(voice.id);
-      if (voice.sample_url) { const a = new Audio(voice.sample_url); setAudio(a); a.onended = () => setPlayingId(null); await a.play(); return; }
-      const utter = new SpeechSynthesisUtterance(voice.sample_text); utter.onend = () => setPlayingId(null); speechSynthesis.speak(utter);
+      if (!voice.sample_url) {
+        showToast("Voice file never dey yet", "error");
+        setPlayingId(null);
+        return;
+      }
+      const a = new Audio(voice.sample_url);
+      setAudio(a);
+      a.onended = () => setPlayingId(null);
+      a.onerror = () => { showToast("Voice file no see - check /samples/warri-babe.mp3", "error"); setPlayingId(null); };
+      await a.play();
     } catch { setPlayingId(null); }
   };
+
   const claimFree = async () => {
     setLoading(true);
     try {
@@ -156,7 +168,6 @@ export default function Marketplace() {
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "13px", fontWeight: "800", color: "white" }}>Preview Voices – Tap to Listen</div>
           <div style={{ fontSize: "10px", color: "#00E676", marginTop: "2px" }}>100% Naija accent • Preview no dey deduct</div>
-          {/* FIXED FOR SMALL PHONE: flex scroll on <380px */}
           <div className="voice-scroll" style={{ marginTop: "10px" }}>
             {voices.slice(0,5).map((v: any) => (
               <div key={v.id} onClick={() => playSample(v)} className="voice-card" style={{ background: playingId === v.id ? "#1A2F1A" : "#121C12", border: playingId === v.id ? "1px solid #00E676" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center", cursor: "pointer" }}>
