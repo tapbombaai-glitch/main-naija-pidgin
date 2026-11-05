@@ -51,11 +51,26 @@ type Voice = {
 };
 
 /* =========================================
-   VOICE CATALOGUE
-   KEEP ALL SIX VOICES
+   VOICE CATALOGUE - ARRANGED
+   5 VOICES - WARRI BABE NA NUMBER 1
 ========================================= */
 
 const DEFAULT_VOICES: Voice[] = [
+  {
+    id: "w5p3k3PueAgQOT4lq0SF",
+    name: "Warri Babe",
+    accent: "Sweet - Expressive - Professional - BEST SELLER",
+    category: "Female",
+    sample_text:
+      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
+    sample_url:
+      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
+    rating: 5.0,
+    sales: 1200,
+    isBestSeller: true,
+    isFeatured: true,
+    tag: "FEMALE",
+  },
   {
     id: "1",
     name: "Main Naija Pidgin 1",
@@ -83,21 +98,6 @@ const DEFAULT_VOICES: Voice[] = [
     isBestSeller: true,
     isFeatured: false,
     tag: "MALE",
-  },
-  {
-    id: "w5p3k3PueAgQOT4lq0SF",
-    name: "Warri Babe",
-    accent: "Sweet - Expressive - Professional - BEST SELLER",
-    category: "Female",
-    sample_text:
-      "How far my people! Na Warri Babe dey here - Sweet professional voice wey go entice all your customers, come buy me now!",
-    sample_url:
-      "/samples/ElevenLabs_2026-11-05T02_32_57_Warri_babe_ivc_s50_sim75_v4.mp3",
-    rating: 5.0,
-    sales: 1200,
-    isBestSeller: true,
-    isFeatured: true,
-    tag: "FEMALE",
   },
   {
     id: "4",
@@ -135,7 +135,6 @@ const CATEGORIES = [
   "Warri",
   "PH",
   "Female",
-  "Chairman",
 ];
 
 /* =========================================
@@ -454,72 +453,66 @@ export default function Marketplace() {
   };
 
   /* =========================================
-     AUDIO PREVIEW
-  ========================================= */
+   AUDIO PREVIEW - ARRANGED
+   MUST TALK EVEN IF MP3 MISS
+========================================= */
 
-  const playSample = async (voice: Voice) => {
-    if (!user) {
-      showToast("Login first to listen to voice previews.", "error");
-      setAuthMode("login");
-      setShowAuth(true);
+const playSample = async (voice: Voice) => {
+  if (!user) {
+    showToast("Login first to listen to voice previews.", "error");
+    setAuthMode("login");
+    setShowAuth(true);
+    return;
+  }
+
+  // Stop anything wey dey play before
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current = null;
+  }
+  window.speechSynthesis?.cancel();
+
+  // If e dey play already, stop am
+  if (playingId === voice.id) {
+    setPlayingId(null);
+    return;
+  }
+
+  setPlayingId(voice.id);
+
+  // Fallback: Use phone voice to read sample_text
+  const speakFallback = () => {
+    const utterance = new SpeechSynthesisUtterance(voice.sample_text);
+    utterance.rate = 1;
+    utterance.onend = () => setPlayingId(null);
+    utterance.onerror = () => setPlayingId(null);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  try {
+    // Check if MP3 file really dey - catch 404 early
+    const check = await fetch(voice.sample_url, { method: "HEAD" });
+    if (!check.ok) {
+      console.log("Preview file missing (404):", voice.sample_url);
+      showToast(`Preview file never upload for ${voice.name}, playing with device voice.`, "error");
+      speakFallback();
       return;
     }
 
-    try {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+    // File dey, play am
+    const audio = new Audio(voice.sample_url);
+    audioRef.current = audio;
+    audio.onended = () => setPlayingId(null);
+    audio.onerror = () => {
+      speakFallback();
+    };
+    await audio.play();
 
-      window.speechSynthesis?.cancel();
-
-      if (playingId === voice.id) {
-        setPlayingId(null);
-        return;
-      }
-
-      setPlayingId(voice.id);
-
-      if (voice.sample_url) {
-        const audio = new Audio(voice.sample_url);
-
-        audioRef.current = audio;
-
-        audio.onended = () => {
-          setPlayingId(null);
-        };
-
-        audio.onerror = () => {
-          setPlayingId(null);
-          showToast(
-            `Audio file unavailable for ${voice.name}.`,
-            "error"
-          );
-        };
-
-        await audio.play();
-        return;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(
-        voice.sample_text
-      );
-
-      utterance.onend = () => {
-        setPlayingId(null);
-      };
-
-      utterance.onerror = () => {
-        setPlayingId(null);
-      };
-
-      window.speechSynthesis.speak(utterance);
-    } catch (error) {
-      console.error("Audio playback:", error);
-      setPlayingId(null);
-      showToast("Could not play this voice.", "error");
-    }
-  };
+  } catch (err) {
+    console.log("Play failed, using fallback:", err);
+    speakFallback();
+  }
+};
 
   /* =========================================
      ACCOUNT REQUIREMENT
