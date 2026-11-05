@@ -1,3 +1,9 @@
+// ============================================
+// FINE NAME: app/marketplace/page.tsx
+// APP NAME: MAIN NAIJA PIDGIN - MARKETPLACE
+// VOICES: 1. Warri Babe, 2. Main Naija Pidgin 1, 3. Main Naija Pidgin 2, 4. Main Naija Pidgin 4, 5. Main Naija Pidgin 5
+// FIX: Preview go play YOUR recorded voice first (audioData), if no recording, e go play MP3
+// ============================================
 "use client";
 
 import {
@@ -43,6 +49,7 @@ type Voice = {
   category: string;
   sample_text: string;
   sample_url: string;
+  audioData?: string;
   rating: number;
   sales: number;
   isBestSeller: boolean;
@@ -142,103 +149,49 @@ const CATEGORIES = [
 ========================================= */
 
 export default function Marketplace() {
-  /* AUTHENTICATION */
-
   const [user, setUser] = useState<any>(null);
-
   const [apiKey, setApiKey] = useState("");
   const [realKey, setRealKey] = useState("");
-
   const [freeLeft, setFreeLeft] = useState(0);
   const [paidLeft, setPaidLeft] = useState(0);
-
-  /* LOADING */
-
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
-
-  /* NAVIGATION */
-
   const [activeTab, setActiveTab] = useState("home");
-
-  /* SEARCH */
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
-
-  /* MARKETPLACE */
-
-  const [voices, setVoices] =
-    useState<Voice[]>(DEFAULT_VOICES);
-
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [voices, setVoices] = useState<Voice[]>(DEFAULT_VOICES);
   const [realStats, setRealStats] = useState({
     totalUsers: 0,
-    totalVoices: 6,
+    totalVoices: 5,
     totalSales: 0,
   });
-
-  /* AUDIO */
-
-  const [playingId, setPlayingId] =
-    useState<string | null>(null);
-
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  /* CART */
-
   const [showCart, setShowCart] = useState(false);
   const [cart, setCart] = useState<any[]>([]);
-
-  /* NOTIFICATIONS */
-
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState("success");
-
   const [announces, setAnnounces] = useState<any[]>([]);
-  const [selectedAnnouncement, setSelectedAnnouncement] =
-    useState<any>(null);
-
-  const [myLocalVoices, setMyLocalVoices] =
-    useState<any[]>([]);
-
-  /* AUTH MODAL */
-
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<any>(null);
+  const [myLocalVoices, setMyLocalVoices] = useState<any[]>([]);
   const [showAuth, setShowAuth] = useState(false);
-
-  const [authMode, setAuthMode] =
-    useState<AuthMode>("login");
-
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-
-  const [pendingAction, setPendingAction] =
-    useState<string | null>(null);
-
-  /* API TESTING */
-
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [testText, setTestText] = useState("");
   const [testVoice, setTestVoice] = useState("Warri Babe");
-
   const [testingApi, setTestingApi] = useState(false);
-
   const [testAudio, setTestAudio] = useState("");
   const [testStatus, setTestStatus] = useState("");
-
-  const [testTime, setTestTime] =
-    useState<number | null>(null);
-
-  const [testCredits, setTestCredits] =
-    useState<number | null>(null);  /* =========================================
-     NOTIFICATION
-  ========================================= */
+  const [testTime, setTestTime] = useState<number | null>(null);
+  const [testCredits, setTestCredits] = useState<number | null>(null);
 
   const showToast = useCallback(
     (message: string, type: "success" | "error" = "success") => {
       setToast(message);
       setToastType(type);
-
       window.setTimeout(() => {
         setToast("");
       }, 3000);
@@ -247,7 +200,7 @@ export default function Marketplace() {
   );
 
   /* =========================================
-     LOAD MARKETPLACE DATA
+     LOAD MARKETPLACE DATA - NOW WITH YOUR 5 RECORDINGS
   ========================================= */
 
   const loadData = useCallback(async () => {
@@ -255,11 +208,7 @@ export default function Marketplace() {
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser();
-
       setUser(currentUser || null);
-
-      /* PUBLIC MARKETPLACE STATISTICS */
-
       try {
         const { count } = await supabase
           .from("api_keys")
@@ -267,7 +216,6 @@ export default function Marketplace() {
             count: "exact",
             head: true,
           });
-
         setRealStats((previous) => ({
           ...previous,
           totalUsers: count || 0,
@@ -275,24 +223,12 @@ export default function Marketplace() {
       } catch (error) {
         console.error("Marketplace statistics:", error);
       }
-
-      /* USER DATA */
-
       if (typeof window !== "undefined") {
         const guestId =
           localStorage.getItem("guest_id") ||
           `guest_${Date.now()}`;
-
         localStorage.setItem("guest_id", guestId);
-
         const uid = currentUser?.id || guestId;
-
-        /*
-          Existing API key retrieval is preserved here
-          temporarily. It should move to a protected
-          server endpoint before production.
-        */
-
         if (currentUser) {
           const { data: keys, error } = await supabase
             .from("api_keys")
@@ -303,16 +239,11 @@ export default function Marketplace() {
               ascending: false,
             })
             .limit(1);
-
           if (!error && keys?.[0]) {
             setApiKey(keys[0].key_prefix || "");
             setRealKey(keys[0].key || "");
-            setFreeLeft(
-              keys[0].free_requests_remaining || 0
-            );
-            setPaidLeft(
-              keys[0].paid_requests_remaining || 0
-            );
+            setFreeLeft(keys[0].free_requests_remaining || 0);
+            setPaidLeft(keys[0].paid_requests_remaining || 0);
           } else {
             setApiKey("");
             setRealKey("");
@@ -320,29 +251,56 @@ export default function Marketplace() {
             setPaidLeft(0);
           }
         }
-
         try {
           const saved = JSON.parse(
             localStorage.getItem("gin_recordings") || "[]"
           );
-
-          setMyLocalVoices(
-            saved.filter((item: any) => item.audioData)
-          );
-
+          const myRecs = saved.filter((item: any) => item.audioData);
+          setMyLocalVoices(myRecs);
           setCart(
             JSON.parse(
               localStorage.getItem("gin_cart") || "[]"
             )
           );
+
+          // ===== YOUR 5 RECORDINGS - REPLACE DEFAULT WITH YOUR VOICE, KEEP NAMES =====
+          if (myRecs.length > 0) {
+            const mapped: Voice[] = myRecs.map((rec: any, i: number) => {
+              const match = DEFAULT_VOICES.find(
+                (d) => d.name.toLowerCase() === (rec.name || "").toLowerCase()
+              );
+              return {
+                id: rec.id || match?.id || `rec-${i}`,
+                name: rec.name || match?.name || `My Voice ${i + 1}`,
+                accent: rec.accent || match?.accent || "Recorded - Real Voice",
+                category: rec.category || match?.category || "Lagos",
+                sample_text: rec.text || rec.sample_text || match?.sample_text || "My recorded voice",
+                sample_url: match?.sample_url || "",
+                audioData: rec.audioData,
+                rating: match?.rating || 5.0,
+                sales: match?.sales || 0,
+                isBestSeller: match?.isBestSeller || i === 0,
+                isFeatured: match?.isFeatured || i === 0,
+                tag: rec.tag || match?.tag || "MALE",
+              };
+            });
+            if (mapped.length >= 5) {
+              setVoices(mapped.slice(0, 5));
+            } else {
+              const remaining = DEFAULT_VOICES.filter(
+                (d) => !mapped.some((m) => m.name.toLowerCase() === d.name.toLowerCase())
+              ).slice(0, 5 - mapped.length);
+              setVoices([...mapped, ...remaining]);
+            }
+            setRealStats((prev) => ({ ...prev, totalVoices: 5 }));
+          } else {
+            setVoices(DEFAULT_VOICES);
+          }
         } catch {
           setCart([]);
           setMyLocalVoices([]);
         }
       }
-
-      /* ANNOUNCEMENTS */
-
       try {
         const { data: announcements } = await supabase
           .from("announcements")
@@ -351,7 +309,6 @@ export default function Marketplace() {
             ascending: false,
           })
           .limit(3);
-
         if (announcements) {
           setAnnounces(announcements);
         }
@@ -363,21 +320,14 @@ export default function Marketplace() {
     }
   }, []);
 
-  /* =========================================
-     AUTHENTICATION LISTENER
-  ========================================= */
-
   useEffect(() => {
     setMounted(true);
-
     loadData();
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user || null);
-
         if (session?.user) {
           loadData();
         } else {
@@ -388,10 +338,8 @@ export default function Marketplace() {
         }
       }
     );
-
     return () => {
       subscription.unsubscribe();
-
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -399,43 +347,28 @@ export default function Marketplace() {
     };
   }, [loadData]);
 
-  /* =========================================
-     SEARCH AND FILTER
-  ========================================= */
-
   const filteredVoices = voices.filter((voice) => {
     const search = searchTerm.toLowerCase();
-
     const matchSearch =
       voice.name.toLowerCase().includes(search) ||
       voice.accent.toLowerCase().includes(search);
-
     const matchCategory =
       selectedCategory === "All" ||
       voice.category === selectedCategory;
-
     return matchSearch && matchCategory;
   });
-
-  /* =========================================
-     CART FUNCTIONS
-  ========================================= */
 
   const addToCart = (voice: Voice) => {
     if (cart.some((item) => item.id === voice.id)) {
       showToast("This voice is already in your cart.", "error");
       return;
     }
-
     const updatedCart = [...cart, voice];
-
     setCart(updatedCart);
-
     localStorage.setItem(
       "gin_cart",
       JSON.stringify(updatedCart)
     );
-
     showToast(`${voice.name} added to cart.`);
   };
 
@@ -443,9 +376,7 @@ export default function Marketplace() {
     const updatedCart = cart.filter(
       (item) => item.id !== id
     );
-
     setCart(updatedCart);
-
     localStorage.setItem(
       "gin_cart",
       JSON.stringify(updatedCart)
@@ -453,103 +384,103 @@ export default function Marketplace() {
   };
 
   /* =========================================
-   AUDIO PREVIEW - ARRANGED
-   MUST TALK EVEN IF MP3 MISS
+   AUDIO PREVIEW - YOUR RECORDED VOICE FIRST
+   1. If audioData dey (your recording) -> Play YOUR voice
+   2. If no recording, try MP3 (Warri Babe MP3)
+   3. If MP3 miss, use phone voice
 ========================================= */
 
-const playSample = async (voice: Voice) => {
-  if (!user) {
-    showToast("Login first to listen to voice previews.", "error");
-    setAuthMode("login");
-    setShowAuth(true);
-    return;
-  }
-
-  // Stop anything wey dey play before
-  if (audioRef.current) {
-    audioRef.current.pause();
-    audioRef.current = null;
-  }
-  window.speechSynthesis?.cancel();
-
-  // If e dey play already, stop am
-  if (playingId === voice.id) {
-    setPlayingId(null);
-    return;
-  }
-
-  setPlayingId(voice.id);
-
-  // Fallback: Use phone voice to read sample_text
-  const speakFallback = () => {
-    const utterance = new SpeechSynthesisUtterance(voice.sample_text);
-    utterance.rate = 1;
-    utterance.onend = () => setPlayingId(null);
-    utterance.onerror = () => setPlayingId(null);
-    window.speechSynthesis.speak(utterance);
-  };
-
-  try {
-    // Check if MP3 file really dey - catch 404 early
-    const check = await fetch(voice.sample_url, { method: "HEAD" });
-    if (!check.ok) {
-      console.log("Preview file missing (404):", voice.sample_url);
-      showToast(`Preview file never upload for ${voice.name}, playing with device voice.`, "error");
-      speakFallback();
+  const playSample = async (voice: Voice) => {
+    if (!user) {
+      showToast("Login first to listen to voice previews.", "error");
+      setAuthMode("login");
+      setShowAuth(true);
       return;
     }
-
-    // File dey, play am
-    const audio = new Audio(voice.sample_url);
-    audioRef.current = audio;
-    audio.onended = () => setPlayingId(null);
-    audio.onerror = () => {
-      speakFallback();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+    if (playingId === voice.id) {
+      setPlayingId(null);
+      return;
+    }
+    setPlayingId(voice.id);
+    const speakFallback = () => {
+      const utterance = new SpeechSynthesisUtterance(voice.sample_text);
+      utterance.rate = 1;
+      utterance.onend = () => setPlayingId(null);
+      utterance.onerror = () => setPlayingId(null);
+      window.speechSynthesis.speak(utterance);
     };
-    await audio.play();
 
-  } catch (err) {
-    console.log("Play failed, using fallback:", err);
-    speakFallback();
-  }
-};
+    // 1. YOUR RECORDED VOICE FIRST - NA THIS BE THE FIX
+    if (voice.audioData) {
+      try {
+        const audio = new Audio(voice.audioData);
+        audioRef.current = audio;
+        audio.onended = () => setPlayingId(null);
+        audio.onerror = () => speakFallback();
+        await audio.play();
+        showToast(`${voice.name} - Your real recorded voice!`);
+        return;
+      } catch {
+        speakFallback();
+        return;
+      }
+    }
 
-  /* =========================================
-     ACCOUNT REQUIREMENT
-  ========================================= */
+    // 2. IF NO RECORDING, TRY MP3
+    try {
+      if (!voice.sample_url) {
+        showToast(`No recording yet for ${voice.name}. Go Clone page to record am.`, "error");
+        speakFallback();
+        return;
+      }
+      const check = await fetch(voice.sample_url, { method: "HEAD" });
+      if (!check.ok) {
+        console.log("Preview file missing (404):", voice.sample_url);
+        showToast(`Preview file never upload for ${voice.name}, playing with device voice.`, "error");
+        speakFallback();
+        return;
+      }
+      const audio = new Audio(voice.sample_url);
+      audioRef.current = audio;
+      audio.onended = () => setPlayingId(null);
+      audio.onerror = () => {
+        speakFallback();
+      };
+      await audio.play();
+    } catch (err) {
+      console.log("Play failed, using fallback:", err);
+      speakFallback();
+    }
+  };
 
   const requireAccount = (packageId: string) => {
     if (user) {
       continuePurchase(packageId);
       return;
     }
-
     setPendingAction(packageId);
     setAuthMode("login");
     setShowAuth(true);
   };
-
-  /* =========================================
-     CLAIM FREE 100 REQUESTS
-  ========================================= */
 
   const claimFree = async () => {
     if (!user) {
       requireAccount("free_100");
       return;
     }
-
     setLoading(true);
-
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       if (!session?.access_token) {
         throw new Error("Please log in again.");
       }
-
       const response = await fetch(
         "/api/keys/create-free",
         {
@@ -563,20 +494,15 @@ const playSample = async (voice: Voice) => {
           }),
         }
       );
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || "Free key request failed.");
       }
-
       if (data.api_key) {
         setRealKey(data.api_key);
         setApiKey(data.key_prefix || "");
         setFreeLeft(100);
-
         showToast("100 FREE API requests claimed!");
-
         await loadData();
       } else {
         showToast(
@@ -591,32 +517,23 @@ const playSample = async (voice: Voice) => {
     }
   };
 
-  /* =========================================
-     PAYSTACK PACKAGE PURCHASE
-  ========================================= */
-
   const buy = async (packageId: string) => {
     if (!user) {
       requireAccount(packageId);
       return;
     }
-
     if (packageId === "free_100") {
       await claimFree();
       return;
     }
-
     setLoading(true);
-
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       if (!session?.access_token) {
         throw new Error("Please log in again.");
       }
-
       const response = await fetch(
         "/api/paystack/initialize",
         {
@@ -632,13 +549,10 @@ const playSample = async (voice: Voice) => {
           }),
         }
       );
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || "Paystack initialization failed.");
       }
-
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
       } else {
@@ -654,7 +568,6 @@ const playSample = async (voice: Voice) => {
   const continuePurchase = async (packageId: string) => {
     setPendingAction(null);
     setShowAuth(false);
-
     if (packageId === "free_100") {
       await claimFree();
     } else {
@@ -662,27 +575,18 @@ const playSample = async (voice: Voice) => {
     }
   };
 
-  /* =========================================
-     LOGIN AND SIGNUP
-  ========================================= */
-
   const submitAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     const email = authEmail.trim().toLowerCase();
-
     if (!email || !authPassword) {
       showToast("Enter your email and password.", "error");
       return;
     }
-
     if (authMode === "signup" && authPassword.length < 6) {
       showToast("Password must contain at least 6 characters.", "error");
       return;
     }
-
     setLoading(true);
-
     try {
       if (authMode === "signup") {
         const { data, error } =
@@ -690,15 +594,12 @@ const playSample = async (voice: Voice) => {
             email,
             password: authPassword,
           });
-
         if (error) throw error;
-
         if (!data.session) {
           showToast("Check your email to confirm your account.");
           setAuthMode("login");
           return;
         }
-
         setUser(data.user);
         setShowAuth(false);
         showToast("Account created successfully.");
@@ -708,14 +609,11 @@ const playSample = async (voice: Voice) => {
             email,
             password: authPassword,
           });
-
         if (error) throw error;
-
         setUser(data.user);
         setShowAuth(false);
         showToast("Login successful.");
       }
-
       if (pendingAction) {
         await continuePurchase(pendingAction);
       } else {
@@ -730,10 +628,6 @@ const playSample = async (voice: Voice) => {
     }
   };
 
-  /* =========================================
-     API TESTING
-  ========================================= */
-
   const testMyApi = async () => {
     if (!user) {
       setAuthMode("login");
@@ -741,33 +635,26 @@ const playSample = async (voice: Voice) => {
       showToast("Please login first.", "error");
       return;
     }
-
     if (!realKey) {
       showToast("Collect your free API key first.", "error");
       return;
     }
-
     if (!testText.trim()) {
       showToast("Enter text to generate speech.", "error");
       return;
     }
-
     setTestingApi(true);
     setTestAudio("");
     setTestStatus("Generating...");
     setTestTime(null);
-
     const started = Date.now();
-
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       if (!session?.access_token) {
         throw new Error("Your session has expired.");
       }
-
       const response = await fetch(
         "/api/tts/generate",
         {
@@ -782,29 +669,22 @@ const playSample = async (voice: Voice) => {
           }),
         }
       );
-
       const result = await response.json();
-
       if (!response.ok || !result.success) {
         throw new Error(
           result.error || `Generation failed: ${response.status}`
         );
       }
-
       const audioUrl =
         result.audio_url || result.audioUrl;
-
       if (!audioUrl) {
         throw new Error("No audio was returned.");
       }
-
       setTestAudio(audioUrl);
       setTestTime(Date.now() - started);
       setTestCredits(result.remaining_credits ?? null);
       setTestStatus("Success!");
-
       showToast("API test successful!");
-
       await loadData();
     } catch (error: any) {
       setTestStatus(error.message);
@@ -814,23 +694,15 @@ const playSample = async (voice: Voice) => {
     }
   };
 
-  /* =========================================
-     LOGOUT
-  ========================================= */
-
   const logout = async () => {
     await supabase.auth.signOut();
-
     setUser(null);
     setApiKey("");
     setRealKey("");
     setFreeLeft(0);
     setPaidLeft(0);
-
     showToast("Logged out successfully.");
-  };  /* =========================================
-     LOADING SCREEN
-  ========================================= */
+  };
 
   if (!mounted) {
     return (
@@ -848,10 +720,6 @@ const playSample = async (voice: Voice) => {
     );
   }
 
-  /* =========================================
-     MAIN INTERFACE
-  ========================================= */
-
   return (
     <div
       style={{
@@ -863,125 +731,22 @@ const playSample = async (voice: Voice) => {
       }}
     >
       <style>{`
-        * {
-          box-sizing: border-box;
-        }
-
-        button {
-          cursor: pointer;
-        }
-
-        button:active {
-          transform: scale(.97);
-        }
-
-        .market-modal {
-          position: fixed;
-          inset: 0;
-          z-index: 200;
-          background: rgba(0,0,0,.85);
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-        }
-
-        .market-modal-card {
-          width: 100%;
-          max-width: 420px;
-          max-height: 88vh;
-          overflow-y: auto;
-          background: #0D170D;
-          border-top: 2px solid #00E676;
-          border-radius: 20px 20px 0 0;
-          padding: 18px 14px 30px;
-        }
-
-        .market-input {
-          width: 100%;
-          background: #071007;
-          color: white;
-          border: 1px solid #1E4D2B;
-          border-radius: 10px;
-          padding: 14px;
-          outline: none;
-          font-size: 14px;
-          margin-top: 6px;
-        }
-
-        .market-label {
-          display: block;
-          color: #A5D6A7;
-          font-size: 11px;
-          font-weight: 800;
-          margin-top: 14px;
-        }
-
-        .cat-scroll {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          padding: 10px 0 6px;
-          scrollbar-width: none;
-        }
-
-        .cat-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        .voice-card {
-          background: #121C12;
-          border: 1px solid #1E2F1E;
-          border-radius: 16px;
-          padding: 14px;
-          margin-top: 10px;
-        }
-
-        .bottom-nav {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background: #0A150A;
-          border-top: 1px solid #1E2F1E;
-          display: flex;
-          justify-content: space-around;
-          padding: 8px 0 12px;
-          z-index: 100;
-          max-width: 420px;
-          margin: 0 auto;
-        }
-
-        .nav-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 3px;
-          background: none;
-          border: none;
-          color: #777;
-          font-size: 9px;
-          font-weight: 800;
-          text-decoration: none;
-        }
-
-        .nav-item.active {
-          color: #00E676;
-        }
-
-        .nav-icon {
-          font-size: 20px;
-        }
-
-        @media (min-width: 600px) {
-          .market-content {
-            max-width: 420px;
-            margin: auto;
-          }
-        }
+        * { box-sizing: border-box; }
+        button { cursor: pointer; }
+        button:active { transform: scale(.97); }
+        .market-modal { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.85); display: flex; align-items: flex-end; justify-content: center; }
+        .market-modal-card { width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto; background: #0D170D; border-top: 2px solid #00E676; border-radius: 20px 20px 0 0; padding: 18px 14px 30px; }
+        .market-input { width: 100%; background: #071007; color: white; border: 1px solid #1E4D2B; border-radius: 10px; padding: 14px; outline: none; font-size: 14px; margin-top: 6px; }
+        .market-label { display: block; color: #A5D6A7; font-size: 11px; font-weight: 800; margin-top: 14px; }
+        .cat-scroll { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 6px; scrollbar-width: none; }
+        .cat-scroll::-webkit-scrollbar { display: none; }
+        .voice-card { background: #121C12; border: 1px solid #1E2F1E; border-radius: 16px; padding: 14px; margin-top: 10px; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0A150A; border-top: 1px solid #1E2F1E; display: flex; justify-content: space-around; padding: 8px 0 12px; z-index: 100; max-width: 420px; margin: 0 auto; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; color: #777; font-size: 9px; font-weight: 800; text-decoration: none; }
+        .nav-item.active { color: #00E676; }
+        .nav-icon { font-size: 20px; }
+        @media (min-width: 600px) { .market-content { max-width: 420px; margin: auto; } }
       `}</style>
-
-      {/* TOAST */}
-
       {toast && (
         <div
           style={{
@@ -989,8 +754,7 @@ const playSample = async (voice: Voice) => {
             top: 16,
             left: "50%",
             transform: "translateX(-50%)",
-            background:
-              toastType === "error" ? "#FF5252" : "#00E676",
+            background: toastType === "error" ? "#FF5252" : "#00E676",
             color: toastType === "error" ? "white" : "black",
             padding: "10px 18px",
             borderRadius: 20,
@@ -1004,1008 +768,197 @@ const playSample = async (voice: Voice) => {
           {toast}
         </div>
       )}
-
-      {/* CART MODAL */}
-
       {showCart && (
-        <div
-          className="market-modal"
-          onClick={() => setShowCart(false)}
-        >
-          <div
-            className="market-modal-card"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ color: "white", fontWeight: 900 }}>
-                🛒 Cart ({cart.length})
-              </div>
-
-              <button
-                onClick={() => setShowCart(false)}
-                style={{
-                  background: "#263326",
-                  border: "none",
-                  color: "white",
-                  borderRadius: "50%",
-                  width: 34,
-                  height: 34,
-                }}
-              >
-                ×
-              </button>
+        <div className="market-modal" onClick={() => setShowCart(false)}>
+          <div className="market-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ color: "white", fontWeight: 900 }}>🛒 Cart ({cart.length})</div>
+              <button onClick={() => setShowCart(false)} style={{ background: "#263326", border: "none", color: "white", borderRadius: "50%", width: 34, height: 34 }}>×</button>
             </div>
-
             {cart.length === 0 ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: 30,
-                  color: "#777",
-                }}
-              >
-                Your cart is empty.
-              </div>
+              <div style={{ textAlign: "center", padding: 30, color: "#777" }}>Your cart is empty.</div>
             ) : (
               <>
                 {cart.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      background: "#121C12",
-                      padding: 12,
-                      borderRadius: 10,
-                      marginTop: 10,
-                    }}
-                  >
+                  <div key={item.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#121C12", padding: 12, borderRadius: 10, marginTop: 10 }}>
                     <div>
-                      <div
-                        style={{
-                          color: "white",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {item.name}
-                      </div>
-
-                      <div
-                        style={{
-                          color: "#FFD600",
-                          fontSize: 11,
-                        }}
-                      >
-                        Voice preview
-                      </div>
+                      <div style={{ color: "white", fontWeight: 800 }}>{item.name}</div>
+                      <div style={{ color: "#FFD600", fontSize: 11 }}>Voice preview</div>
                     </div>
-
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      style={{
-                        background: "#FF5252",
-                        color: "white",
-                        border: "none",
-                        padding: "8px 12px",
-                        borderRadius: 8,
-                      }}
-                    >
-                      Remove
-                    </button>
+                    <button onClick={() => removeFromCart(item.id)} style={{ background: "#FF5252", color: "white", border: "none", padding: "8px 12px", borderRadius: 8 }}>Remove</button>
                   </div>
                 ))}
-
-                <p
-                  style={{
-                    color: "#FFD600",
-                    fontSize: 11,
-                    marginTop: 15,
-                  }}
-                >
-                  Checkout is not connected to voice purchases yet.
-                </p>
+                <p style={{ color: "#FFD600", fontSize: 11, marginTop: 15 }}>Checkout is not connected to voice purchases yet.</p>
               </>
             )}
           </div>
         </div>
       )}
-
-      {/* AUTH MODAL */}
-
       {showAuth && (
-        <div
-          className="market-modal"
-          onClick={() => !loading && setShowAuth(false)}
-        >
-          <div
-            className="market-modal-card"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white" }}>
-                {authMode === "signup"
-                  ? "Create Account"
-                  : "Welcome Back"}
-              </h2>
-
-              <button
-                onClick={() => setShowAuth(false)}
-                style={{
-                  background: "#263326",
-                  border: "none",
-                  color: "white",
-                  borderRadius: "50%",
-                  width: 34,
-                  height: 34,
-                }}
-              >
-                ×
-              </button>
+        <div className="market-modal" onClick={() => !loading && setShowAuth(false)}>
+          <div className="market-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ color: "white" }}>{authMode === "signup" ? "Create Account" : "Welcome Back"}</h2>
+              <button onClick={() => setShowAuth(false)} style={{ background: "#263326", border: "none", color: "white", borderRadius: "50%", width: 34, height: 34 }}>×</button>
             </div>
-
             <form onSubmit={submitAuth}>
               <label className="market-label">EMAIL</label>
-
-              <input
-                className="market-input"
-                type="email"
-                value={authEmail}
-                onChange={(event) =>
-                  setAuthEmail(event.target.value)
-                }
-                required
-              />
-
+              <input className="market-input" type="email" value={authEmail} onChange={(event) => setAuthEmail(event.target.value)} required />
               <label className="market-label">PASSWORD</label>
-
-              <input
-                className="market-input"
-                type="password"
-                value={authPassword}
-                onChange={(event) =>
-                  setAuthPassword(event.target.value)
-                }
-                required
-              />
-
+              <input className="market-input" type="password" value={authPassword} onChange={(event) => setAuthPassword(event.target.value)} required />
               {authMode === "signup" && (
                 <>
-                  <label className="market-label">
-                    CONFIRM PASSWORD
-                  </label>
-
-                  <input
-                    className="market-input"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) =>
-                      setConfirmPassword(event.target.value)
-                    }
-                    required
-                  />
+                  <label className="market-label">CONFIRM PASSWORD</label>
+                  <input className="market-input" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
                 </>
               )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  marginTop: 20,
-                  background: "#00E676",
-                  color: "black",
-                  border: "none",
-                  borderRadius: 12,
-                  padding: 16,
-                  fontWeight: 900,
-                }}
-              >
-                {loading
-                  ? "PLEASE WAIT..."
-                  : authMode === "signup"
-                  ? "CREATE ACCOUNT →"
-                  : "LOGIN →"}
+              <button type="submit" disabled={loading} style={{ width: "100%", marginTop: 20, background: "#00E676", color: "black", border: "none", borderRadius: 12, padding: 16, fontWeight: 900 }}>
+                {loading ? "PLEASE WAIT..." : authMode === "signup" ? "CREATE ACCOUNT →" : "LOGIN →"}
               </button>
             </form>
-
-            <div
-              style={{
-                textAlign: "center",
-                color: "#999",
-                fontSize: 11,
-                marginTop: 18,
-              }}
-            >
-              {authMode === "signup"
-                ? "Already have an account?"
-                : "Don't have an account?"}
-
-              <button
-                onClick={() =>
-                  setAuthMode(
-                    authMode === "signup" ? "login" : "signup"
-                  )
-                }
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#00E676",
-                  fontWeight: 900,
-                  marginLeft: 6,
-                }}
-              >
+            <div style={{ textAlign: "center", color: "#999", fontSize: 11, marginTop: 18 }}>
+              {authMode === "signup" ? "Already have an account?" : "Don't have an account?"}
+              <button onClick={() => setAuthMode(authMode === "signup" ? "login" : "signup")} style={{ background: "none", border: "none", color: "#00E676", fontWeight: 900, marginLeft: 6 }}>
                 {authMode === "signup" ? "Login" : "Register"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* MAIN CONTENT */}
-
-      <div
-        className="market-content"
-        style={{
-          maxWidth: 420,
-          margin: "0 auto",
-          padding: 12,
-        }}
-      >
-        {/* HEADER */}
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 900,
-              color: "white",
-              fontSize: 15,
-            }}
-          >
-            MAIN NAIJA PIDGIN
-          </div>
-
-          <button
-            onClick={() => setShowCart(true)}
-            style={{
-              background: "#FFD600",
-              border: "none",
-              borderRadius: 20,
-              padding: "7px 14px",
-              fontWeight: 900,
-            }}
-          >
-            🛒 {cart.length}
-          </button>
+      <div className="market-content" style={{ maxWidth: 420, margin: "0 auto", padding: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: 900, color: "white", fontSize: 15 }}>MAIN NAIJA PIDGIN</div>
+          <button onClick={() => setShowCart(true)} style={{ background: "#FFD600", border: "none", borderRadius: 20, padding: "7px 14px", fontWeight: 900 }}>🛒 {cart.length}</button>
         </div>
-
-        {/* STATISTICS */}
-
-        <div
-          style={{
-            marginTop: 12,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              background: "#121C12",
-              borderRadius: 12,
-              padding: 10,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 900, color: "#00E676" }}>
-              {realStats.totalUsers || "—"}
-            </div>
-
-            <div style={{ fontSize: 8, color: "#777" }}>
-              USERS
-            </div>
+        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ background: "#121C12", borderRadius: 12, padding: 10, textAlign: "center" }}>
+            <div style={{ fontWeight: 900, color: "#00E676" }}>{realStats.totalUsers || "—"}</div>
+            <div style={{ fontSize: 8, color: "#777" }}>USERS</div>
           </div>
-
-          <div
-            style={{
-              background: "#121C12",
-              borderRadius: 12,
-              padding: 10,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 900, color: "#FFD600" }}>
-              {realStats.totalVoices}
-            </div>
-
-            <div style={{ fontSize: 8, color: "#777" }}>
-              VOICES
-            </div>
+          <div style={{ background: "#121C12", borderRadius: 12, padding: 10, textAlign: "center" }}>
+            <div style={{ fontWeight: 900, color: "#FFD600" }}>{realStats.totalVoices}</div>
+            <div style={{ fontSize: 8, color: "#777" }}>VOICES</div>
           </div>
-
-          <div
-            style={{
-              background: "#121C12",
-              borderRadius: 12,
-              padding: 10,
-              textAlign: "center",
-            }}
-          >
-            <div style={{ fontWeight: 900, color: "white" }}>
-              {realStats.totalSales || "—"}
-            </div>
-
-            <div style={{ fontSize: 8, color: "#777" }}>
-              API USED
-            </div>
+          <div style={{ background: "#121C12", borderRadius: 12, padding: 10, textAlign: "center" }}>
+            <div style={{ fontWeight: 900, color: "white" }}>{myLocalVoices.length} RECORDED</div>
+            <div style={{ fontSize: 8, color: "#777" }}>YOUR VOICES</div>
           </div>
         </div>
-
-        {/* ANNOUNCEMENTS */}
-
+        {myLocalVoices.length > 0 && (
+          <div style={{ background: "#102010", padding: 12, borderRadius: 12, marginTop: 12, color: "#00E676", fontSize: 11, fontWeight: 800 }}>
+            🎙️ {myLocalVoices.length} Recorded Voices Found - Using your real recorded voices! Names: {myLocalVoices.map((v: any) => v.name).join(", ")}
+          </div>
+        )}
         {announces.length > 0 && (
-          <div
-            style={{
-              background: "#102010",
-              padding: 12,
-              borderRadius: 12,
-              marginTop: 12,
-            }}
-          >
-            <div
-              style={{
-                color: "#00E676",
-                fontWeight: 900,
-                fontSize: 11,
-              }}
-            >
-              📢 ANNOUNCEMENTS
-            </div>
-
+          <div style={{ background: "#102010", padding: 12, borderRadius: 12, marginTop: 12 }}>
+            <div style={{ color: "#00E676", fontWeight: 900, fontSize: 11 }}>📢 ANNOUNCEMENTS</div>
             {announces.map((announcement) => (
-              <button
-                key={announcement.id}
-                onClick={() =>
-                  setSelectedAnnouncement(announcement)
-                }
-                style={{
-                  display: "block",
-                  width: "100%",
-                  background: "transparent",
-                  color: "white",
-                  textAlign: "left",
-                  border: "none",
-                  padding: "8px 0",
-                  fontSize: 12,
-                }}
-              >
+              <button key={announcement.id} onClick={() => setSelectedAnnouncement(announcement)} style={{ display: "block", width: "100%", background: "transparent", color: "white", textAlign: "left", border: "none", padding: "8px 0", fontSize: 12 }}>
                 {announcement.title}
               </button>
             ))}
           </div>
         )}
-
-        {/* ANNOUNCEMENT DETAILS */}
-
         {selectedAnnouncement && (
-          <div
-            style={{
-              background: "#142414",
-              padding: 14,
-              borderRadius: 12,
-              marginTop: 10,
-            }}
-          >
-            <div style={{ fontWeight: 900 }}>
-              {selectedAnnouncement.title}
-            </div>
-
-            <p style={{ fontSize: 12, color: "#CCC" }}>
-              {selectedAnnouncement.message}
-            </p>
-
-            <button
-              onClick={() => setSelectedAnnouncement(null)}
-              style={{
-                background: "#00E676",
-                border: "none",
-                borderRadius: 8,
-                padding: 8,
-                fontWeight: 900,
-              }}
-            >
-              Close
-            </button>
+          <div style={{ background: "#142414", padding: 14, borderRadius: 12, marginTop: 10 }}>
+            <div style={{ fontWeight: 900 }}>{selectedAnnouncement.title}</div>
+            <p style={{ fontSize: 12, color: "#CCC" }}>{selectedAnnouncement.message}</p>
+            <button onClick={() => setSelectedAnnouncement(null)} style={{ background: "#00E676", border: "none", borderRadius: 8, padding: 8, fontWeight: 900 }}>Close</button>
           </div>
         )}
-
-        {/* HOME TAB */}
-
         {activeTab === "home" && (
           <>
-            <input
-              placeholder="🔍 Search voices..."
-              value={searchTerm}
-              onChange={(event) =>
-                setSearchTerm(event.target.value)
-              }
-              style={{
-                width: "100%",
-                marginTop: 14,
-                background: "#121C12",
-                border: "1px solid #00E676",
-                borderRadius: 12,
-                padding: "13px 14px",
-                color: "white",
-                outline: "none",
-              }}
-            />
-
-            {/* CATEGORY FILTER */}
-
+            <input placeholder="🔍 Search voices..." value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} style={{ width: "100%", marginTop: 14, background: "#121C12", border: "1px solid #00E676", borderRadius: 12, padding: "13px 14px", color: "white", outline: "none" }} />
             <div className="cat-scroll">
               {CATEGORIES.map((category) => (
-                <button
-                  key={category}
-                  onClick={() =>
-                    setSelectedCategory(category)
-                  }
-                  style={{
-                    background:
-                      selectedCategory === category
-                        ? "#00E676"
-                        : "#121C12",
-                    color:
-                      selectedCategory === category
-                        ? "black"
-                        : "#AAA",
-                    border: "1px solid #1E2F1E",
-                    padding: "8px 14px",
-                    borderRadius: 20,
-                    fontSize: 11,
-                    fontWeight: 800,
-                    whiteSpace: "nowrap",
-                  }}
-                >
+                <button key={category} onClick={() => setSelectedCategory(category)} style={{ background: selectedCategory === category ? "#00E676" : "#121C12", color: selectedCategory === category ? "black" : "#AAA", border: "1px solid #1E2F1E", padding: "8px 14px", borderRadius: 20, fontSize: 11, fontWeight: 800, whiteSpace: "nowrap" }}>
                   {category}
                 </button>
               ))}
             </div>
-
-            <div
-              style={{
-                marginTop: 14,
-                fontWeight: 900,
-                color: "white",
-              }}
-            >
-              Voices • 🔒 Login to Listen • {filteredVoices.length} found
-            </div>
-
-            {/* VOICE CARDS */}
-
-            {filteredVoices.length === 0 && (
-              <p style={{ color: "#888", fontSize: 12 }}>
-                No voices found.
-              </p>
-            )}
-
+            <div style={{ marginTop: 14, fontWeight: 900, color: "white" }}>Voices • 🔒 Login to Listen • {filteredVoices.length} found • 🎙️ {myLocalVoices.length} Recorded</div>
+            {filteredVoices.length === 0 && <p style={{ color: "#888", fontSize: 12 }}>No voices found.</p>}
             {filteredVoices.map((voice) => (
-              <div
-                key={voice.id}
-                className="voice-card"
-                style={{
-                  border: voice.isFeatured
-                    ? "1.5px solid #FFD600"
-                    : "1px solid #1E2F1E",
-                  background:
-                    voice.tag === "FEMALE"
-                      ? "#1A1218"
-                      : "#121C12",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "center",
-                  }}
-                >
-                  <button
-                    onClick={() => playSample(voice)}
-                    style={{
-                      width: 50,
-                      height: 50,
-                      flexShrink: 0,
-                      background:
-                        playingId === voice.id
-                          ? "#FF5252"
-                          : "#1E2F1E",
-                      borderRadius: "50%",
-                      border: "none",
-                      color: "#00E676",
-                    }}
-                  >
+              <div key={voice.id} className="voice-card" style={{ border: voice.isFeatured ? "1.5px solid #FFD600" : "1px solid #1E2F1E", background: voice.tag === "FEMALE" ? "#1A1218" : "#121C12" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <button onClick={() => playSample(voice)} style={{ width: 50, height: 50, flexShrink: 0, background: playingId === voice.id ? "#FF5252" : "#1E2F1E", borderRadius: "50%", border: "none", color: "#00E676" }}>
                     {playingId === voice.id ? "■" : "▶"}
                   </button>
-
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        color: "white",
-                        fontWeight: 900,
-                        fontSize: 13,
-                      }}
-                    >
-                      {voice.name}
-                      {voice.isFeatured && " 🏆"}
-                      {voice.tag === "FEMALE" && " 👩"}
-                    </div>
-
-                    <div
-                      style={{
-                        color: "#888",
-                        fontSize: 11,
-                      }}
-                    >
-                      {voice.accent}
-                    </div>
-
-                    <div
-                      style={{
-                        color: "#FFD600",
-                        fontSize: 10,
-                      }}
-                    >
-                      ⭐ {voice.rating} • {voice.sales} sales
-                    </div>
-
-                    {voice.isBestSeller && (
-                      <div
-                        style={{
-                          color: "#00E676",
-                          fontSize: 9,
-                          fontWeight: 900,
-                          marginTop: 4,
-                        }}
-                      >
-                        ★ BEST SELLER
-                      </div>
-                    )}
+                    <div style={{ color: "white", fontWeight: 900, fontSize: 13 }}>{voice.name}{voice.isFeatured && " 🏆"}{voice.tag === "FEMALE" && " 👩"}</div>
+                    <div style={{ color: "#888", fontSize: 11 }}>{voice.accent}</div>
+                    <div style={{ color: "#FFD600", fontSize: 10 }}>⭐ {voice.rating} • {voice.sales} sales {voice.audioData ? "• 🎙️ YOUR VOICE" : "• MP3"}</div>
+                    {voice.isBestSeller && <div style={{ color: "#00E676", fontSize: 9, fontWeight: 900, marginTop: 4 }}>★ BEST SELLER</div>}
                   </div>
                 </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 8,
-                    marginTop: 12,
-                  }}
-                >
-                  <button
-                    onClick={() => addToCart(voice)}
-                    style={{
-                      background: "#0A1A0A",
-                      color: "#00E676",
-                      border: "1px solid #1E4D2B",
-                      padding: 12,
-                      borderRadius: 10,
-                      fontWeight: 900,
-                      fontSize: 11,
-                    }}
-                  >
-                    🛒 Add to Cart
-                  </button>
-
-                  <button
-                    onClick={() => buy("pro")}
-                    style={{
-                      background:
-                        voice.tag === "FEMALE"
-                          ? "#FF1493"
-                          : "white",
-                      color:
-                        voice.tag === "FEMALE"
-                          ? "white"
-                          : "black",
-                      border: "none",
-                      padding: 12,
-                      borderRadius: 10,
-                      fontWeight: 900,
-                      fontSize: 11,
-                    }}
-                  >
-                    💳 Buy ₦5,000
-                  </button>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
+                  <button onClick={() => addToCart(voice)} style={{ background: "#0A1A0A", color: "#00E676", border: "1px solid #1E4D2B", padding: 12, borderRadius: 10, fontWeight: 900, fontSize: 11 }}>🛒 Add to Cart</button>
+                  <button onClick={() => buy("pro")} style={{ background: voice.tag === "FEMALE" ? "#FF1493" : "white", color: voice.tag === "FEMALE" ? "white" : "black", border: "none", padding: 12, borderRadius: 10, fontWeight: 900, fontSize: 11 }}>💳 Buy ₦5,000</button>
                 </div>
+                {!voice.audioData && <Link href="/clone" style={{ display: "block", textAlign: "center", marginTop: 8, color: "#FFD600", fontSize: 11, fontWeight: 800, textDecoration: "none" }}>🎙️ Record {voice.name} → Go to Clone</Link>}
               </div>
             ))}
           </>
-        )}        {/* =====================================
-            API TESTING TAB
-        ===================================== */}
-
+        )}
         {activeTab === "api" && (
-          <div
-            style={{
-              marginTop: 12,
-              background: "#0F1A0F",
-              border: "1.5px solid #00E676",
-              borderRadius: 14,
-              padding: 14,
-            }}
-          >
-            <div
-              style={{
-                color: "#00E676",
-                fontWeight: 900,
-              }}
-            >
-              🧪 API TESTING - 6 VOICES
-            </div>
-
-            <div
-              style={{
-                color: "#AAA",
-                fontSize: 11,
-                marginTop: 8,
-              }}
-            >
-              Free requests: {freeLeft}
-              <br />
-              Paid requests: {paidLeft}
-            </div>
-
+          <div style={{ marginTop: 12, background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: 14, padding: 14 }}>
+            <div style={{ color: "#00E676", fontWeight: 900 }}>🧪 API TESTING - 5 VOICES</div>
+            <div style={{ color: "#AAA", fontSize: 11, marginTop: 8 }}>Free requests: {freeLeft}<br />Paid requests: {paidLeft}<br />Recorded: {myLocalVoices.length}</div>
             {!realKey && (
-              <button
-                onClick={claimFree}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                  background: "#FFD600",
-                  color: "black",
-                  border: "none",
-                  padding: 13,
-                  borderRadius: 10,
-                  fontWeight: 900,
-                }}
-              >
+              <button onClick={claimFree} disabled={loading} style={{ width: "100%", marginTop: 12, background: "#FFD600", color: "black", border: "none", padding: 13, borderRadius: 10, fontWeight: 900 }}>
                 {loading ? "PLEASE WAIT..." : "GET 100 FREE REQUESTS"}
               </button>
             )}
-
             <label className="market-label">TEXT</label>
-
-            <textarea
-              className="market-input"
-              value={testText}
-              onChange={(event) =>
-                setTestText(event.target.value)
-              }
-              rows={3}
-              placeholder="Type Pidgin text here..."
-            />
-
+            <textarea className="market-input" value={testText} onChange={(event) => setTestText(event.target.value)} rows={3} placeholder="Type Pidgin text here..." />
             <label className="market-label">VOICE</label>
-
-            <select
-              className="market-input"
-              value={testVoice}
-              onChange={(event) =>
-                setTestVoice(event.target.value)
-              }
-            >
+            <select className="market-input" value={testVoice} onChange={(event) => setTestVoice(event.target.value)}>
               {DEFAULT_VOICES.map((voice) => (
-                <option
-                  key={voice.id}
-                  value={voice.name}
-                >
-                  {voice.name} - {voice.tag}
-                </option>
+                <option key={voice.id} value={voice.name}>{voice.name} - {voice.tag}</option>
               ))}
             </select>
-
-            <button
-              onClick={testMyApi}
-              disabled={testingApi}
-              style={{
-                width: "100%",
-                marginTop: 14,
-                padding: 16,
-                border: "none",
-                borderRadius: 12,
-                background: "#00E676",
-                color: "black",
-                fontWeight: 900,
-              }}
-            >
-              {testingApi
-                ? "GENERATING..."
-                : "▶ TEST MY API"}
+            <button onClick={testMyApi} disabled={testingApi} style={{ width: "100%", marginTop: 14, padding: 16, border: "none", borderRadius: 12, background: "#00E676", color: "black", fontWeight: 900 }}>
+              {testingApi ? "GENERATING..." : "▶ TEST MY API"}
             </button>
-
-            {testStatus && (
-              <div
-                style={{
-                  marginTop: 12,
-                  padding: 10,
-                  background: "#071007",
-                  color: "#00E676",
-                  fontSize: 11,
-                }}
-              >
-                {testStatus}
-              </div>
-            )}
-
-            {testAudio && (
-              <audio
-                controls
-                src={testAudio}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                }}
-              />
-            )}
-
-            {testTime !== null && (
-              <div
-                style={{
-                  color: "#AAA",
-                  fontSize: 11,
-                  marginTop: 8,
-                }}
-              >
-                Generation time: {testTime} ms
-              </div>
-            )}
-
-            {testCredits !== null && (
-              <div
-                style={{
-                  color: "#AAA",
-                  fontSize: 11,
-                  marginTop: 5,
-                }}
-              >
-                Remaining credits: {testCredits}
-              </div>
-            )}
+            {testStatus && <div style={{ marginTop: 12, padding: 10, background: "#071007", color: "#00E676", fontSize: 11 }}>{testStatus}</div>}
+            {testAudio && <audio controls src={testAudio} style={{ width: "100%", marginTop: 12 }} />}
+            {testTime !== null && <div style={{ color: "#AAA", fontSize: 11, marginTop: 8 }}>Generation time: {testTime} ms</div>}
+            {testCredits !== null && <div style={{ color: "#AAA", fontSize: 11, marginTop: 5 }}>Remaining credits: {testCredits}</div>}
           </div>
         )}
-
-        {/* =====================================
-            PRICING TAB
-        ===================================== */}
-
         {activeTab === "pricing" && (
           <div style={{ marginTop: 12 }}>
-            <div
-              style={{
-                fontWeight: 900,
-                color: "white",
-                fontSize: 17,
-              }}
-            >
-              Choose Your API Plan
+            <div style={{ fontWeight: 900, color: "white", fontSize: 17 }}>Choose Your API Plan</div>
+            <div style={{ background: "#102010", border: "1px solid #00E676", borderRadius: 16, padding: 16, marginTop: 12 }}>
+              <div style={{ fontWeight: 900, color: "#00E676" }}>FREE STARTER</div>
+              <div style={{ fontSize: 23, fontWeight: 900, color: "white", marginTop: 8 }}>₦0</div>
+              <div style={{ color: "#AAA", fontSize: 12 }}>100 free API requests</div>
+              <button onClick={claimFree} disabled={loading} style={{ width: "100%", marginTop: 12, background: "#00E676", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>GET FREE KEY</button>
             </div>
-
-            {/* FREE PLAN */}
-
-            <div
-              style={{
-                background: "#102010",
-                border: "1px solid #00E676",
-                borderRadius: 16,
-                padding: 16,
-                marginTop: 12,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 900,
-                  color: "#00E676",
-                }}
-              >
-                FREE STARTER
-              </div>
-
-              <div
-                style={{
-                  fontSize: 23,
-                  fontWeight: 900,
-                  color: "white",
-                  marginTop: 8,
-                }}
-              >
-                ₦0
-              </div>
-
-              <div
-                style={{
-                  color: "#AAA",
-                  fontSize: 12,
-                }}
-              >
-                100 free API requests
-              </div>
-
-              <button
-                onClick={claimFree}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                  background: "#00E676",
-                  color: "black",
-                  border: "none",
-                  padding: 14,
-                  borderRadius: 10,
-                  fontWeight: 900,
-                }}
-              >
-                GET FREE KEY
-              </button>
-            </div>
-
-            {/* PRO PLAN */}
-
-            <div
-              style={{
-                background: "#1A150A",
-                border: "2px solid #FFD600",
-                borderRadius: 16,
-                padding: 16,
-                marginTop: 12,
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 900,
-                  color: "white",
-                }}
-              >
-                👑 PRO - 1,000 REQUESTS
-              </div>
-
-              <div
-                style={{
-                  fontSize: 23,
-                  fontWeight: 900,
-                  color: "white",
-                  marginTop: 8,
-                }}
-              >
-                ₦5,000
-              </div>
-
-              <button
-                onClick={() => requireAccount("pro")}
-                disabled={loading}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                  background: "#FFD600",
-                  color: "black",
-                  border: "none",
-                  padding: 14,
-                  borderRadius: 10,
-                  fontWeight: 900,
-                }}
-              >
-                BUY WITH PAYSTACK
-              </button>
+            <div style={{ background: "#1A150A", border: "2px solid #FFD600", borderRadius: 16, padding: 16, marginTop: 12 }}>
+              <div style={{ fontWeight: 900, color: "white" }}>👑 PRO - 1,000 REQUESTS</div>
+              <div style={{ fontSize: 23, fontWeight: 900, color: "white", marginTop: 8 }}>₦5,000</div>
+              <button onClick={() => requireAccount("pro")} disabled={loading} style={{ width: "100%", marginTop: 12, background: "#FFD600", color: "black", border: "none", padding: 14, borderRadius: 10, fontWeight: 900 }}>BUY WITH PAYSTACK</button>
             </div>
           </div>
         )}
-
-        {/* ACCOUNT DETAILS */}
-
-        <div
-          style={{
-            textAlign: "center",
-            fontSize: 9,
-            color: "#666",
-            marginTop: 20,
-            paddingBottom: 10,
-          }}
-        >
+        <div style={{ textAlign: "center", fontSize: 9, color: "#666", marginTop: 20, paddingBottom: 10 }}>
           {user ? user.email : "Guest - Login to listen"}
           <br />
-          6 Voices • Warri Babe Featured
+          5 Voices • Warri Babe Featured • Your Recorded Voice First
         </div>
-
         {user && (
-          <button
-            onClick={logout}
-            style={{
-              display: "block",
-              margin: "10px auto",
-              background: "#263326",
-              color: "white",
-              border: "none",
-              borderRadius: 10,
-              padding: 10,
-              fontSize: 11,
-              fontWeight: 800,
-            }}
-          >
+          <button onClick={logout} style={{ display: "block", margin: "10px auto", background: "#263326", color: "white", border: "none", borderRadius: 10, padding: 10, fontSize: 11, fontWeight: 800 }}>
             LOG OUT
           </button>
         )}
       </div>
-
-      {/* =====================================
-          BOTTOM NAVIGATION
-      ===================================== */}
-
       <div className="bottom-nav">
-        <button
-          className={`nav-item ${
-            activeTab === "home" ? "active" : ""
-          }`}
-          onClick={() => setActiveTab("home")}
-        >
-          <span className="nav-icon">🏠</span>
-          Home
-        </button>
-
-        <button
-          className={`nav-item ${
-            activeTab === "api" ? "active" : ""
-          }`}
-          onClick={() => setActiveTab("api")}
-        >
-          <span className="nav-icon">🧪</span>
-          Test API
-        </button>
-
-        <button
-          className={`nav-item ${
-            activeTab === "pricing" ? "active" : ""
-          }`}
-          onClick={() => setActiveTab("pricing")}
-        >
-          <span className="nav-icon">💳</span>
-          Pricing
-        </button>
-
-        <button
-          className="nav-item"
-          onClick={() => setShowCart(true)}
-        >
-          <span className="nav-icon">🛒</span>
-          Cart
-        </button>
-
-        <Link
-          href="/clone"
-          className="nav-item"
-        >
-          <span className="nav-icon">🎙️</span>
-          Clone
-        </Link>
+        <button className={`nav-item ${activeTab === "home" ? "active" : ""}`} onClick={() => setActiveTab("home")}><span className="nav-icon">🏠</span>Home</button>
+        <button className={`nav-item ${activeTab === "api" ? "active" : ""}`} onClick={() => setActiveTab("api")}><span className="nav-icon">🧪</span>Test API</button>
+        <button className={`nav-item ${activeTab === "pricing" ? "active" : ""}`} onClick={() => setActiveTab("pricing")}><span className="nav-icon">💳</span>Pricing</button>
+        <button className="nav-item" onClick={() => setShowCart(true)}><span className="nav-icon">🛒</span>Cart</button>
+        <Link href="/clone" className="nav-item"><span className="nav-icon">🎙️</span>Clone</Link>
       </div>
     </div>
   );
