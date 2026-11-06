@@ -1,111 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
-class RouteError extends Error {
-  constructor(
-    message: string,
-    public status: number
-  ) {
-    super(message);
-  }
-}
-
-function getEnv(name: string) {
-  const value = process.env[name];
-  if (!value) {
-    throw new RouteError(`Missing configuration: ${name}`, 500);
-  }
-  return value;
-}
-
-async function verifyChairman(req: NextRequest) {
-  const url = getEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const anon = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  const service = getEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  const authorization = req.headers.get("authorization");
-
-  if (!authorization?.startsWith("Bearer ")) {
-    throw new RouteError("Please log in as Chairman.", 401);
-  }
-
-  const token = authorization.slice(7).trim();
-
-  const authClient = createClient(url, anon, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  const { data, error } =
-    await authClient.auth.getUser(token);
-
-  if (error || !data.user) {
-    throw new RouteError("Invalid session.", 401);
-  }
-
-  if (
-    data.user.email?.toLowerCase() !==
-    CHAIRMAN_EMAIL
-  ) {
-    throw new RouteError("Chairman access only.", 403);
-  }
-
-  return createClient(url, service, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-}
-
-export async function GET(req: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const admin = await verifyChairman(req);
+    const authorization = request.headers.get("authorization");
 
-    const { data, error } = await admin
-      .from("chairman_voices")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
-
-    if (error) {
-      throw new RouteError(error.message, 500);
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
     }
 
-    return NextResponse.json(
+    const token = authorization.replace("Bearer ", "").trim();
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "Missing access token" },
+        { status: 401 }
+      );
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        { error: "Supabase configuration is missing" },
+        { status: 500 }
+      );
+    }
+
+    const supabaseAuth = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
       {
-        success: true,
-        voices: data || [],
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store",
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
         },
       }
     );
-  } catch (error) {
-    const status =
-      error instanceof RouteError
-        ? error.status
-        : 500;
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser(token);
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: "Invalid or expired session" },
+        { status: 401 }
+      );
+    }
+
+    if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
+      return NextResponse.json(
+        { error: "Chairman access only" },
+        { status: 403 }
+      );
+    }
+
+    const { data: voices, error } = await supabaseAdmin
+      .from("chairman_voices")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Chairman voices database error:", error);
+
+      return NextResponse.json(
+        { error: "Could not load Chairman voices" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
-      {
-        success: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to load voices.",
-      },
-      { status }
+      { success: true, voices: voices ?? [] },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Chairman voices API error:", error);
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
     );
   }
 }
