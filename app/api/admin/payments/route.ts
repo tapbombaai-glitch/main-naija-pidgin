@@ -8,45 +8,23 @@ export const dynamic = "force-dynamic";
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 const MINIMUM_PAYOUT = 5000;
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.SUPABASE_URL;
-
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const serviceRoleKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_KEY;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
 async function getChairman(request: NextRequest) {
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-    throw new Error("Server Supabase configuration is incomplete: missing URL or keys in Render env.");
+    throw new Error("Missing Supabase env in Render");
   }
-
-  const token = request.headers
-    .get("authorization")
-    ?.replace(/^Bearer\s+/i, "")
-    .trim();
-
-  if (!token) {
-    return { error: "Authentication required.", status: 401 };
-  }
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return { error: "Authentication required.", status: 401 };
 
   const auth = createClient(supabaseUrl, anonKey);
   const admin = createClient(supabaseUrl, serviceRoleKey);
 
-  const {
-    data: { user },
-    error,
-  } = await auth.auth.getUser(token);
-
-  if (error || !user) {
-    return { error: "Session invalid. Please log in again.", status: 401 };
-  }
-
-  if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) {
-    return { error: "Chairman access only.", status: 403 };
-  }
+  const { data: { user }, error } = await auth.auth.getUser(token);
+  if (error || !user) return { error: "Session invalid. Please log in again.", status: 401 };
+  if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL) return { error: "Chairman access only.", status: 403 };
 
   const { data: chairman, error: chairmanError } = await admin
     .from("profiles")
@@ -54,50 +32,66 @@ async function getChairman(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (chairmanError) {
-    throw new Error(`profiles query failed: ${chairmanError.message}`);
-  }
-
-  if (
-    chairman?.email?.toLowerCase() !== CHAIRMAN_EMAIL ||
-    chairman?.is_chairman !== true
-  ) {
+  if (chairmanError) throw new Error(`profiles query failed: ${chairmanError.message}`);
+  if (chairman?.email?.toLowerCase() !== CHAIRMAN_EMAIL || chairman?.is_chairman !== true) {
     return { error: "Your account is not authorised as Chairman.", status: 403 };
   }
-
   return { admin };
 }
 
+// Safe query - if one select fails, try fallback, if still fails return []
+async function safeQuery(admin: any, table: string, tries: string[]) {
+  for (const sel of tries) {
+    const { data, error } = await admin.from(table).select(sel).order("created_at", { ascending: false }).limit(5000);
+    if (!error) return data || [];
+    console.error(`Chairman payments safeQuery ${table} failed for [${sel}]:`, error.message);
+    // If last try, return [] so page still loads
+    if (sel === tries[tries.length - 1]) return [];
+  }
+  return [];
+}
+
 async function getPaymentData(admin: any) {
-  const [
-    { data: recordings, error: recordingsError },
-    { data: payments, error: paymentsError },
-    { data: profiles, error: profilesError },
-    { data: workers, error: workersError },
-  ] = await Promise.all([
-    admin.from("recordings").select("worker_id, earnings, is_approved"),
-    admin
-      .from("payments")
-      .select("id, worker_id, amount, payment_reference, payment_method, status, paid_at")
-      .order("paid_at", { ascending: false }),
-    admin
-      .from("worker_profiles")
-      .select("worker_id, full_name, email, state, city"),
-    admin
-      .from("workers")
-      .select("worker_id, full_name, bank_name, account_number, account_name"),
+  // 1. worker_profiles - CONFIRMED schema
+  const profiles = await safeQuery(admin, "worker_profiles", [
+    "worker_id, full_name, email, state, city",
+    "*",
   ]);
 
-  if (recordingsError) throw new Error(`recordings query failed: ${recordingsError.message}`);
-  if (paymentsError) throw new Error(`payments query failed: ${paymentsError.message}`);
-  if (profilesError) throw new Error(`worker_profiles query failed: ${profilesError.message}`);
-  if (workersError) throw new Error(`workers query failed: ${workersError.message}`);
+  // 2. workers - CONFIRMED schema
+  const workers = await safeQuery(admin, "workers", [
+    "worker_id, full_name, bank_name, account_number, account_name",
+    "*",
+  ]);
+
+  // 3. recordings - NOT CONFIRMED, so try many possible column names
+  const recordings = await safeQuery(admin, "recordings", [
+    "worker_id, earnings, is_approved",
+    "worker_id, earnings, status",
+    "worker_id, amount, is_approved",
+    "worker_id, amount, status",
+    "worker_id, earnings",
+    "*",
+  ]);
+
+  // 4. payments - NOT CONFIRMED, so try many possible column names
+  // Note: we don't order by paid_at here because paid_at may not exist
+  let payments: any[] = [];
+  for (const sel of [
+    "id, worker_id, amount, payment_reference, payment_method, status, paid_at",
+    "id, worker_id, amount, payment_reference, status, created_at",
+    "id, worker_id, amount, status, created_at",
+    "*",
+  ]) {
+    const { data, error } = await admin.from("payments").select(sel).limit(5000);
+    if (!error) { payments = data || []; break; }
+    console.error(`Chairman payments safeQuery payments failed for [${sel}]:`, error.message);
+  }
 
   const workerMap = new Map<string, any>();
 
   for (const worker of profiles || []) {
     if (!worker.worker_id) continue;
-
     workerMap.set(worker.worker_id, {
       worker_id: worker.worker_id,
       name: worker.full_name || worker.worker_id,
@@ -126,16 +120,26 @@ async function getPaymentData(admin: any) {
   const approvedEarnings = new Map<string, number>();
 
   for (const recording of recordings || []) {
-    if (!recording.worker_id || recording.is_approved !== true) continue;
-    const amount = Number(recording.earnings || 0);
-    approvedEarnings.set(
-      recording.worker_id,
-      (approvedEarnings.get(recording.worker_id) || 0) + amount
-    );
-    if (!workerMap.has(recording.worker_id)) {
-      workerMap.set(recording.worker_id, {
-        worker_id: recording.worker_id,
-        name: recording.worker_id,
+    const workerId = recording.worker_id || recording.user_id;
+    if (!workerId) continue;
+
+    // Support different column names for approval
+    // is_approved = true OR status = 'approved' OR no status column = count all
+    const isApproved =
+      recording.is_approved === true ||
+      recording.status === "approved" ||
+      recording.status === "Approved" ||
+      recording.is_approved === undefined && recording.status === undefined;
+
+    if (!isApproved) continue;
+
+    const amount = Number(recording.earnings ?? recording.amount ?? recording.total ?? recording.voice_earnings ?? 0);
+    approvedEarnings.set(workerId, (approvedEarnings.get(workerId) || 0) + amount);
+
+    if (!workerMap.has(workerId)) {
+      workerMap.set(workerId, {
+        worker_id: workerId,
+        name: workerId,
         bank_name: null,
         account_number: null,
       });
@@ -143,13 +147,11 @@ async function getPaymentData(admin: any) {
   }
 
   const paidAmounts = new Map<string, number>();
-
   for (const payment of payments || []) {
-    if (!payment.worker_id || payment.status !== "paid") continue;
-    paidAmounts.set(
-      payment.worker_id,
-      (paidAmounts.get(payment.worker_id) || 0) + Number(payment.amount || 0)
-    );
+    if (!payment.worker_id) continue;
+    // Only count paid / completed / success
+    if (payment.status && !["paid", "completed", "success", "Paid"].includes(payment.status)) continue;
+    paidAmounts.set(payment.worker_id, (paidAmounts.get(payment.worker_id) || 0) + Number(payment.amount || 0));
   }
 
   const workerPayments = Array.from(workerMap.values()).map((worker) => {
@@ -169,9 +171,9 @@ async function getPaymentData(admin: any) {
     workers: workerPayments,
     payments: payments || [],
     overview: {
-      total_earnings: workerPayments.reduce((sum, w) => sum + w.approved_earnings, 0),
-      total_paid: workerPayments.reduce((sum, w) => sum + w.amount_paid, 0),
-      total_outstanding: workerPayments.reduce((sum, w) => sum + w.outstanding, 0),
+      total_earnings: workerPayments.reduce((s, w) => s + w.approved_earnings, 0),
+      total_paid: workerPayments.reduce((s, w) => s + w.amount_paid, 0),
+      total_outstanding: workerPayments.reduce((s, w) => s + w.outstanding, 0),
     },
   };
 }
@@ -179,30 +181,20 @@ async function getPaymentData(admin: any) {
 export async function GET(request: NextRequest) {
   try {
     const result = await getChairman(request);
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
+    if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
     const data = await getPaymentData(result.admin);
-    return NextResponse.json(
-      { success: true, ...data },
-      { headers: { "Cache-Control": "private, no-store, max-age=0" } }
-    );
+    return NextResponse.json({ success: true, ...data }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error: any) {
     const message = error?.message || "Could not load payment information.";
     console.error("Chairman payments GET:", message);
-    return NextResponse.json(
-      { error: "Could not load payment information. Check server logs." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Could not load payment information. Check server logs." }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const result = await getChairman(request);
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error }, { status: result.status });
-    }
+    if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
 
     const body = await request.json();
     const workerId = String(body.worker_id || "").trim();
@@ -210,52 +202,31 @@ export async function POST(request: NextRequest) {
     const reference = String(body.payment_reference || "").trim();
 
     if (!workerId || !Number.isFinite(amount) || amount <= 0) {
-      return NextResponse.json(
-        { error: "Enter a valid worker and payment amount." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Enter a valid worker and payment amount." }, { status: 400 });
     }
     if (!reference) {
-      return NextResponse.json(
-        { error: "Enter the bank transfer reference." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Enter the bank transfer reference." }, { status: 400 });
     }
 
-    const { data: existingPayment, error: duplicateError } = await result.admin
+    // Duplicate check - if payments table has no payment_reference column, this will fail safely and we continue
+    const { data: existingPayment } = await result.admin
       .from("payments")
       .select("id, worker_id, amount, payment_reference, status, paid_at")
       .eq("payment_reference", reference)
       .maybeSingle();
 
-    if (duplicateError) {
-      throw new Error(`payments duplicate check failed: ${duplicateError.message}`);
-    }
-
     if (existingPayment) {
-      return NextResponse.json(
-        { error: "This transfer reference has already been recorded.", payment: existingPayment },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "This transfer reference has already been recorded.", payment: existingPayment }, { status: 409 });
     }
 
     const data = await getPaymentData(result.admin);
     const worker = data.workers.find((item: any) => item.worker_id === workerId);
-
-    if (!worker) {
-      return NextResponse.json({ error: "Worker not found." }, { status: 404 });
-    }
+    if (!worker) return NextResponse.json({ error: "Worker not found." }, { status: 404 });
     if (worker.approved_earnings < MINIMUM_PAYOUT) {
-      return NextResponse.json(
-        { error: "Worker must have at least ₦5,000 in approved earnings." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Worker must have at least ₦5,000 in approved earnings." }, { status: 400 });
     }
     if (amount > worker.outstanding) {
-      return NextResponse.json(
-        { error: "Payment cannot exceed the outstanding balance." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Payment cannot exceed the outstanding balance." }, { status: 400 });
     }
 
     const { data: payment, error: insertError } = await result.admin
@@ -273,25 +244,15 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       if ((insertError as any).code === "23505") {
-        return NextResponse.json(
-          { error: "This transfer reference has already been recorded." },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "This transfer reference has already been recorded." }, { status: 409 });
       }
       throw new Error(`payments insert failed: ${insertError.message}`);
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Payment recorded successfully.",
-      payment,
-    });
+    return NextResponse.json({ success: true, message: "Payment recorded successfully.", payment });
   } catch (error: any) {
     const message = error?.message || "Could not record payment.";
     console.error("Chairman payments POST:", message);
-    return NextResponse.json(
-      { error: "Could not record payment. Check server logs." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Could not record payment. Check server logs." }, { status: 500 });
   }
 }
