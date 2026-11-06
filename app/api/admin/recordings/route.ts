@@ -7,7 +7,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+const SIGNED_URL_EXPIRY = 600;
 
+// Create secure Supabase admin client
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,6 +26,7 @@ function getAdminClient() {
   });
 }
 
+// Verify that the logged-in user is the Chairman
 async function verifyChairman(request: NextRequest) {
   const authorization = request.headers.get("authorization");
 
@@ -74,6 +77,108 @@ async function verifyChairman(request: NextRequest) {
   return admin;
 }
 
+// Extract a Storage bucket and file path from a Supabase audio URL
+function getStorageFile(audioUrl: string, supabaseUrl: string) {
+  try {
+    const fileUrl = new URL(audioUrl);
+    const configuredUrl = new URL(supabaseUrl);
+
+    // Only accept files from this project's Supabase Storage
+    if (fileUrl.origin !== configuredUrl.origin) {
+      return null;
+    }
+
+    const match = fileUrl.pathname.match(
+      /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
+    );
+
+    if (!match) return null;
+
+    const bucket = decodeURIComponent(match[1]);
+    const path = decodeURIComponent(match[2]);
+
+    // Only allow the known recording buckets
+    if (!["voice-clips", "voices"].includes(bucket)) {
+      return null;
+    }
+
+    if (!path || path.includes("..")) {
+      return null;
+    }
+
+    return { bucket, path };
+  } catch {
+    return null;
+  }
+}
+
+// Generate a secure playback URL for each recording
+async function getRecordingAudioUrl(
+  admin: ReturnType<typeof getAdminClient>,
+  recording: any
+) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  if (!supabaseUrl) {
+    return {
+      signedUrl: null,
+      audioError: "Supabase URL is missing.",
+    };
+  }
+
+  let bucket: string | null = null;
+  let path: string | null = null;
+
+  // New recordings: read the actual audio_url
+  if (recording.audio_url) {
+    const storageFile = getStorageFile(
+      recording.audio_url,
+      supabaseUrl
+    );
+
+    if (storageFile) {
+      bucket = storageFile.bucket;
+      path = storageFile.path;
+    }
+  }
+
+  // Older recordings: preserve support for audio_path in voices
+  if (!path && recording.audio_path) {
+    bucket = "voices";
+    path = recording.audio_path;
+  }
+
+  if (!bucket || !path) {
+    return {
+      signedUrl: null,
+      audioError: "No valid audio storage path was found.",
+    };
+  }
+
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .createSignedUrl(path, SIGNED_URL_EXPIRY);
+
+  if (error || !data?.signedUrl) {
+    console.error("Recording audio URL error:", {
+      recordingId: recording.id,
+      bucket,
+      path,
+      message: error?.message,
+    });
+
+    return {
+      signedUrl: null,
+      audioError: "Could not create a playback link.",
+    };
+  }
+
+  return {
+    signedUrl: data.signedUrl,
+    audioError: null,
+  };
+}
+
 // LOAD RECORDINGS
 export async function GET(request: NextRequest) {
   try {
@@ -95,22 +200,12 @@ export async function GET(request: NextRequest) {
 
     const recordings = await Promise.all(
       (data || []).map(async (recording) => {
-        let signedUrl: string | null = null;
-
-        if (recording.audio_path) {
-          const { data: urlData, error: urlError } =
-            await admin.storage
-              .from("voices")
-              .createSignedUrl(recording.audio_path, 600);
-
-          if (!urlError) {
-            signedUrl = urlData?.signedUrl || null;
-          }
-        }
+        const audio = await getRecordingAudioUrl(admin, recording);
 
         return {
           ...recording,
-          signedUrl,
+          signedUrl: audio.signedUrl,
+          audioError: audio.audioError,
         };
       })
     );
@@ -119,7 +214,8 @@ export async function GET(request: NextRequest) {
       { recordings },
       {
         headers: {
-          "Cache-Control": "no-store",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          Pragma: "no-cache",
         },
       }
     );
@@ -134,6 +230,7 @@ export async function GET(request: NextRequest) {
 }
 
 // APPROVE OR REJECT RECORDING
+// Existing approval logic preserved
 export async function POST(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
