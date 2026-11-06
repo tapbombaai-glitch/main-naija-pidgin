@@ -17,14 +17,17 @@ function getEnv(name: string) {
   return value;
 }
 
+/* =========================================================
+   CHAIRMAN AUTHENTICATION
+   ========================================================= */
+
 async function getChairman(request: NextRequest) {
   try {
     const supabaseUrl = getEnv("NEXT_PUBLIC_SUPABASE_URL");
     const anonKey = getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
     const serviceRoleKey = getEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-    const authorization =
-      request.headers.get("authorization");
+    const authorization = request.headers.get("authorization");
 
     if (!authorization?.startsWith("Bearer ")) {
       return {
@@ -35,9 +38,7 @@ async function getChairman(request: NextRequest) {
       };
     }
 
-    const token = authorization
-      .replace("Bearer ", "")
-      .trim();
+    const token = authorization.replace("Bearer ", "").trim();
 
     if (!token) {
       return {
@@ -48,16 +49,12 @@ async function getChairman(request: NextRequest) {
       };
     }
 
-    const supabaseAuth = createClient(
-      supabaseUrl,
-      anonKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAuth = createClient(supabaseUrl, anonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     const {
       data: { user },
@@ -73,10 +70,7 @@ async function getChairman(request: NextRequest) {
       };
     }
 
-    if (
-      user.email?.toLowerCase() !==
-      CHAIRMAN_EMAIL.toLowerCase()
-    ) {
+    if (user.email?.toLowerCase() !== CHAIRMAN_EMAIL.toLowerCase()) {
       return {
         error: NextResponse.json(
           { error: "Chairman access required" },
@@ -85,16 +79,12 @@ async function getChairman(request: NextRequest) {
       };
     }
 
-    const admin = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     const {
       data: profile,
@@ -113,10 +103,7 @@ async function getChairman(request: NextRequest) {
 
       return {
         error: NextResponse.json(
-          {
-            error:
-              "Unable to verify Chairman account",
-          },
+          { error: "Unable to verify Chairman account" },
           { status: 500 }
         ),
       };
@@ -125,8 +112,7 @@ async function getChairman(request: NextRequest) {
     if (
       !profile ||
       profile.is_chairman !== true ||
-      profile.email?.toLowerCase() !==
-        CHAIRMAN_EMAIL.toLowerCase()
+      profile.email?.toLowerCase() !== CHAIRMAN_EMAIL.toLowerCase()
     ) {
       return {
         error: NextResponse.json(
@@ -136,15 +122,9 @@ async function getChairman(request: NextRequest) {
       };
     }
 
-    return {
-      admin,
-      user,
-    };
+    return { admin, user };
   } catch (error) {
-    console.error(
-      "Chairman authentication error:",
-      error
-    );
+    console.error("Chairman authentication error:", error);
 
     return {
       error: NextResponse.json(
@@ -156,7 +136,7 @@ async function getChairman(request: NextRequest) {
 }
 
 /* =========================================================
-   GET
+   GET PAYMENT INFORMATION
    ========================================================= */
 
 export async function GET(request: NextRequest) {
@@ -169,17 +149,14 @@ export async function GET(request: NextRequest) {
   const { admin } = chairman;
 
   try {
-    /*
-     * REAL worker_profiles SCHEMA
-     */
+    /* WORKER PROFILES */
+
     const {
       data: workerProfiles,
       error: workerProfilesError,
     } = await admin
       .from("worker_profiles")
-      .select(
-        "worker_id, full_name, email, state, city"
-      );
+      .select("worker_id, full_name, email, state, city");
 
     if (workerProfilesError) {
       console.error(
@@ -188,17 +165,13 @@ export async function GET(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not load worker profiles",
-        },
+        { error: "Could not load worker profiles" },
         { status: 500 }
       );
     }
 
-    /*
-     * REAL workers SCHEMA
-     */
+    /* WORKER BANK ACCOUNTS */
+
     const {
       data: workers,
       error: workersError,
@@ -209,35 +182,22 @@ export async function GET(request: NextRequest) {
       );
 
     if (workersError) {
-      console.error(
-        "workers error:",
-        workersError.message
-      );
+      console.error("workers error:", workersError.message);
 
       return NextResponse.json(
-        {
-          error:
-            "Could not load worker payment accounts",
-        },
+        { error: "Could not load worker payment accounts" },
         { status: 500 }
       );
     }
 
-    /*
-     * REAL recordings SCHEMA
-     *
-     * worker_id = text
-     * earnings = numeric
-     * is_approved = boolean
-     */
+    /* APPROVED RECORDINGS */
+
     const {
       data: recordings,
       error: recordingsError,
     } = await admin
       .from("recordings")
-      .select(
-        "worker_id, earnings, is_approved, status, created_at"
-      )
+      .select("worker_id, earnings, is_approved")
       .eq("is_approved", true);
 
     if (recordingsError) {
@@ -247,22 +207,15 @@ export async function GET(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not load approved recordings",
-        },
+        { error: "Could not load approved recordings" },
         { status: 500 }
       );
     }
 
-    /*
-     * REAL payments SCHEMA
-     *
-     * There is NO status column.
-     *
-     * A row in payments represents a recorded
-     * manual payment.
-     */
+    /* PAYMENT HISTORY
+       The real payments table has NO status column.
+    */
+
     const {
       data: payments,
       error: paymentsError,
@@ -271,9 +224,7 @@ export async function GET(request: NextRequest) {
       .select(
         "id, worker_id, amount, payment_reference, payment_method, notes, paid_by, paid_at"
       )
-      .order("paid_at", {
-        ascending: false,
-      });
+      .order("paid_at", { ascending: false });
 
     if (paymentsError) {
       console.error(
@@ -282,17 +233,13 @@ export async function GET(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not load payment history",
-        },
+        { error: "Could not load payment history" },
         { status: 500 }
       );
     }
 
-    /*
-     * Build worker map.
-     */
+    /* BUILD WORKER MAP */
+
     const workerMap = new Map<
       string,
       {
@@ -322,61 +269,41 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    /*
-     * Add bank information.
-     */
+    /* ADD BANK INFORMATION */
+
     for (const worker of workers || []) {
       if (!worker.worker_id) continue;
 
-      const existing =
-        workerMap.get(worker.worker_id);
+      const existing = workerMap.get(worker.worker_id);
 
       workerMap.set(worker.worker_id, {
         worker_id: worker.worker_id,
         full_name:
-          existing?.full_name ||
-          worker.full_name ||
-          "",
+          existing?.full_name || worker.full_name || "",
         email: existing?.email || "",
         state: existing?.state || "",
         city: existing?.city || "",
-        bank_name:
-          worker.bank_name || "",
-        account_number:
-          worker.account_number || "",
-        account_name:
-          worker.account_name || "",
+        bank_name: worker.bank_name || "",
+        account_number: worker.account_number || "",
+        account_name: worker.account_name || "",
       });
     }
 
-    /*
-     * Calculate approved earnings.
-     */
-    const approvedByWorker =
-      new Map<string, number>();
+    /* CALCULATE APPROVED EARNINGS */
+
+    const approvedByWorker = new Map<string, number>();
 
     for (const recording of recordings || []) {
       if (!recording.worker_id) continue;
 
-      if (recording.is_approved !== true) {
-        continue;
-      }
+      const earnings = Number(recording.earnings || 0);
 
-      const earnings = Number(
-        recording.earnings || 0
-      );
-
-      if (
-        !Number.isFinite(earnings) ||
-        earnings <= 0
-      ) {
+      if (!Number.isFinite(earnings) || earnings <= 0) {
         continue;
       }
 
       const current =
-        approvedByWorker.get(
-          recording.worker_id
-        ) || 0;
+        approvedByWorker.get(recording.worker_id) || 0;
 
       approvedByWorker.set(
         recording.worker_id,
@@ -384,35 +311,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /*
-     * Calculate paid amounts.
-     *
-     * IMPORTANT:
-     * payments has no status column.
-     * Every payment row counts as a recorded
-     * manual payment.
-     */
-    const paidByWorker =
-      new Map<string, number>();
+    /* CALCULATE PREVIOUS PAYMENTS */
+
+    const paidByWorker = new Map<string, number>();
 
     for (const payment of payments || []) {
       if (!payment.worker_id) continue;
 
-      const amount = Number(
-        payment.amount || 0
-      );
+      const amount = Number(payment.amount || 0);
 
-      if (
-        !Number.isFinite(amount) ||
-        amount <= 0
-      ) {
+      if (!Number.isFinite(amount) || amount <= 0) {
         continue;
       }
 
       const current =
-        paidByWorker.get(
-          payment.worker_id
-        ) || 0;
+        paidByWorker.get(payment.worker_id) || 0;
 
       paidByWorker.set(
         payment.worker_id,
@@ -420,9 +333,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    /*
-     * Include every worker.
-     */
+    /* INCLUDE ALL WORKERS */
+
     const workerIds = new Set<string>();
 
     for (const id of workerMap.keys()) {
@@ -437,11 +349,11 @@ export async function GET(request: NextRequest) {
       workerIds.add(id);
     }
 
-    const workerResults = Array.from(
-      workerIds
-    ).map((workerId) => {
-      const worker =
-        workerMap.get(workerId) || {
+    /* FORMAT WORKER RESULTS */
+
+    const workerResults = Array.from(workerIds).map(
+      (workerId) => {
+        const worker = workerMap.get(workerId) || {
           worker_id: workerId,
           full_name: "",
           email: "",
@@ -452,88 +364,71 @@ export async function GET(request: NextRequest) {
           account_name: "",
         };
 
-      const approved =
-        approvedByWorker.get(workerId) || 0;
+        const approved =
+          approvedByWorker.get(workerId) || 0;
 
-      const paid =
-        paidByWorker.get(workerId) || 0;
+        const paid =
+          paidByWorker.get(workerId) || 0;
 
-      const outstanding = Math.max(
-        approved - paid,
-        0
-      );
+        const outstanding = Math.max(approved - paid, 0);
 
-      return {
-        worker_id: workerId,
-        full_name: worker.full_name,
-        email: worker.email,
-        state: worker.state,
-        city: worker.city,
+        return {
+          worker_id: workerId,
 
-        bank_name: worker.bank_name,
-        account_number:
-          worker.account_number,
-        account_name:
-          worker.account_name,
+          // Names expected by the Payments page
+          name: worker.full_name,
+          email: worker.email,
+          state: worker.state,
+          city: worker.city,
 
-        approved_earnings: approved,
-        paid_amount: paid,
-        outstanding_amount: outstanding,
+          bank_name: worker.bank_name,
+          account_number: worker.account_number,
+          account_name: worker.account_name,
 
-        minimum_payout: MINIMUM_PAYOUT,
+          approved_earnings: approved,
+          amount_paid: paid,
+          outstanding,
 
-        eligible_for_payment:
-          outstanding >= MINIMUM_PAYOUT,
-      };
-    });
+          minimum_payout: MINIMUM_PAYOUT,
+          eligible: outstanding >= MINIMUM_PAYOUT,
+        };
+      }
+    );
 
-    /*
-     * Format payment history.
-     */
-    const paymentHistory =
-      (payments || []).map((payment) => ({
-        id: payment.id,
-        worker_id: payment.worker_id,
-        amount: Number(
-          payment.amount || 0
-        ),
-        payment_reference:
-          payment.payment_reference || "",
-        payment_method:
-          payment.payment_method || "",
-        notes: payment.notes || "",
-        paid_by: payment.paid_by || "",
-        paid_at: payment.paid_at || null,
-      }));
+    /* FORMAT PAYMENT HISTORY */
 
-    /*
-     * Totals for Chairman dashboard.
-     */
-    const totalApproved =
-      workerResults.reduce(
-        (sum, worker) =>
-          sum +
-          Number(
-            worker.approved_earnings || 0
-          ),
-        0
-      );
+    const paymentHistory = (payments || []).map((payment) => ({
+      id: payment.id,
+      worker_id: payment.worker_id,
+      amount: Number(payment.amount || 0),
+      payment_reference: payment.payment_reference || "",
+      payment_method: payment.payment_method || "",
+      notes: payment.notes || "",
+      paid_by: payment.paid_by || "",
+      paid_at: payment.paid_at || null,
 
-    const totalPaid =
-      workerResults.reduce(
-        (sum, worker) =>
-          sum +
-          Number(
-            worker.paid_amount || 0
-          ),
-        0
-      );
+      // Display label only. Not a database column.
+      status: "Recorded",
+    }));
 
-    const totalOutstanding =
-      Math.max(
-        totalApproved - totalPaid,
-        0
-      );
+    /* CALCULATE TOTALS */
+
+    const totalApproved = workerResults.reduce(
+      (sum, worker) => sum + worker.approved_earnings,
+      0
+    );
+
+    const totalPaid = workerResults.reduce(
+      (sum, worker) => sum + worker.amount_paid,
+      0
+    );
+
+    const totalOutstanding = Math.max(
+      totalApproved - totalPaid,
+      0
+    );
+
+    /* RESPONSE MATCHES PAYMENTS PAGE */
 
     return NextResponse.json({
       success: true,
@@ -542,11 +437,10 @@ export async function GET(request: NextRequest) {
 
       payments: paymentHistory,
 
-      totals: {
-        approved_earnings: totalApproved,
-        paid_amount: totalPaid,
-        outstanding_amount:
-          totalOutstanding,
+      overview: {
+        total_earnings: totalApproved,
+        total_paid: totalPaid,
+        total_outstanding: totalOutstanding,
       },
     });
   } catch (error) {
@@ -556,10 +450,7 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(
-      {
-        error:
-          "Could not load payment information",
-      },
+      { error: "Could not load payment information" },
       { status: 500 }
     );
   }
@@ -581,10 +472,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const workerId = String(
-      body.worker_id || ""
-    ).trim();
-
+    const workerId = String(body.worker_id || "").trim();
     const amount = Number(body.amount);
 
     const paymentReference = String(
@@ -592,50 +480,40 @@ export async function POST(request: NextRequest) {
     ).trim();
 
     const paymentMethod = String(
-      body.payment_method ||
-        "Bank transfer"
+      body.payment_method || "Bank transfer"
     ).trim();
 
-    const notes = String(
-      body.notes || ""
-    ).trim();
+    const notes = String(body.notes || "").trim();
+
+    /* VALIDATE WORKER ID */
 
     if (!workerId) {
       return NextResponse.json(
-        {
-          error:
-            "worker_id is required",
-        },
+        { error: "worker_id is required" },
         { status: 400 }
       );
     }
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
+    /* VALIDATE AMOUNT */
+
+    if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
-        {
-          error:
-            "A valid payment amount is required",
-        },
+        { error: "A valid payment amount is required" },
         { status: 400 }
       );
     }
+
+    /* VALIDATE BANK REFERENCE */
 
     if (!paymentReference) {
       return NextResponse.json(
-        {
-          error:
-            "Bank transfer reference is required",
-        },
+        { error: "Bank transfer reference is required" },
         { status: 400 }
       );
     }
 
-    /*
-     * Verify worker exists.
-     */
+    /* VERIFY WORKER */
+
     const {
       data: worker,
       error: workerError,
@@ -652,35 +530,26 @@ export async function POST(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not verify worker",
-        },
+        { error: "Could not verify worker" },
         { status: 500 }
       );
     }
 
     if (!worker) {
       return NextResponse.json(
-        {
-          error:
-            "Worker account not found",
-        },
+        { error: "Worker account not found" },
         { status: 404 }
       );
     }
 
-    /*
-     * Approved earnings.
-     */
+    /* LOAD APPROVED EARNINGS */
+
     const {
       data: approvedRecordings,
       error: recordingsError,
     } = await admin
       .from("recordings")
-      .select(
-        "earnings, is_approved"
-      )
+      .select("earnings")
       .eq("worker_id", workerId)
       .eq("is_approved", true);
 
@@ -691,41 +560,26 @@ export async function POST(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not verify worker earnings",
-        },
+        { error: "Could not verify worker earnings" },
         { status: 500 }
       );
     }
 
-    const approvedTotal =
-      (approvedRecordings || []).reduce(
-        (sum, recording) => {
-          if (
-            recording.is_approved !== true
-          ) {
-            return sum;
-          }
+    const approvedTotal = (approvedRecordings || []).reduce(
+      (sum, recording) => {
+        const earnings = Number(recording.earnings || 0);
 
-          const earnings = Number(
-            recording.earnings || 0
-          );
+        if (!Number.isFinite(earnings) || earnings <= 0) {
+          return sum;
+        }
 
-          if (
-            !Number.isFinite(earnings)
-          ) {
-            return sum;
-          }
+        return sum + earnings;
+      },
+      0
+    );
 
-          return sum + earnings;
-        },
-        0
-      );
+    /* LOAD PREVIOUS PAYMENTS */
 
-    /*
-     * Existing payments.
-     */
     const {
       data: previousPayments,
       error: previousPaymentsError,
@@ -741,91 +595,70 @@ export async function POST(request: NextRequest) {
       );
 
       return NextResponse.json(
-        {
-          error:
-            "Could not verify previous payments",
-        },
+        { error: "Could not verify previous payments" },
         { status: 500 }
       );
     }
 
-    const paidTotal =
-      (previousPayments || []).reduce(
-        (sum, payment) => {
-          const value = Number(
-            payment.amount || 0
-          );
+    const paidTotal = (previousPayments || []).reduce(
+      (sum, payment) => {
+        const value = Number(payment.amount || 0);
 
-          if (!Number.isFinite(value)) {
-            return sum;
-          }
+        if (!Number.isFinite(value) || value <= 0) {
+          return sum;
+        }
 
-          return sum + value;
-        },
-        0
-      );
+        return sum + value;
+      },
+      0
+    );
 
     const outstanding = Math.max(
       approvedTotal - paidTotal,
       0
     );
 
-    /*
-     * Minimum payout.
-     */
-    if (
-      outstanding <
-      MINIMUM_PAYOUT
-    ) {
+    /* MINIMUM PAYOUT CHECK */
+
+    if (outstanding < MINIMUM_PAYOUT) {
       return NextResponse.json(
         {
           error:
             "Worker is below the ₦5,000 minimum payout.",
-          approved_earnings:
-            approvedTotal,
-          already_paid:
-            paidTotal,
+          approved_earnings: approvedTotal,
+          already_paid: paidTotal,
           outstanding,
-          minimum_payout:
-            MINIMUM_PAYOUT,
+          minimum_payout: MINIMUM_PAYOUT,
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Never pay more than outstanding.
-     */
+    /* PREVENT OVERPAYMENT */
+
     if (amount > outstanding) {
       return NextResponse.json(
         {
           error:
             "Payment amount is greater than the worker's outstanding balance.",
-          approved_earnings:
-            approvedTotal,
-          already_paid:
-            paidTotal,
+          approved_earnings: approvedTotal,
+          already_paid: paidTotal,
           outstanding,
-          requested_payment:
-            amount,
+          requested_payment: amount,
         },
         { status: 400 }
       );
     }
 
-    /*
-     * Check duplicate bank reference.
-     */
+    /* CHECK DUPLICATE BANK REFERENCE */
+
     const {
       data: duplicate,
       error: duplicateError,
     } = await admin
       .from("payments")
       .select("id")
-      .eq(
-        "payment_reference",
-        paymentReference
-      )
+      .eq("payment_reference", paymentReference)
       .maybeSingle();
 
     if (duplicateError) {
@@ -853,18 +686,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    /*
-     * Record manual payment.
-     *
-     * REAL payments schema:
-     * worker_id
-     * amount
-     * payment_reference
-     * payment_method
-     * notes
-     * paid_by
-     * paid_at
-     */
+    /* INSERT MANUAL PAYMENT */
+
     const {
       data: payment,
       error: insertError,
@@ -873,16 +696,11 @@ export async function POST(request: NextRequest) {
       .insert({
         worker_id: workerId,
         amount,
-        payment_reference:
-          paymentReference,
-        payment_method:
-          paymentMethod,
+        payment_reference: paymentReference,
+        payment_method: paymentMethod,
         notes,
-        paid_by:
-          user.email ||
-          CHAIRMAN_EMAIL,
-        paid_at:
-          new Date().toISOString(),
+        paid_by: user.email || CHAIRMAN_EMAIL,
+        paid_at: new Date().toISOString(),
       })
       .select(
         "id, worker_id, amount, payment_reference, payment_method, notes, paid_by, paid_at"
@@ -892,40 +710,47 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error(
         "Payment insert failed:",
-        insertError.message
+        insertError.message,
+        insertError.code
       );
 
+      /* UNIQUE INDEX DUPLICATE PROTECTION */
+
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          {
+            error:
+              "This bank transfer reference has already been recorded.",
+          },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json(
-        {
-          error:
-            "Payment could not be recorded",
-        },
+        { error: "Payment could not be recorded" },
         { status: 500 }
       );
     }
 
-    const remaining =
-      Math.max(
-        outstanding - amount,
-        0
-      );
+    /* CALCULATE REMAINING BALANCE */
+
+    const remaining = Math.max(
+      outstanding - amount,
+      0
+    );
 
     return NextResponse.json({
       success: true,
 
-      payment,
+      payment: {
+        ...payment,
+        status: "Recorded",
+      },
 
-      approved_earnings:
-        approvedTotal,
-
-      previous_paid:
-        paidTotal,
-
-      amount_paid:
-        amount,
-
-      remaining_outstanding:
-        remaining,
+      approved_earnings: approvedTotal,
+      previous_paid: paidTotal,
+      amount_paid: amount,
+      remaining_outstanding: remaining,
     });
   } catch (error) {
     console.error(
@@ -934,10 +759,7 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(
-      {
-        error:
-          "Could not process payment",
-      },
+      { error: "Could not process payment" },
       { status: 500 }
     );
   }
