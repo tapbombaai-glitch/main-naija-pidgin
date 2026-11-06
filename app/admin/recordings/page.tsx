@@ -1,13 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+type RecordingStatus = "pending" | "approved" | "rejected";
+
+function getRecordingStatus(recording: any): RecordingStatus {
+  if (recording.status === "rejected") return "rejected";
+
+  if (recording.is_approved === true) return "approved";
+
+  // An old row may say approved without is_approved being true.
+  // Show it as pending so the Chairman can approve it again.
+  return "pending";
+}
 
 export default function RecordingsPage() {
   const [recordings, setRecordings] = useState<any[]>([]);
@@ -16,105 +28,65 @@ export default function RecordingsPage() {
   >("all");
 
   const [loading, setLoading] = useState(true);
-
-  const [counts, setCounts] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-  });
-
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+
+  const counts = {
+    total: recordings.length,
+    pending: recordings.filter(
+      (r) => getRecordingStatus(r) === "pending"
+    ).length,
+    approved: recordings.filter(
+      (r) => getRecordingStatus(r) === "approved"
+    ).length,
+    rejected: recordings.filter(
+      (r) => getRecordingStatus(r) === "rejected"
+    ).length,
+  };
 
   useEffect(() => {
     loadAllRecordings();
   }, []);
 
+  async function getToken() {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
+    if (error || !session?.access_token) {
+      throw new Error("Please log in again as Chairman.");
+    }
+
+    return session.access_token;
+  }
+
   async function loadAllRecordings() {
     setLoading(true);
+    setMessage("");
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const token = await getToken();
 
-      if (!user || user.email !== "tapbomba.ai@gmail.com") {
-        // Chairman security will be handled through the server API
-        // in a later step.
+      const response = await fetch("/api/admin/recordings", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Could not load recordings.");
       }
 
-      const { data, error } = await supabase
-        .from("recordings")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const withUrls = await Promise.all(
-          data.map(async (rec) => {
-            let signedUrl = null;
-
-            if (rec.audio_path) {
-              const { data: urlData } = await supabase.storage
-                .from("voices")
-                .createSignedUrl(rec.audio_path, 3600);
-
-              signedUrl = urlData?.signedUrl;
-            }
-
-            return {
-              ...rec,
-              signedUrl,
-            };
-          })
-        );
-
-        setRecordings(withUrls);
-
-        setCounts({
-          total: withUrls.length,
-          pending: withUrls.filter(
-            (r) => r.status === "pending" || !r.status
-          ).length,
-          approved: withUrls.filter((r) => r.status === "approved").length,
-          rejected: withUrls.filter((r) => r.status === "rejected").length,
-        });
-      } else {
-        setRecordings([
-          {
-            id: "REC-024",
-            worker_id: "Worker-024",
-            worker_email: "worker024@test.com",
-            language: "Pidgin",
-            text: "How far boss! Lagos male voice dey here",
-            type: "Free Talk",
-            status: "pending",
-            created_at: new Date().toISOString(),
-            signedUrl: null,
-          },
-          {
-            id: "REC-023",
-            worker_id: "Worker-023",
-            language: "Hausa",
-            type: "Read Text",
-            status: "pending",
-            created_at: new Date().toISOString(),
-            signedUrl: null,
-          },
-          {
-            id: "REC-022",
-            worker_id: "Worker-022",
-            language: "Igbo",
-            type: "Free Talk",
-            status: "approved",
-            created_at: new Date().toISOString(),
-            signedUrl: null,
-          },
-        ]);
-      }
-    } catch (e) {
-      console.error("Could not load recordings:", e);
+      setRecordings(result.recordings || []);
+    } catch (error: any) {
+      console.error("Could not load recordings:", error);
+      setMessage(error.message || "Could not load recordings.");
     } finally {
       setLoading(false);
     }
@@ -124,48 +96,58 @@ export default function RecordingsPage() {
     id: string,
     newStatus: "approved" | "rejected"
   ) {
-    const { error } = await supabase
-      .from("recordings")
-      .update({
-        status: newStatus,
-        reviewed_by: "tapbomba.ai@gmail.com",
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    if (busyId) return;
 
-    if (!error) {
-      setRecordings((prev) =>
-        prev.map((r) =>
-          r.id === id ? { ...r, status: newStatus } : r
-        )
-      );
+    const confirmation =
+      newStatus === "approved"
+        ? "Approve this recording?"
+        : "Reject this recording?";
 
-      setCounts((prev) => {
-        const updated = { ...prev };
+    if (!window.confirm(confirmation)) return;
 
-        if (newStatus === "approved") {
-          updated.approved += 1;
-          updated.pending = Math.max(0, updated.pending - 1);
-        } else {
-          updated.rejected += 1;
-          updated.pending = Math.max(0, updated.pending - 1);
-        }
+    setBusyId(id);
+    setMessage("");
 
-        return updated;
+    try {
+      const token = await getToken();
+
+      const response = await fetch("/api/admin/recordings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id,
+          status: newStatus,
+        }),
       });
-    } else {
-      console.error("Recording review failed:", error.message);
-      alert("Could not update recording. Please try again.");
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Recording review failed.");
+      }
+
+      setMessage(result.message || "Recording updated successfully.");
+
+      // Reload the actual database values after approval.
+      await loadAllRecordings();
+    } catch (error: any) {
+      console.error("Recording review failed:", error);
+      setMessage(error.message || "Could not update recording.");
+    } finally {
+      setBusyId(null);
     }
   }
 
-  const filtered = recordings.filter((r) => {
+  const filtered = recordings.filter((recording) => {
     if (filter === "all") return true;
-    return (r.status || "pending") === filter;
+    return getRecordingStatus(recording) === filter;
   });
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         background: "#0f172a",
@@ -194,11 +176,44 @@ export default function RecordingsPage() {
         Recording Review
       </h1>
 
-      <p style={{ color: "#64748b", fontSize: "11px" }}>
+      <p style={{ color: "#94a3b8", fontSize: "11px" }}>
         {loading
           ? "Loading live recordings..."
-          : `${counts.total} total • ${counts.pending} pending • ${counts.approved} approved • ${counts.rejected} rejected • Chairman only: tapbomba.ai@gmail.com`}
+          : `${counts.total} total • ${counts.pending} pending • ${counts.approved} approved • ${counts.rejected} rejected`}
       </p>
+
+      {message && (
+        <div
+          style={{
+            background: "#172554",
+            border: "1px solid #1d4ed8",
+            padding: "10px",
+            borderRadius: "8px",
+            marginTop: "12px",
+            fontSize: "12px",
+            overflowWrap: "anywhere",
+          }}
+        >
+          {message}
+        </div>
+      )}
+
+      <button
+        onClick={loadAllRecordings}
+        disabled={loading}
+        style={{
+          marginTop: "12px",
+          background: "#14532d",
+          color: "white",
+          border: "1px solid #166534",
+          padding: "8px 14px",
+          borderRadius: "8px",
+          fontSize: "11px",
+          fontWeight: 700,
+        }}
+      >
+        {loading ? "Refreshing..." : "↻ Refresh"}
+      </button>
 
       <div
         style={{
@@ -223,14 +238,15 @@ export default function RecordingsPage() {
               whiteSpace: "nowrap",
             }}
           >
-            {f.toUpperCase()}{" "}
+            {f.toUpperCase()} (
             {f === "all"
-              ? `(${counts.total})`
+              ? counts.total
               : f === "pending"
-              ? `(${counts.pending})`
+              ? counts.pending
               : f === "approved"
-              ? `(${counts.approved})`
-              : `(${counts.rejected})`}
+              ? counts.approved
+              : counts.rejected}
+            )
           </button>
         ))}
       </div>
@@ -242,245 +258,218 @@ export default function RecordingsPage() {
           marginTop: "16px",
         }}
       >
-        {filtered.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              background: "#020617",
-              border: "1px solid #1e293b",
-              borderRadius: "12px",
-              padding: "12px",
-            }}
-          >
+        {filtered.map((r) => {
+          const status = getRecordingStatus(r);
+
+          return (
             <div
+              key={r.id}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
+                background: "#020617",
+                border: "1px solid #1e293b",
+                borderRadius: "12px",
+                padding: "12px",
               }}
             >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {r.id} • {r.type || r.language || "Recording"}
+                </p>
+
+                <span
+                  style={{
+                    background:
+                      status === "pending"
+                        ? "#422006"
+                        : status === "approved"
+                        ? "#052e16"
+                        : "#450a0a",
+                    color:
+                      status === "pending"
+                        ? "#fbbf24"
+                        : status === "approved"
+                        ? "#4ade80"
+                        : "#f87171",
+                    padding: "3px 8px",
+                    borderRadius: "20px",
+                    fontSize: "9px",
+                    fontWeight: 800,
+                    height: "fit-content",
+                  }}
+                >
+                  {status.toUpperCase()}
+                </span>
+              </div>
+
               <p
                 style={{
-                  margin: 0,
-                  fontSize: "13px",
-                  fontWeight: 700,
+                  margin: "6px 0 0",
+                  fontSize: "11px",
+                  color: "#94a3b8",
+                  overflowWrap: "anywhere",
                 }}
               >
-                {r.id} • {r.type || r.language || "Free Talk"}
+                {r.worker_id || "Worker ID unavailable"} •{" "}
+                {r.language || "Language unavailable"} •{" "}
+                {r.text?.slice(0, 60) ||
+                  r.pidgin_text?.slice(0, 60) ||
+                  "Recording"}{" "}
+                •{" "}
+                {r.created_at
+                  ? new Date(r.created_at).toLocaleString()
+                  : "Date unavailable"}
               </p>
 
-              <span
+              <div
                 style={{
-                  background:
-                    (r.status || "pending") === "pending"
-                      ? "#422006"
-                      : r.status === "approved"
-                      ? "#052e16"
-                      : "#450a0a",
-                  color:
-                    (r.status || "pending") === "pending"
-                      ? "#fbbf24"
-                      : r.status === "approved"
-                      ? "#4ade80"
-                      : "#f87171",
-                  padding: "3px 8px",
-                  borderRadius: "20px",
-                  fontSize: "9px",
-                  fontWeight: 800,
+                  background: "#0f172a",
+                  borderRadius: "8px",
+                  padding: "10px",
+                  marginTop: "10px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
                 }}
               >
-                {(r.status || "pending").toUpperCase()}
-              </span>
-            </div>
+                {r.signedUrl ? (
+                  <>
+                    <audio
+                      id={`audio-${r.id}`}
+                      src={r.signedUrl}
+                      onEnded={() => setPlayingId(null)}
+                      style={{ display: "none" }}
+                    />
 
-            <p
-              style={{
-                margin: "6px 0 0",
-                fontSize: "11px",
-                color: "#64748b",
-              }}
-            >
-              {r.worker_id || r.worker_email || r.worker} •{" "}
-              {r.language || r.lang} •{" "}
-              {r.text?.slice(0, 60) || "Authentic Naija Pidgin"} •{" "}
-              {r.created_at
-                ? new Date(r.created_at).toLocaleString()
-                : "Date unavailable"}
-            </p>
+                    <button
+                      onClick={() => {
+                        const audio = document.getElementById(
+                          `audio-${r.id}`
+                        ) as HTMLAudioElement;
 
-            <div
-              style={{
-                background: "#0f172a",
-                borderRadius: "8px",
-                padding: "10px",
-                marginTop: "10px",
-                display: "flex",
-                alignItems: "center",
-                gap: "10px",
-              }}
-            >
-              {r.signedUrl ? (
-                <>
-                  <audio
-                    id={`audio-${r.id}`}
-                    src={r.signedUrl}
-                    onEnded={() => setPlayingId(null)}
-                    style={{ display: "none" }}
-                  />
+                        if (!audio) return;
 
-                  <button
-                    onClick={() => {
-                      const audio = document.getElementById(
-                        `audio-${r.id}`
-                      ) as HTMLAudioElement;
-
-                      if (!audio) return;
-
-                      if (playingId === r.id) {
-                        audio.pause();
-                        setPlayingId(null);
-                      } else {
-                        document
-                          .querySelectorAll("audio")
-                          .forEach((a) =>
-                            (a as HTMLAudioElement).pause()
+                        if (playingId === r.id) {
+                          audio.pause();
+                          setPlayingId(null);
+                        } else {
+                          document.querySelectorAll("audio").forEach((item) =>
+                            (item as HTMLAudioElement).pause()
                           );
 
-                        audio
-                          .play()
-                          .then(() => setPlayingId(r.id))
-                          .catch((error) => {
-                            console.error("Audio playback failed:", error);
-                            alert("Could not play this recording.");
-                          });
-                      }
-                    }}
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background:
-                        playingId === r.id ? "#ef4444" : "#f59e0b",
-                      border: "none",
-                      fontSize: "14px",
-                    }}
-                  >
-                    {playingId === r.id ? "⏸️" : "▶️"}
-                  </button>
-
-                  <div
-                    style={{
-                      flex: 1,
-                      height: "4px",
-                      background: "#1e293b",
-                      borderRadius: "2px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: playingId === r.id ? "100%" : "60%",
-                        height: "100%",
-                        background: "#f59e0b",
+                          audio
+                            .play()
+                            .then(() => setPlayingId(r.id))
+                            .catch((error) => {
+                              console.error("Audio playback failed:", error);
+                              alert("Could not play this recording.");
+                            });
+                        }
                       }}
-                    />
-                  </div>
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "50%",
+                        background:
+                          playingId === r.id ? "#ef4444" : "#f59e0b",
+                        border: "none",
+                        fontSize: "14px",
+                      }}
+                    >
+                      {playingId === r.id ? "⏸️" : "▶️"}
+                    </button>
 
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "#94a3b8",
+                      }}
+                    >
+                      Chairman Play
+                    </span>
+                  </>
+                ) : (
                   <span
                     style={{
                       fontSize: "10px",
-                      color: "#64748b",
-                    }}
-                  >
-                    Chairman Play
-                  </span>
-                </>
-              ) : (
-                <>
-                  <button
-                    disabled
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background: "#334155",
-                      border: "none",
-                      opacity: 0.5,
-                    }}
-                  >
-                    ▶️
-                  </button>
-
-                  <div
-                    style={{
-                      flex: 1,
-                      height: "4px",
-                      background: "#1e293b",
-                      borderRadius: "2px",
-                    }}
-                  />
-
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      color: "#64748b",
+                      color: "#94a3b8",
                     }}
                   >
                     No audio available
                   </span>
-                </>
-              )}
-            </div>
+                )}
+              </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                marginTop: "10px",
-              }}
-            >
-              <button
-                onClick={() => handleApproval(r.id, "approved")}
-                disabled={r.status === "approved"}
+              <div
                 style={{
-                  flex: 1,
-                  background:
-                    r.status === "approved" ? "#14532d" : "#052e16",
-                  border: "1px solid #14532d",
-                  color: "#4ade80",
-                  padding: "9px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  opacity: r.status === "approved" ? 0.6 : 1,
+                  display: "flex",
+                  gap: "8px",
+                  marginTop: "10px",
                 }}
               >
-                {r.status === "approved"
-                  ? "✓ Approved (Kept Forever)"
-                  : "✓ Approve"}
-              </button>
+                <button
+                  onClick={() => handleApproval(r.id, "approved")}
+                  disabled={status === "approved" || busyId !== null}
+                  style={{
+                    flex: 1,
+                    background:
+                      status === "approved" ? "#14532d" : "#052e16",
+                    border: "1px solid #14532d",
+                    color: "#4ade80",
+                    padding: "9px",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    opacity:
+                      status === "approved" || busyId !== null ? 0.6 : 1,
+                  }}
+                >
+                  {busyId === r.id
+                    ? "Processing..."
+                    : status === "approved"
+                    ? "✓ Approved"
+                    : "✓ Approve"}
+                </button>
 
-              <button
-                onClick={() => handleApproval(r.id, "rejected")}
-                disabled={r.status === "rejected"}
-                style={{
-                  flex: 1,
-                  background:
-                    r.status === "rejected" ? "#7f1d1d" : "#450a0a",
-                  border: "1px solid #7f1d1d",
-                  color: "#f87171",
-                  padding: "9px",
-                  borderRadius: "8px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  opacity: r.status === "rejected" ? 0.6 : 1,
-                }}
-              >
-                {r.status === "rejected"
-                  ? "✕ Rejected (Still Stored)"
-                  : "✕ Reject"}
-              </button>
+                <button
+                  onClick={() => handleApproval(r.id, "rejected")}
+                  disabled={status === "rejected" || busyId !== null}
+                  style={{
+                    flex: 1,
+                    background:
+                      status === "rejected" ? "#7f1d1d" : "#450a0a",
+                    border: "1px solid #7f1d1d",
+                    color: "#f87171",
+                    padding: "9px",
+                    borderRadius: "8px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    opacity:
+                      status === "rejected" || busyId !== null ? 0.6 : 1,
+                  }}
+                >
+                  {busyId === r.id
+                    ? "Processing..."
+                    : status === "rejected"
+                    ? "✕ Rejected"
+                    : "✕ Reject"}
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {!loading && filtered.length === 0 && (
           <p style={{ color: "#94a3b8", fontSize: "13px" }}>
@@ -488,6 +477,17 @@ export default function RecordingsPage() {
           </p>
         )}
       </div>
-    </div>
+
+      <p
+        style={{
+          marginTop: "24px",
+          textAlign: "center",
+          color: "#64748b",
+          fontSize: "10px",
+        }}
+      >
+        MAIN NAIJA PIDGIN • CHAIRMAN RECORDING CONTROL
+      </p>
+    </main>
   );
 }
