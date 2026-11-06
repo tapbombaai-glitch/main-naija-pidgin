@@ -20,7 +20,7 @@ const serviceRoleKey =
 
 async function getChairman(request: NextRequest) {
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-    throw new Error("Server Supabase configuration is incomplete.");
+    throw new Error("Server Supabase configuration is incomplete: missing URL or keys in Render env.");
   }
 
   const token = request.headers
@@ -55,7 +55,7 @@ async function getChairman(request: NextRequest) {
     .maybeSingle();
 
   if (chairmanError) {
-    return { error: "Could not verify Chairman permissions.", status: 500 };
+    throw new Error(`profiles query failed: ${chairmanError.message}`);
   }
 
   if (
@@ -75,28 +75,23 @@ async function getPaymentData(admin: any) {
     { data: profiles, error: profilesError },
     { data: workers, error: workersError },
   ] = await Promise.all([
-    admin
-      .from("recordings")
-      .select("worker_id, earnings, is_approved"),
-
+    admin.from("recordings").select("worker_id, earnings, is_approved"),
     admin
       .from("payments")
       .select("id, worker_id, amount, payment_reference, payment_method, status, paid_at")
       .order("paid_at", { ascending: false }),
-
     admin
       .from("worker_profiles")
-      .select("worker_id, name, email, state, city, account"),
-
+      .select("worker_id, full_name, email, state, city"),
     admin
       .from("workers")
-      .select("worker_id, full_name, bank_name, account_number"),
+      .select("worker_id, full_name, bank_name, account_number, account_name"),
   ]);
 
-  if (recordingsError) throw recordingsError;
-  if (paymentsError) throw paymentsError;
-  if (profilesError) throw profilesError;
-  if (workersError) throw workersError;
+  if (recordingsError) throw new Error(`recordings query failed: ${recordingsError.message}`);
+  if (paymentsError) throw new Error(`payments query failed: ${paymentsError.message}`);
+  if (profilesError) throw new Error(`worker_profiles query failed: ${profilesError.message}`);
+  if (workersError) throw new Error(`workers query failed: ${workersError.message}`);
 
   const workerMap = new Map<string, any>();
 
@@ -105,11 +100,11 @@ async function getPaymentData(admin: any) {
 
     workerMap.set(worker.worker_id, {
       worker_id: worker.worker_id,
-      name: worker.name || worker.worker_id,
+      name: worker.full_name || worker.worker_id,
       email: worker.email,
       state: worker.state,
       city: worker.city,
-      account_name: worker.name,
+      account_name: null,
       bank_name: null,
       account_number: null,
     });
@@ -117,15 +112,14 @@ async function getPaymentData(admin: any) {
 
   for (const worker of workers || []) {
     if (!worker.worker_id) continue;
-
     const existing = workerMap.get(worker.worker_id) || {};
-
     workerMap.set(worker.worker_id, {
       ...existing,
       worker_id: worker.worker_id,
       name: existing.name || worker.full_name || worker.worker_id,
-      bank_name: worker.bank_name,
-      account_number: worker.account_number,
+      account_name: worker.account_name || existing.account_name || worker.full_name || null,
+      bank_name: worker.bank_name || existing.bank_name || null,
+      account_number: worker.account_number || existing.account_number || null,
     });
   }
 
@@ -133,14 +127,11 @@ async function getPaymentData(admin: any) {
 
   for (const recording of recordings || []) {
     if (!recording.worker_id || recording.is_approved !== true) continue;
-
     const amount = Number(recording.earnings || 0);
-
     approvedEarnings.set(
       recording.worker_id,
       (approvedEarnings.get(recording.worker_id) || 0) + amount
     );
-
     if (!workerMap.has(recording.worker_id)) {
       workerMap.set(recording.worker_id, {
         worker_id: recording.worker_id,
@@ -155,7 +146,6 @@ async function getPaymentData(admin: any) {
 
   for (const payment of payments || []) {
     if (!payment.worker_id || payment.status !== "paid") continue;
-
     paidAmounts.set(
       payment.worker_id,
       (paidAmounts.get(payment.worker_id) || 0) + Number(payment.amount || 0)
@@ -166,7 +156,6 @@ async function getPaymentData(admin: any) {
     const approved = approvedEarnings.get(worker.worker_id) || 0;
     const paid = paidAmounts.get(worker.worker_id) || 0;
     const balance = Math.max(0, approved - paid);
-
     return {
       ...worker,
       approved_earnings: approved,
@@ -180,18 +169,9 @@ async function getPaymentData(admin: any) {
     workers: workerPayments,
     payments: payments || [],
     overview: {
-      total_earnings: workerPayments.reduce(
-        (sum, worker) => sum + worker.approved_earnings,
-        0
-      ),
-      total_paid: workerPayments.reduce(
-        (sum, worker) => sum + worker.amount_paid,
-        0
-      ),
-      total_outstanding: workerPayments.reduce(
-        (sum, worker) => sum + worker.outstanding,
-        0
-      ),
+      total_earnings: workerPayments.reduce((sum, w) => sum + w.approved_earnings, 0),
+      total_paid: workerPayments.reduce((sum, w) => sum + w.amount_paid, 0),
+      total_outstanding: workerPayments.reduce((sum, w) => sum + w.outstanding, 0),
     },
   };
 }
@@ -199,29 +179,19 @@ async function getPaymentData(admin: any) {
 export async function GET(request: NextRequest) {
   try {
     const result = await getChairman(request);
-
     if ("error" in result) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status }
-      );
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
     const data = await getPaymentData(result.admin);
-
     return NextResponse.json(
       { success: true, ...data },
-      {
-        headers: {
-          "Cache-Control": "private, no-store, max-age=0",
-        },
-      }
+      { headers: { "Cache-Control": "private, no-store, max-age=0" } }
     );
   } catch (error: any) {
-    console.error("Chairman payments GET:", error.message);
-
+    const message = error?.message || "Could not load payment information.";
+    console.error("Chairman payments GET:", message);
     return NextResponse.json(
-      { error: "Could not load payment information." },
+      { error: "Could not load payment information. Check server logs." },
       { status: 500 }
     );
   }
@@ -230,16 +200,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const result = await getChairman(request);
-
     if ("error" in result) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status }
-      );
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
 
     const body = await request.json();
-
     const workerId = String(body.worker_id || "").trim();
     const amount = Number(body.amount);
     const reference = String(body.payment_reference || "").trim();
@@ -250,7 +215,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
     if (!reference) {
       return NextResponse.json(
         { error: "Enter the bank transfer reference." },
@@ -258,26 +222,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await getPaymentData(result.admin);
+    const { data: existingPayment, error: duplicateError } = await result.admin
+      .from("payments")
+      .select("id, worker_id, amount, payment_reference, status, paid_at")
+      .eq("payment_reference", reference)
+      .maybeSingle();
 
-    const worker = data.workers.find(
-      (item: any) => item.worker_id === workerId
-    );
+    if (duplicateError) {
+      throw new Error(`payments duplicate check failed: ${duplicateError.message}`);
+    }
 
-    if (!worker) {
+    if (existingPayment) {
       return NextResponse.json(
-        { error: "Worker not found." },
-        { status: 404 }
+        { error: "This transfer reference has already been recorded.", payment: existingPayment },
+        { status: 409 }
       );
     }
 
+    const data = await getPaymentData(result.admin);
+    const worker = data.workers.find((item: any) => item.worker_id === workerId);
+
+    if (!worker) {
+      return NextResponse.json({ error: "Worker not found." }, { status: 404 });
+    }
     if (worker.approved_earnings < MINIMUM_PAYOUT) {
       return NextResponse.json(
         { error: "Worker must have at least ₦5,000 in approved earnings." },
         { status: 400 }
       );
     }
-
     if (amount > worker.outstanding) {
       return NextResponse.json(
         { error: "Payment cannot exceed the outstanding balance." },
@@ -298,7 +271,15 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      if ((insertError as any).code === "23505") {
+        return NextResponse.json(
+          { error: "This transfer reference has already been recorded." },
+          { status: 409 }
+        );
+      }
+      throw new Error(`payments insert failed: ${insertError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -306,10 +287,10 @@ export async function POST(request: NextRequest) {
       payment,
     });
   } catch (error: any) {
-    console.error("Chairman payments POST:", error.message);
-
+    const message = error?.message || "Could not record payment.";
+    console.error("Chairman payments POST:", message);
     return NextResponse.json(
-      { error: "Could not record payment." },
+      { error: "Could not record payment. Check server logs." },
       { status: 500 }
     );
   }
