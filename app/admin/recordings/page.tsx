@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase = createClient();
 
 type RecordingStatus = "pending" | "approved" | "rejected";
 
 function getRecordingStatus(recording: any): RecordingStatus {
   if (recording.status === "rejected") return "rejected";
 
-  if (recording.is_approved === true) return "approved";
+  if (
+    recording.status === "approved" &&
+    recording.is_approved === true
+  ) {
+    return "approved";
+  }
 
-  // An old row may say approved without is_approved being true.
-  // Show it as pending so the Chairman can approve it again.
   return "pending";
 }
 
@@ -31,6 +31,9 @@ export default function RecordingsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<
+    "success" | "error" | ""
+  >("");
 
   const counts = {
     total: recordings.length,
@@ -55,8 +58,14 @@ export default function RecordingsPage() {
       error,
     } = await supabase.auth.getSession();
 
-    if (error || !session?.access_token) {
-      throw new Error("Please log in again as Chairman.");
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!session?.access_token) {
+      throw new Error(
+        "Your Chairman session was not found. Please log in again."
+      );
     }
 
     return session.access_token;
@@ -65,6 +74,7 @@ export default function RecordingsPage() {
   async function loadAllRecordings() {
     setLoading(true);
     setMessage("");
+    setMessageType("");
 
     try {
       const token = await getToken();
@@ -80,13 +90,19 @@ export default function RecordingsPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Could not load recordings.");
+        throw new Error(
+          result.error || "Could not load recordings."
+        );
       }
 
       setRecordings(result.recordings || []);
     } catch (error: any) {
       console.error("Could not load recordings:", error);
-      setMessage(error.message || "Could not load recordings.");
+
+      setMessage(
+        error.message || "Could not load recordings."
+      );
+      setMessageType("error");
     } finally {
       setLoading(false);
     }
@@ -98,15 +114,17 @@ export default function RecordingsPage() {
   ) {
     if (busyId) return;
 
-    const confirmation =
+    const confirmed = window.confirm(
       newStatus === "approved"
-        ? "Approve this recording?"
-        : "Reject this recording?";
+        ? "Are you sure you want to approve this recording?"
+        : "Are you sure you want to reject this recording?"
+    );
 
-    if (!window.confirm(confirmation)) return;
+    if (!confirmed) return;
 
     setBusyId(id);
     setMessage("");
+    setMessageType("");
 
     try {
       const token = await getToken();
@@ -126,16 +144,24 @@ export default function RecordingsPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Recording review failed.");
+        throw new Error(
+          result.error || "Recording review failed."
+        );
       }
 
-      setMessage(result.message || "Recording updated successfully.");
+      setMessage(
+        result.message || "Recording updated successfully."
+      );
+      setMessageType("success");
 
-      // Reload the actual database values after approval.
       await loadAllRecordings();
     } catch (error: any) {
       console.error("Recording review failed:", error);
-      setMessage(error.message || "Could not update recording.");
+
+      setMessage(
+        error.message || "Could not update recording."
+      );
+      setMessageType("error");
     } finally {
       setBusyId(null);
     }
@@ -143,6 +169,7 @@ export default function RecordingsPage() {
 
   const filtered = recordings.filter((recording) => {
     if (filter === "all") return true;
+
     return getRecordingStatus(recording) === filter;
   });
 
@@ -150,9 +177,9 @@ export default function RecordingsPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "#0f172a",
+        background: "#080d0b",
         padding: "16px",
-        color: "white",
+        color: "#ffffff",
       }}
     >
       <Link
@@ -161,6 +188,7 @@ export default function RecordingsPage() {
           color: "#22c55e",
           fontSize: "12px",
           textDecoration: "none",
+          fontWeight: 700,
         }}
       >
         ← Back to Chairman Overview
@@ -168,28 +196,86 @@ export default function RecordingsPage() {
 
       <h1
         style={{
-          fontSize: "20px",
-          marginTop: "12px",
-          fontWeight: 800,
+          fontSize: "22px",
+          marginTop: "16px",
+          fontWeight: 900,
         }}
       >
         Recording Review
       </h1>
 
-      <p style={{ color: "#94a3b8", fontSize: "11px" }}>
-        {loading
-          ? "Loading live recordings..."
-          : `${counts.total} total • ${counts.pending} pending • ${counts.approved} approved • ${counts.rejected} rejected`}
+      <p
+        style={{
+          color: "#94a3b8",
+          fontSize: "12px",
+          lineHeight: 1.7,
+        }}
+      >
+        Review worker recordings and approve or reject submissions.
       </p>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          gap: "9px",
+          marginTop: "18px",
+        }}
+      >
+        {[
+          ["TOTAL", counts.total, "#38bdf8"],
+          ["PENDING", counts.pending, "#fbbf24"],
+          ["APPROVED", counts.approved, "#4ade80"],
+          ["REJECTED", counts.rejected, "#f87171"],
+        ].map(([label, value, color]) => (
+          <div
+            key={String(label)}
+            style={{
+              background: "#111a15",
+              border: "1px solid #243329",
+              borderRadius: "12px",
+              padding: "14px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                color: "#94a3b8",
+                fontWeight: 800,
+              }}
+            >
+              {label}
+            </div>
+
+            <div
+              style={{
+                fontSize: "24px",
+                fontWeight: 900,
+                color: String(color),
+                marginTop: "5px",
+              }}
+            >
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
 
       {message && (
         <div
+          role="status"
           style={{
-            background: "#172554",
-            border: "1px solid #1d4ed8",
-            padding: "10px",
-            borderRadius: "8px",
-            marginTop: "12px",
+            marginTop: "14px",
+            padding: "12px",
+            borderRadius: "9px",
+            background:
+              messageType === "success" ? "#052e16" : "#450a0a",
+            border:
+              messageType === "success"
+                ? "1px solid #166534"
+                : "1px solid #991b1b",
+            color:
+              messageType === "success" ? "#86efac" : "#fecaca",
             fontSize: "12px",
             overflowWrap: "anywhere",
           }}
@@ -202,92 +288,99 @@ export default function RecordingsPage() {
         onClick={loadAllRecordings}
         disabled={loading}
         style={{
-          marginTop: "12px",
+          marginTop: "16px",
           background: "#14532d",
-          color: "white",
+          color: "#ffffff",
           border: "1px solid #166534",
-          padding: "8px 14px",
-          borderRadius: "8px",
-          fontSize: "11px",
-          fontWeight: 700,
+          padding: "10px 15px",
+          borderRadius: "9px",
+          fontSize: "12px",
+          fontWeight: 800,
+          opacity: loading ? 0.6 : 1,
         }}
       >
-        {loading ? "Refreshing..." : "↻ Refresh"}
+        {loading ? "Loading..." : "↻ Refresh Recordings"}
       </button>
 
       <div
         style={{
           display: "flex",
-          gap: "6px",
-          marginTop: "12px",
+          gap: "7px",
+          marginTop: "16px",
           overflowX: "auto",
+          paddingBottom: "5px",
         }}
       >
-        {(["all", "pending", "approved", "rejected"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            style={{
-              background: filter === f ? "#f59e0b" : "#1e293b",
-              color: filter === f ? "black" : "#94a3b8",
-              border: "none",
-              padding: "6px 12px",
-              borderRadius: "20px",
-              fontSize: "11px",
-              fontWeight: 800,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {f.toUpperCase()} (
-            {f === "all"
-              ? counts.total
-              : f === "pending"
-              ? counts.pending
-              : f === "approved"
-              ? counts.approved
-              : counts.rejected}
-            )
-          </button>
-        ))}
+        {(["all", "pending", "approved", "rejected"] as const).map(
+          (f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{
+                background:
+                  filter === f ? "#22c55e" : "#17231b",
+                color:
+                  filter === f ? "#041008" : "#cbd5e1",
+                border: "1px solid #26372c",
+                padding: "9px 13px",
+                borderRadius: "20px",
+                fontSize: "10px",
+                fontWeight: 900,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {f.toUpperCase()} (
+              {f === "all"
+                ? counts.total
+                : f === "pending"
+                ? counts.pending
+                : f === "approved"
+                ? counts.approved
+                : counts.rejected}
+              )
+            </button>
+          )
+        )}
       </div>
 
       <div
         style={{
           display: "grid",
-          gap: "10px",
+          gap: "12px",
           marginTop: "16px",
         }}
       >
-        {filtered.map((r) => {
-          const status = getRecordingStatus(r);
+        {filtered.map((recording) => {
+          const status = getRecordingStatus(recording);
+          const isBusy = busyId === recording.id;
 
           return (
-            <div
-              key={r.id}
+            <section
+              key={recording.id}
               style={{
-                background: "#020617",
-                border: "1px solid #1e293b",
-                borderRadius: "12px",
-                padding: "12px",
+                background: "#101813",
+                border: "1px solid #26372c",
+                borderRadius: "13px",
+                padding: "13px",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
+                  alignItems: "flex-start",
                   gap: "8px",
                 }}
               >
-                <p
+                <div
                   style={{
-                    margin: 0,
-                    fontSize: "13px",
-                    fontWeight: 700,
+                    fontSize: "12px",
+                    fontWeight: 900,
                     overflowWrap: "anywhere",
                   }}
                 >
-                  {r.id} • {r.type || r.language || "Recording"}
-                </p>
+                  {recording.id}
+                </div>
 
                 <span
                   style={{
@@ -303,11 +396,10 @@ export default function RecordingsPage() {
                         : status === "approved"
                         ? "#4ade80"
                         : "#f87171",
-                    padding: "3px 8px",
+                    padding: "5px 9px",
                     borderRadius: "20px",
                     fontSize: "9px",
-                    fontWeight: 800,
-                    height: "fit-content",
+                    fontWeight: 900,
                   }}
                 >
                   {status.toUpperCase()}
@@ -316,98 +408,113 @@ export default function RecordingsPage() {
 
               <p
                 style={{
-                  margin: "6px 0 0",
+                  color: "#a1a1aa",
                   fontSize: "11px",
-                  color: "#94a3b8",
+                  lineHeight: 1.8,
+                  marginTop: "9px",
                   overflowWrap: "anywhere",
                 }}
               >
-                {r.worker_id || "Worker ID unavailable"} •{" "}
-                {r.language || "Language unavailable"} •{" "}
-                {r.text?.slice(0, 60) ||
-                  r.pidgin_text?.slice(0, 60) ||
-                  "Recording"}{" "}
-                •{" "}
-                {r.created_at
-                  ? new Date(r.created_at).toLocaleString()
-                  : "Date unavailable"}
+                Worker: {recording.worker_id || "Unknown"}
+                <br />
+                Language: {recording.language || "Unknown"}
+                <br />
+                Text:{" "}
+                {(
+                  recording.text ||
+                  recording.pidgin_text ||
+                  recording.transcript ||
+                  "No transcript available"
+                ).slice(0, 160)}
+                <br />
+                Date:{" "}
+                {recording.created_at
+                  ? new Date(recording.created_at).toLocaleString()
+                  : "Unavailable"}
+                <br />
+                Earnings: ₦
+                {Number(recording.earnings || 0).toLocaleString()}
               </p>
 
               <div
                 style={{
-                  background: "#0f172a",
-                  borderRadius: "8px",
-                  padding: "10px",
+                  background: "#080d0b",
+                  border: "1px solid #26372c",
+                  borderRadius: "9px",
+                  padding: "12px",
                   marginTop: "10px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
                 }}
               >
-                {r.signedUrl ? (
+                {recording.signedUrl ? (
                   <>
                     <audio
-                      id={`audio-${r.id}`}
-                      src={r.signedUrl}
+                      id={`audio-${recording.id}`}
+                      src={recording.signedUrl}
+                      preload="none"
                       onEnded={() => setPlayingId(null)}
+                      onPause={() =>
+                        setPlayingId((current) =>
+                          current === recording.id ? null : current
+                        )
+                      }
                       style={{ display: "none" }}
                     />
 
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const audio = document.getElementById(
-                          `audio-${r.id}`
-                        ) as HTMLAudioElement;
+                          `audio-${recording.id}`
+                        ) as HTMLAudioElement | null;
 
                         if (!audio) return;
 
-                        if (playingId === r.id) {
+                        if (playingId === recording.id) {
                           audio.pause();
                           setPlayingId(null);
-                        } else {
-                          document.querySelectorAll("audio").forEach((item) =>
-                            (item as HTMLAudioElement).pause()
-                          );
+                          return;
+                        }
 
-                          audio
-                            .play()
-                            .then(() => setPlayingId(r.id))
-                            .catch((error) => {
-                              console.error("Audio playback failed:", error);
-                              alert("Could not play this recording.");
-                            });
+                        document
+                          .querySelectorAll("audio")
+                          .forEach((item) => {
+                            (item as HTMLAudioElement).pause();
+                          });
+
+                        try {
+                          await audio.play();
+                          setPlayingId(recording.id);
+                        } catch (error) {
+                          console.error("Audio playback failed:", error);
+                          setMessage("Could not play this recording.");
+                          setMessageType("error");
                         }
                       }}
                       style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "50%",
                         background:
-                          playingId === r.id ? "#ef4444" : "#f59e0b",
+                          playingId === recording.id
+                            ? "#dc2626"
+                            : "#15803d",
+                        color: "#ffffff",
                         border: "none",
-                        fontSize: "14px",
+                        borderRadius: "8px",
+                        padding: "10px 16px",
+                        fontWeight: 800,
+                        fontSize: "11px",
                       }}
                     >
-                      {playingId === r.id ? "⏸️" : "▶️"}
+                      {playingId === recording.id
+                        ? "⏸ Pause Recording"
+                        : "▶ Play Recording"}
                     </button>
-
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        color: "#94a3b8",
-                      }}
-                    >
-                      Chairman Play
-                    </span>
                   </>
                 ) : (
                   <span
                     style={{
-                      fontSize: "10px",
-                      color: "#94a3b8",
+                      fontSize: "11px",
+                      color: "#fbbf24",
                     }}
                   >
-                    No audio available
+                    No audio file available for this recording.
                   </span>
                 )}
               </div>
@@ -416,27 +523,31 @@ export default function RecordingsPage() {
                 style={{
                   display: "flex",
                   gap: "8px",
-                  marginTop: "10px",
+                  marginTop: "12px",
                 }}
               >
                 <button
-                  onClick={() => handleApproval(r.id, "approved")}
+                  onClick={() =>
+                    handleApproval(recording.id, "approved")
+                  }
                   disabled={status === "approved" || busyId !== null}
                   style={{
                     flex: 1,
                     background:
                       status === "approved" ? "#14532d" : "#052e16",
-                    border: "1px solid #14532d",
-                    color: "#4ade80",
-                    padding: "9px",
+                    border: "1px solid #166534",
+                    color: "#86efac",
+                    padding: "11px 5px",
                     borderRadius: "8px",
-                    fontSize: "11px",
-                    fontWeight: 700,
+                    fontSize: "10px",
+                    fontWeight: 900,
                     opacity:
-                      status === "approved" || busyId !== null ? 0.6 : 1,
+                      status === "approved" || busyId !== null
+                        ? 0.55
+                        : 1,
                   }}
                 >
-                  {busyId === r.id
+                  {isBusy
                     ? "Processing..."
                     : status === "approved"
                     ? "✓ Approved"
@@ -444,50 +555,66 @@ export default function RecordingsPage() {
                 </button>
 
                 <button
-                  onClick={() => handleApproval(r.id, "rejected")}
+                  onClick={() =>
+                    handleApproval(recording.id, "rejected")
+                  }
                   disabled={status === "rejected" || busyId !== null}
                   style={{
                     flex: 1,
                     background:
                       status === "rejected" ? "#7f1d1d" : "#450a0a",
-                    border: "1px solid #7f1d1d",
-                    color: "#f87171",
-                    padding: "9px",
+                    border: "1px solid #991b1b",
+                    color: "#fca5a5",
+                    padding: "11px 5px",
                     borderRadius: "8px",
-                    fontSize: "11px",
-                    fontWeight: 700,
+                    fontSize: "10px",
+                    fontWeight: 900,
                     opacity:
-                      status === "rejected" || busyId !== null ? 0.6 : 1,
+                      status === "rejected" || busyId !== null
+                        ? 0.55
+                        : 1,
                   }}
                 >
-                  {busyId === r.id
+                  {isBusy
                     ? "Processing..."
                     : status === "rejected"
                     ? "✕ Rejected"
                     : "✕ Reject"}
                 </button>
               </div>
-            </div>
+            </section>
           );
         })}
 
         {!loading && filtered.length === 0 && (
-          <p style={{ color: "#94a3b8", fontSize: "13px" }}>
-            No recordings found in this category.
-          </p>
+          <div
+            style={{
+              background: "#101813",
+              border: "1px solid #26372c",
+              borderRadius: "12px",
+              padding: "20px",
+              textAlign: "center",
+              color: "#94a3b8",
+              fontSize: "12px",
+            }}
+          >
+            {messageType === "error"
+              ? "Recordings could not be loaded. Check the error above."
+              : "No recordings found in this category."}
+          </div>
         )}
       </div>
 
-      <p
+      <footer
         style={{
-          marginTop: "24px",
+          marginTop: "28px",
           textAlign: "center",
           color: "#64748b",
           fontSize: "10px",
         }}
       >
         MAIN NAIJA PIDGIN • CHAIRMAN RECORDING CONTROL
-      </p>
+      </footer>
     </main>
   );
 }
