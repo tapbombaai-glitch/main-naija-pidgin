@@ -37,6 +37,7 @@ return (
 
     <section className="panels">
 
+      {/* WORKER PANEL */}
       <Link href="/worker" className="panel worker">
         <div className="panel-top">
           <span className="panel-icon">👷</span>
@@ -56,21 +57,42 @@ return (
         </div>
       </Link>
 
+      {/* CHAIRMAN DASHBOARD */}
       <Link href="/admin/login" className="panel admin">
         <div className="panel-top">
           <span className="panel-icon">👑</span>
-          <span className="panel-badge">ADMINISTRATION</span>
+          <span className="panel-badge">CHAIRMAN ONLY</span>
         </div>
 
-        <h3>Admin Dashboard</h3>
+        <h3>Chairman Dashboard</h3>
 
         <p>
-          Manage workers, recordings, payments, Voice Studio,
-          API services and platform activities.
+          Manage workers, recordings, approvals, earnings,
+          Voice Studio and platform administration.
         </p>
 
         <div className="panel-bottom">
-          <span>Open Admin Control</span>
+          <span>Open Chairman Dashboard</span>
+          <strong>→</strong>
+        </div>
+      </Link>
+
+      {/* API MARKETPLACE */}
+      <Link href="/marketplace" className="panel marketplace">
+        <div className="panel-top">
+          <span className="panel-icon">🚀</span>
+          <span className="panel-badge">DEVELOPER ACCESS</span>
+        </div>
+
+        <h3>API Marketplace</h3>
+
+        <p>
+          Explore Nigerian AI voices, access voice APIs,
+          manage API keys, credits and developer services.
+        </p>
+
+        <div className="panel-bottom">
+          <span>Explore API Marketplace</span>
           <strong>→</strong>
         </div>
       </Link>
@@ -267,6 +289,11 @@ return (
       border: 1px solid #ffd338;
     }
 
+    .marketplace {
+      background: linear-gradient(145deg, #064b75, #071e35);
+      border: 1px solid #27baff;
+    }
+
     .panel-top {
       display: flex;
       justify-content: space-between;
@@ -388,6 +415,10 @@ return (
 
       .panels {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .marketplace {
+        grid-column: 1 / -1;
       }
     }
   `}</style>
