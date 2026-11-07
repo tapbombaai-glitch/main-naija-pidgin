@@ -38,7 +38,7 @@ return (
     <section className="panels">
 
       {/* WORKER PANEL */}
-      <Link href="/worker" className="panel worker">
+      <Link href="/worker/login" className="panel worker">
         <div className="panel-top">
           <span className="panel-icon">👷</span>
           <span className="panel-badge">WORKSPACE</span>
