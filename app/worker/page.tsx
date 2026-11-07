@@ -132,7 +132,7 @@ export default function WorkerDashboard() {
       reader.onloadend = () => {
         const data = {
           id: Date.now(),
-          worker_id: "WORKER-1234",
+          worker_id: "WORKER-123",
           lang: selectedLang,
           sentence: sentences[currentSentenceIndex],
           fileName,
@@ -191,7 +191,7 @@ export default function WorkerDashboard() {
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 100 }}>{toast}</div>}
       <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-          <div><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1><div style={{ fontSize: "11px", color: "#aaa" }}>WORKER-1234 ● {savedFiles.length} files saved to phone</div></div>
+          <div><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1><div style={{ fontSize: "11px", color: "#aaa" }}>WORKER-123 ● {savedFiles.length} files saved</div></div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%" }}></div>
         </div>
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
