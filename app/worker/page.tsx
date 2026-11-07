@@ -142,10 +142,28 @@ export default function WorkerDashboard() {
           status: "saved_to_phone",
           approved: false
         };
-        const old = JSON.parse(localStorage.getItem("gin_recordings") || "[]");
+        // 3. Protect the recording save operation - FIXED
+        let old: any[] = [];
+
+        try {
+          const raw = localStorage.getItem("gin_recordings");
+          const parsed = raw ? JSON.parse(raw) : [];
+          old = Array.isArray(parsed) ? parsed : [];
+        } catch {
+          old = [];
+        }
+
         old.unshift(data);
-        localStorage.setItem("gin_recordings", JSON.stringify(old.slice(0,100)));
-        setSavedFiles(old.slice(0,100));
+
+        const updated = old.slice(0, 100);
+
+        try {
+          localStorage.setItem("gin_recordings", JSON.stringify(updated));
+          setSavedFiles(updated);
+        } catch (error) {
+          console.error("Could not save recording details:", error);
+          alert("Recording details could not be saved. Please check phone storage.");
+        }
       };
       reader.readAsDataURL(blob);
 
