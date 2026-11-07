@@ -219,7 +219,11 @@ textDecoration: "none"
         {savedFiles.length > 0 && (
           <div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}>
             <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Phone for Chairman</div>
-            {savedFiles.slice(0,3).map((f: any)=> <div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName} — {f.sentence.slice(0,20)}...</div>)}
+            {savedFiles.slice(0,3).map((f: any)=> <div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName || "Recording"} — {
+  typeof f.sentence === "string"
+    ? f.sentence.slice(0, 20)
+    : "Saved audio"
+}...</div>)}
           </div>
         )}
       </div>
