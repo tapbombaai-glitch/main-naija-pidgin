@@ -159,6 +159,26 @@ export default function WorkerDashboard() {
             <button key={lang} onClick={()=>setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang===lang?"1.5px solid #00E676":"1px solid #2A3A2A", background: selectedLang===lang?"#00E676":"#222", color: selectedLang===lang?"black":"#aaa" }}>{lang}</button>
           ))}
         </div>
+<a
+href="/worker/dataset"
+style={{
+display: "block",
+width: "100%",
+boxSizing: "border-box",
+padding: "16px",
+marginTop: "16px",
+background: "#064e3b",
+color: "#ffffff",
+border: "1px solid #00E676",
+borderRadius: "12px",
+textAlign: "center",
+fontWeight: "900",
+fontSize: "13px",
+textDecoration: "none"
+}}
+>
+🎙️ JOIN NIGERIAN VOICE DATASET →
+</a>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {currentSentenceIndex+1}/{sentences.length}</div>
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
