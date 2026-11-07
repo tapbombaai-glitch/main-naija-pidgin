@@ -28,17 +28,39 @@ export default function WorkerDashboard() {
   const sentences = allSentences[selectedLang];
 
   useEffect(() => {
+  try {
     const saved = localStorage.getItem("naija_progress");
+
     if (saved) {
-      try {
-        const p = JSON.parse(saved);
+      const p = JSON.parse(saved);
+
+      if (p.progress && typeof p.progress.total === "number") {
         setTaskProgress(p.progress);
+      }
+
+      if (p.earnings && typeof p.earnings.total === "number") {
         setEarnings(p.earnings);
-        setCurrentSentenceIndex(p.index || 0);
-      } catch {}
+      }
+
+      const index = Number(p.index) || 0;
+      setCurrentSentenceIndex(
+        Math.max(0, Math.min(index, allSentences.Pidgin.length - 1))
+      );
     }
-    setSavedFiles(JSON.parse(localStorage.getItem("gin_recordings") || "[]"));
-  }, []);
+  } catch (error) {
+    console.error("Progress loading error:", error);
+  }
+
+  try {
+    const raw = localStorage.getItem("gin_recordings");
+    const parsed = raw ? JSON.parse(raw) : [];
+
+    setSavedFiles(Array.isArray(parsed) ? parsed : []);
+  } catch (error) {
+    console.error("Recording loading error:", error);
+    setSavedFiles([]);
+  }
+}, []);
 
   const showToast = (msg: string) => {
     setToast(msg);
