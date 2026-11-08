@@ -20,11 +20,8 @@ export async function POST(req: NextRequest) {
 
     const cookieStore = await cookies();
 
-    // Create response first so authentication cookies
-    // are attached directly to the HTTP response.
-    const response = NextResponse.json({
-      success: false,
-    });
+    // We go collect cookies here first, then put am for final response
+    let cookiesToSave: { name: string; value: string; options?: any }[] = [];
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,31 +31,22 @@ export async function POST(req: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
+            cookiesToSave = cookiesToSet;
           },
         },
       }
     );
 
-    let worker: {
-      email: string;
-      worker_id: string;
-    } | null = null;
-
+    let worker: { email: string; worker_id: string } | null = null;
     const cleanIdentifier = identifier.trim();
 
-    // Find worker using Worker ID or email.
     if (cleanIdentifier.includes("@")) {
       const { data } = await supabase
         .from("workers")
         .select("email, worker_id")
         .eq("email", cleanIdentifier.toLowerCase())
         .maybeSingle();
-
       worker = data;
     } else {
       const { data } = await supabase
@@ -66,7 +54,6 @@ export async function POST(req: NextRequest) {
         .select("email, worker_id")
         .eq("worker_id", cleanIdentifier)
         .maybeSingle();
-
       worker = data;
     }
 
@@ -79,7 +66,6 @@ export async function POST(req: NextRequest) {
 
     const email = worker.email.toLowerCase();
 
-    // Chairman cannot use worker login.
     if (email === CHAIRMAN_EMAIL) {
       return NextResponse.json(
         { error: "Please use the Chairman Login." },
@@ -87,12 +73,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Authenticate through Supabase.
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error || !data.user) {
       return NextResponse.json(
@@ -101,32 +85,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Confirm authenticated account matches worker account.
     if (data.user.email?.toLowerCase() !== email) {
       await supabase.auth.signOut();
-
       return NextResponse.json(
         { error: "Worker account verification failed." },
         { status: 403 }
       );
     }
 
-    return NextResponse.json(
+    // Now we put the cookies for the CORRECT final response
+    const response = NextResponse.json(
       {
         success: true,
         workerId: worker.worker_id,
         email: data.user.email,
       },
       {
-        headers: {
-          "Cache-Control": "no-store",
-        },
+        headers: { "Cache-Control": "no-store" },
       }
     );
 
+    cookiesToSave.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
+    });
+
+    return response;
   } catch (error) {
     console.error("Worker login error:", error);
-
     return NextResponse.json(
       { error: "Something went wrong during login." },
       { status: 500 }
