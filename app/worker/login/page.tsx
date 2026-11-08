@@ -39,7 +39,11 @@ export default function WorkerLogin() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#050805", padding: "40px 20px", color: "white", fontFamily: "system-ui" }}>
+    <main
+  onContextMenu={(e) => e.preventDefault()}
+  onCopy={(e) => e.preventDefault()}
+  style={{ minHeight: "100vh", background: "#050805", padding: "40px 20px", color: "white", fontFamily: "system-ui", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
+>
       <div style={{ margin: "0 auto", maxWidth: "448px", minHeight: "85vh", display: "flex", flexDirection: "column", justifyContent: "center" }}>
         <header style={{ marginBottom: "32px", textAlign: "center" }}>
           <div style={{ margin: "0 auto 16px", height: "80px", width: "80px", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "24px", border: "1px solid rgba(34,197,94,0.4)", background: "#052e16", fontSize: "48px" }}>🇳🇬</div>
