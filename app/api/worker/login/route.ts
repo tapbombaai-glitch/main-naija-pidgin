@@ -1,81 +1,108 @@
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
-import { createClient } from "@/lib/supabase/server";
-import { CHAIRMAN_EMAIL } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST(request: NextRequest) {
+const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json();
+    const { identifier, password } = await req.json();
 
-    const identifier = String(body.identifier || "").trim();
-    const password = String(body.password || "");
-
-    if (!identifier || !password) {
+    if (!identifier?.trim() || !password) {
       return NextResponse.json(
-        { error: "Enter your Worker ID or email and password." },
+        { error: "Enter Worker ID and password." },
         { status: 400 }
       );
     }
 
-    const isEmail = identifier.includes("@");
+    const cookieStore = await cookies();
 
-    let workerQuery = supabaseAdmin
-      .from("workers")
-      .select("worker_id, email, auth_user_id, full_name");
+    // Create response first so authentication cookies
+    // are attached directly to the HTTP response.
+    const response = NextResponse.json({
+      success: false,
+    });
 
-    if (isEmail) {
-      workerQuery = workerQuery.eq("email", identifier.toLowerCase());
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
+          },
+        },
+      }
+    );
+
+    let worker: {
+      email: string;
+      worker_id: string;
+    } | null = null;
+
+    const cleanIdentifier = identifier.trim();
+
+    // Find worker using Worker ID or email.
+    if (cleanIdentifier.includes("@")) {
+      const { data } = await supabase
+        .from("workers")
+        .select("email, worker_id")
+        .eq("email", cleanIdentifier.toLowerCase())
+        .maybeSingle();
+
+      worker = data;
     } else {
-      workerQuery = workerQuery.eq(
-        "worker_id",
-        identifier.toUpperCase()
+      const { data } = await supabase
+        .from("workers")
+        .select("email, worker_id")
+        .eq("worker_id", cleanIdentifier)
+        .maybeSingle();
+
+      worker = data;
+    }
+
+    if (!worker?.email) {
+      return NextResponse.json(
+        { error: "Worker account not found." },
+        { status: 404 }
       );
     }
 
-    const { data: worker, error: workerError } =
-      await workerQuery.maybeSingle();
+    const email = worker.email.toLowerCase();
 
-    if (
-      workerError ||
-      !worker ||
-      !worker.email ||
-      !worker.auth_user_id
-    ) {
+    // Chairman cannot use worker login.
+    if (email === CHAIRMAN_EMAIL) {
       return NextResponse.json(
-        { error: "Invalid Worker ID/email or password." },
-        { status: 401 }
-      );
-    }
-
-    // Chairman account must never use the Worker login.
-    if (worker.email.toLowerCase() === CHAIRMAN_EMAIL.toLowerCase()) {
-      return NextResponse.json(
-        { error: "Please use the Chairman login." },
+        { error: "Please use the Chairman Login." },
         { status: 403 }
       );
     }
 
-    const supabase = await createClient();
-
-    const { data: authData, error: authError } =
+    // Authenticate through Supabase.
+    const { data, error } =
       await supabase.auth.signInWithPassword({
-        email: worker.email,
+        email,
         password,
       });
 
-    if (authError || !authData.user) {
+    if (error || !data.user) {
       return NextResponse.json(
-        { error: "Invalid Worker ID/email or password." },
+        { error: "Wrong Worker ID or password." },
         { status: 401 }
       );
     }
 
-    // Make sure the authenticated Supabase user belongs
-    // to the worker profile we found.
-    if (authData.user.id !== worker.auth_user_id) {
+    // Confirm authenticated account matches worker account.
+    if (data.user.email?.toLowerCase() !== email) {
       await supabase.auth.signOut();
 
       return NextResponse.json(
@@ -84,16 +111,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      workerId: worker.worker_id,
-      fullName: worker.full_name,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        workerId: worker.worker_id,
+        email: data.user.email,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+
   } catch (error) {
     console.error("Worker login error:", error);
 
     return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
+      { error: "Something went wrong during login." },
       { status: 500 }
     );
   }
