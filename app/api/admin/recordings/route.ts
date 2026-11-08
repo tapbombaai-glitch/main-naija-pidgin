@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const workerId = searchParams.get("worker_id");
     const status = searchParams.get("status");
-    const limit = Number(searchParams.get("limit") || 100);
+    const limit = Math.min(Math.max(Number(searchParams.get("limit") || 100), 1), 100);
     let query = admin.from("recordings").select("*").order("created_at", { ascending: false }).limit(limit);
     if (workerId) query = query.eq("worker_id", workerId);
     if (status) query = query.eq("status", status);
@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - ✅ ATOMIC VIA RPC - NO RACE, NO MISSING EARNINGS
 export async function POST(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
@@ -100,12 +99,13 @@ export async function POST(request: NextRequest) {
     if (!id || !["approved", "rejected"].includes(newStatus)) {
       return NextResponse.json({ error: "A valid recording ID and status are required." }, { status: 400 });
     }
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+      return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
+    }
 
-    // Get earnings amount for RPC - default 30
-    const { data: rec } = await admin.from("recordings").select("earnings").eq("id", id).single();
-    const amount = Number(rec?.earnings || 30);
+    // ✅ FIX: No extra earnings lookup - SQL already reads v_rec.earnings, 30 na fallback only
+    const amount = 30;
 
-    // ✅ ONE atomic call: lock row + update status + pay worker + mark paid, or rollback all
     const { data: rpcResult, error: rpcError } = await admin.rpc("approve_recording_atomic", {
       p_recording_id: id,
       p_new_status: newStatus,
@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: rpcResult?.error || "Approval failed." }, { status: 500 });
     }
 
-    // Fetch fresh recording to return
     const { data: updatedRecording } = await admin.from("recordings").select("id, worker_id, status, is_approved, earnings, earnings_paid").eq("id", id).single();
 
     return NextResponse.json({
@@ -136,8 +135,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - DISABLED
 export async function DELETE(request: NextRequest) {
+  const admin = await verifyChairman(request);
+  if (!admin) return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
   return NextResponse.json(
     { error: "Delete is disabled. Recordings are kept for history. Use approve or reject instead." },
     { status: 405 }
