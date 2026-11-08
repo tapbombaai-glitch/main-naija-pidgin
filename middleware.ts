@@ -1,19 +1,28 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Allow the app to continue if Supabase is not configured.
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error("Supabase environment variables are missing.");
     return supabaseResponse;
   }
+
+  // Preserve refreshed authentication cookies.
+  let refreshedCookies: {
+    name: string;
+    value: string;
+    options?: any;
+  }[] = [];
 
   const supabase = createServerClient(
     supabaseUrl,
@@ -25,6 +34,8 @@ export async function middleware(request: NextRequest) {
         },
 
         setAll(cookiesToSet) {
+          refreshedCookies = cookiesToSet;
+
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
@@ -34,26 +45,26 @@ export async function middleware(request: NextRequest) {
           });
 
           cookiesToSet.forEach(({ name, value, options }) => {
-            supabaseResponse.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(
+              name,
+              value,
+              options
+            );
           });
         },
       },
     }
   );
 
-  // Refresh/check the Supabase login session.
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  /*
-   * WORKER PROTECTION
-   *
-   * /worker/login and /worker/register remain public.
-   *
-   * /worker requires a logged-in Supabase user.
-   */
   const pathname = request.nextUrl.pathname;
+
+  const userEmail = user?.email?.toLowerCase();
+
+  const isChairman = userEmail === CHAIRMAN_EMAIL;
 
   const isWorkerArea =
     pathname === "/worker" ||
@@ -63,25 +74,58 @@ export async function middleware(request: NextRequest) {
     pathname === "/worker/login" ||
     pathname === "/worker/register";
 
-  if (isWorkerArea && !isWorkerPublicPage) {
-    // Not logged in → send worker to Worker Login.
-    if (!user) {
-      const loginUrl = request.nextUrl.clone();
-      loginUrl.pathname = "/worker/login";
-      loginUrl.search = "";
+  const isAdminArea =
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/");
 
-      return NextResponse.redirect(loginUrl);
+  const isAdminLogin =
+    pathname === "/admin/login";
+
+  // Helper: redirect while preserving refreshed cookies.
+  function redirectTo(path: string) {
+    const url = request.nextUrl.clone();
+
+    url.pathname = path;
+    url.search = "";
+
+    const response = NextResponse.redirect(url);
+
+    refreshedCookies.forEach(
+      ({ name, value, options }) => {
+        response.cookies.set(name, value, options);
+      }
+    );
+
+    return response;
+  }
+
+  // =====================================
+  // CHAIRMAN DASHBOARD PROTECTION
+  // =====================================
+
+  if (isAdminArea && !isAdminLogin) {
+    if (!user) {
+      return redirectTo("/admin/login");
     }
 
-    // Chairman must not enter the Worker Panel.
-    const userEmail = user.email?.toLowerCase();
+    if (!isChairman) {
+      return redirectTo("/worker/login");
+    }
+  }
 
-    if (userEmail === "tapbomba.ai@gmail.com") {
-      const chairmanUrl = request.nextUrl.clone();
-      chairmanUrl.pathname = "/admin/login";
-      chairmanUrl.search = "";
+  // =====================================
+  // WORKER DASHBOARD PROTECTION
+  // =====================================
 
-      return NextResponse.redirect(chairmanUrl);
+  if (isWorkerArea && !isWorkerPublicPage) {
+    if (!user) {
+      return redirectTo("/worker/login");
+    }
+
+    // Chairman must use the Chairman Dashboard.
+    // Do not send Chairman back to Admin Login.
+    if (isChairman) {
+      return redirectTo("/worker/login");
     }
   }
 
