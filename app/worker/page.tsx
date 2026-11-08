@@ -36,6 +36,7 @@ export default function WorkerDashboard() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const languageChangeMounted = useRef(false);
 
   const allSentences: Record<string, string[]> = {
     Pidgin: [
@@ -376,6 +377,10 @@ export default function WorkerDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!languageChangeMounted.current) {
+      languageChangeMounted.current = true;
+      return;
+    }
     setCurrentSentenceIndex(0);
     setAudioURL(null);
     setTimer(0);
