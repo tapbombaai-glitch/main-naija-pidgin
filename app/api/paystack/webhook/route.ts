@@ -1,53 +1,233 @@
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
-export async function POST(req: Request) {
-  const body = await req.text()
-  const signature = req.headers.get('x-paystack-signature') || ''
-  
-  // Verify signature - security!
-  const crypto = await import('crypto')
-  const hash = crypto.createHmac('sha512', process.env.PAYSTACK_SECRET_KEY!).update(body).digest('hex')
-  if (hash !== signature) return Response.json({ error: 'Invalid signature' }, { status: 401 })
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-  const event = JSON.parse(body)
-  if (event.event !== 'charge.success') return Response.json({ received: true })
+type PaystackEvent = {
+  event?: string;
+  data?: {
+    id?: number | string;
+    reference?: string;
+    status?: string;
+    amount?: number;
+    currency?: string;
+  };
+};
 
-  const reference = event.data.reference
-  const amount = event.data.amount / 100 // Convert kobo to Naira
+type PaystackVerification = {
+  status?: boolean;
+  message?: string;
+  data?: {
+    id?: number | string;
+    reference?: string;
+    status?: string;
+    amount?: number;
+    currency?: string;
+  };
+};
 
-  // Get payment from DB
-  const { data: payment } = await supabaseAdmin.from('api_payments').select('*').eq('reference', reference).single()
-  if (!payment || payment.payment_status === 'successful') return Response.json({ received: true })
+export async function POST(request: NextRequest) {
+  const secret = process.env.PAYSTACK_SECRET_KEY;
 
-  // YOUR SMALL PRICE LOGIC - FOR START START 👑
-  let creditsToGive = payment.credits // use what you saved
-  // If no credits saved, use small price mapping
-  if (!creditsToGive || creditsToGive === 0) {
-    if (amount >= 10000) creditsToGive = 2500  // ₦10k = 2500 voices
-    else if (amount >= 5000) creditsToGive = 1000   // ₦5k = 1000 voices
-    else if (amount >= 2000) creditsToGive = 300    // ₦2k = 300 voices
-    else if (amount >= 1000) creditsToGive = 100    // ₦1k = 100 voices
-    else creditsToGive = 50 // small test
+  if (!secret) {
+    console.error("PAYSTACK_SECRET_KEY is missing.");
+
+    return NextResponse.json(
+      { success: false, error: "Payment configuration is missing." },
+      { status: 500 }
+    );
   }
 
-  // Mark payment successful
-  await supabaseAdmin.from('api_payments').update({ 
-    payment_status: 'successful', 
-    paid_at: new Date().toISOString(),
-    credits: creditsToGive // save correct credits
-  }).eq('reference', reference)
-  
-  // Give credits to API key automatically
-  const { data: key } = await supabaseAdmin.from('api_keys').select('*').eq('user_id', payment.user_id).eq('is_active', true).order('created_at', { ascending: false }).limit(1).single()
-  
-  if (key) {
-    await supabaseAdmin.from('api_keys').update({
-      paid_requests_remaining: (key.paid_requests_remaining || 0) + creditsToGive,
-      credits_remaining: (key.free_requests_remaining || 0) + (key.paid_requests_remaining || 0) + creditsToGive,
-    }).eq('id', key.id)
+  let rawBody: string;
+
+  try {
+    rawBody = await request.text();
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Could not read webhook body." },
+      { status: 400 }
+    );
   }
 
-  console.log(`✅ Chairman money! User ${payment.user_id} paid ₦${amount} - gave ${creditsToGive} voices`)
+  const signature = request.headers.get("x-paystack-signature") || "";
 
-  return Response.json({ success: true, credits: creditsToGive })
+  const expectedSignature = createHmac("sha512", secret)
+    .update(rawBody)
+    .digest("hex");
+
+  if (!/^[a-fA-F0-9]{128}$/.test(signature)) {
+    return NextResponse.json(
+      { success: false, error: "Invalid signature." },
+      { status: 401 }
+    );
+  }
+
+  const receivedBuffer = Buffer.from(signature, "hex");
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
+
+  if (!timingSafeEqual(receivedBuffer, expectedBuffer)) {
+    return NextResponse.json(
+      { success: false, error: "Invalid signature." },
+      { status: 401 }
+    );
+  }
+
+  let event: PaystackEvent;
+
+  try {
+    event = JSON.parse(rawBody) as PaystackEvent;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Invalid webhook payload." },
+      { status: 400 }
+    );
+  }
+
+  if (event.event !== "charge.success") {
+    return NextResponse.json({ received: true });
+  }
+
+  const reference = event.data?.reference;
+
+  if (
+    !reference ||
+    event.data?.status !== "success" ||
+    typeof event.data.amount !== "number" ||
+    !event.data.currency
+  ) {
+    return NextResponse.json(
+      { success: false, error: "Incomplete payment information." },
+      { status: 400 }
+    );
+  }
+
+  try {
+    // Find the payment order saved by our initialization route.
+    const { data: payment, error: paymentError } = await supabaseAdmin
+      .from("api_payments")
+      .select(
+        "reference, user_id, package_id, amount, currency, credits, payment_status"
+      )
+      .eq("reference", reference)
+      .maybeSingle();
+
+    if (paymentError) {
+      console.error("PAYMENT LOOKUP ERROR:", paymentError.message);
+
+      return NextResponse.json(
+        { success: false, error: "Could not check payment record." },
+        { status: 500 }
+      );
+    }
+
+    if (!payment) {
+      console.error("PAYMENT RECORD NOT FOUND:", reference);
+
+      return NextResponse.json(
+        { success: false, error: "Payment record not found." },
+        { status: 404 }
+      );
+    }
+
+    // Our database stores the amount in Naira.
+    // Paystack sends the amount in kobo.
+    if (
+      event.data.amount !== payment.amount * 100 ||
+      event.data.currency !== payment.currency ||
+      payment.currency !== "NGN"
+    ) {
+      console.error("PAYMENT AMOUNT/CURRENCY MISMATCH:", reference);
+
+      return NextResponse.json(
+        { success: false, error: "Payment amount or currency mismatch." },
+        { status: 400 }
+      );
+    }
+
+    // Independently verify the transaction directly with Paystack.
+    const verifyResponse = await fetch(
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    const verification =
+      (await verifyResponse.json()) as PaystackVerification;
+
+    if (
+      !verifyResponse.ok ||
+      !verification.status ||
+      verification.data?.status !== "success" ||
+      verification.data?.reference !== reference ||
+      verification.data?.amount !== payment.amount * 100 ||
+      verification.data?.currency !== payment.currency ||
+      verification.data?.id === undefined
+    ) {
+      console.error("PAYSTACK VERIFICATION FAILED:", reference);
+
+      return NextResponse.json(
+        { success: false, error: "Paystack could not confirm this payment." },
+        { status: 400 }
+      );
+    }
+
+    // Add credits and mark payment successful atomically.
+    // The database function prevents duplicate crediting.
+    const { data: result, error: rpcError } = await supabaseAdmin.rpc(
+      "complete_api_payment",
+      {
+        p_reference: reference,
+        p_paystack_transaction_id: String(verification.data.id),
+      }
+    );
+
+    if (rpcError) {
+      console.error("PAYMENT COMPLETION ERROR:", rpcError.message);
+
+      return NextResponse.json(
+        { success: false, error: "Could not complete payment processing." },
+        { status: 500 }
+      );
+    }
+
+    if (!result?.success) {
+      console.error("PAYMENT RPC FAILED:", result);
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: result?.error || "Payment processing failed.",
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log("PAYMENT PROCESSED:", {
+      reference,
+      userId: payment.user_id,
+      credits: result.credits,
+      alreadyProcessed: result.already_processed,
+    });
+
+    return NextResponse.json({
+      success: true,
+      credits: result.credits,
+      already_processed: Boolean(result.already_processed),
+    });
+  } catch (error) {
+    console.error("PAYSTACK WEBHOOK ERROR:", error);
+
+    return NextResponse.json(
+      { success: false, error: "Webhook processing failed." },
+      { status: 500 }
+    );
+  }
 }
