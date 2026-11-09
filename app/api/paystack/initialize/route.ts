@@ -1,55 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Approved Main Naija Pidgin packages.
-// Prices are in Naira.
 const PACKAGES: Record<
   string,
   { name: string; credits: number; amount: number }
 > = {
-  starter: {
-    name: "Starter",
-    credits: 5000,
-    amount: 1500,
-  },
-  basic: {
-    name: "Basic",
-    credits: 10000,
-    amount: 3000,
-  },
-  standard: {
-    name: "Standard",
-    credits: 20000,
-    amount: 6000,
-  },
-  business: {
-    name: "Business",
-    credits: 50000,
-    amount: 15000,
-  },
-  premium: {
-    name: "Premium",
-    credits: 100000,
-    amount: 30000,
-  },
+  starter: { name: "Starter", credits: 5000, amount: 1500 },
+  basic: { name: "Basic", credits: 10000, amount: 3000 },
+  standard: { name: "Standard", credits: 20000, amount: 6000 },
+  business: { name: "Business", credits: 50000, amount: 15000 },
+  premium: { name: "Premium", credits: 100000, amount: 30000 },
 };
 
 export async function POST(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL;
+
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_KEY;
+
   const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
 
   if (!supabaseUrl || !anonKey || !serviceRoleKey || !paystackSecret) {
+    console.error("PAYMENT CONFIGURATION ERROR:", {
+      supabaseUrl: !!supabaseUrl,
+      anonKey: !!anonKey,
+      serviceRoleKey: !!serviceRoleKey,
+      paystackSecret: !!paystackSecret,
+    });
+
     return NextResponse.json(
-      {
-        success: false,
-        error: "Server configuration is missing.",
-      },
+      { success: false, error: "Server payment configuration is incomplete." },
       { status: 500 }
     );
   }
@@ -58,10 +47,7 @@ export async function POST(request: NextRequest) {
 
   if (!authorization?.startsWith("Bearer ")) {
     return NextResponse.json(
-      {
-        success: false,
-        error: "Please log in first.",
-      },
+      { success: false, error: "Please log in first." },
       { status: 401 }
     );
   }
@@ -69,7 +55,6 @@ export async function POST(request: NextRequest) {
   try {
     const token = authorization.slice(7);
 
-    // Authenticate the customer using Supabase.
     const authClient = createClient(supabaseUrl, anonKey, {
       auth: {
         persistSession: false,
@@ -82,39 +67,32 @@ export async function POST(request: NextRequest) {
 
     const user = authData.user;
 
-    if (authError || !user || !user.email) {
+    if (authError || !user?.email) {
       return NextResponse.json(
         {
           success: false,
-          error: "Your session is invalid or expired. Please log in again.",
+          error: "Your session has expired. Please log in again.",
         },
         { status: 401 }
       );
     }
 
-    const userId = user.id;
-    const email = user.email.trim().toLowerCase();
-
-    // Read only the package ID from the browser.
     const body = await request.json();
+
     const packageId =
       typeof body.packageId === "string"
-        ? body.packageId.toLowerCase()
+        ? body.packageId.trim().toLowerCase()
         : "";
 
     const selectedPackage = PACKAGES[packageId];
 
     if (!selectedPackage) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid package. Please select an approved paid package.",
-        },
+        { success: false, error: "Please select a valid package." },
         { status: 400 }
       );
     }
 
-    // Use the server-side service-role client.
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
@@ -122,24 +100,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // A customer must have an active API key before purchasing credits.
+    // Confirm that this authenticated customer owns an active API key.
     const { data: activeKey, error: keyError } = await admin
       .from("api_keys")
       .select("id")
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .eq("is_active", true)
-      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (keyError) {
-      console.error("ACTIVE API KEY CHECK:", keyError.message);
+      console.error("ACTIVE API KEY CHECK ERROR:", {
+        message: keyError.message,
+        code: keyError.code,
+        details: keyError.details,
+        hint: keyError.hint,
+      });
 
       return NextResponse.json(
-        {
-          success: false,
-          error: "Could not check your API key.",
-        },
+        { success: false, error: "Could not verify your API key." },
         { status: 500 }
       );
     }
@@ -154,29 +133,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate our own reference.
-    // Save the pending payment BEFORE contacting Paystack.
-    const reference = randomUUID();
+    // Generate a unique payment reference and explicit UUID.
+    const paymentId = randomUUID();
+    const reference = `MNP${Date.now()}${randomBytes(12).toString("hex")}`;
 
-    const { error: paymentError } = await admin
+    // Save the pending payment before contacting Paystack.
+    const { data: payment, error: paymentError } = await admin
       .from("api_payments")
       .insert({
-        user_id: userId,
+        id: paymentId,
+        user_id: user.id,
         package_id: packageId,
         reference,
         amount: selectedPackage.amount,
         currency: "NGN",
         credits: selectedPackage.credits,
         payment_status: "pending",
-      });
+      })
+      .select("id, reference")
+      .single();
 
-    if (paymentError) {
-      console.error("PAYMENT RECORD ERROR:", paymentError.message);
+    if (paymentError || !payment) {
+      console.error("PAYMENT RECORD ERROR:", {
+        message: paymentError?.message,
+        code: paymentError?.code,
+        details: paymentError?.details,
+        hint: paymentError?.hint,
+      });
 
       return NextResponse.json(
         {
           success: false,
-          error: "Could not create your payment record. Please try again.",
+          error: "Could not save your payment record. Please try again.",
         },
         { status: 500 }
       );
@@ -188,7 +176,7 @@ export async function POST(request: NextRequest) {
       "https://main-naija-pidgin.onrender.com"
     ).replace(/\/+$/, "");
 
-    // Initialize Paystack using server-verified customer details.
+    // Paystack expects the amount in kobo.
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -198,17 +186,17 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
+          email: user.email.trim().toLowerCase(),
           amount: selectedPackage.amount * 100,
           currency: "NGN",
           reference,
           callback_url: `${baseUrl}/api/paystack/verify`,
           metadata: {
-            userId,
+            userId: user.id,
             packageId,
             packageName: selectedPackage.name,
             credits: selectedPackage.credits,
-            customerEmail: email,
+            customerEmail: user.email,
             brand: "Main Naija Pidgin",
           },
         }),
@@ -222,15 +210,15 @@ export async function POST(request: NextRequest) {
       !paystackData.status ||
       !paystackData.data?.authorization_url
     ) {
-      console.error(
-        "PAYSTACK INITIALIZATION ERROR:",
-        paystackData.message
-      );
+      console.error("PAYSTACK INITIALIZATION ERROR:", {
+        message: paystackData.message,
+        reference,
+      });
 
       await admin
         .from("api_payments")
         .update({ payment_status: "failed" })
-        .eq("reference", reference);
+        .eq("id", payment.id);
 
       return NextResponse.json(
         {
@@ -241,12 +229,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Confirm Paystack returned the reference we saved.
     if (paystackData.data.reference !== reference) {
-      console.error("PAYSTACK REFERENCE MISMATCH:", {
-        expected: reference,
-        received: paystackData.data.reference,
-      });
+      console.error("PAYSTACK REFERENCE MISMATCH:", reference);
 
       return NextResponse.json(
         {
@@ -267,7 +251,7 @@ export async function POST(request: NextRequest) {
       currency: "NGN",
     });
   } catch (error) {
-    console.error("PAYSTACK INITIALIZATION ERROR:", error);
+    console.error("PAYMENT INITIALIZATION UNEXPECTED ERROR:", error);
 
     return NextResponse.json(
       {
