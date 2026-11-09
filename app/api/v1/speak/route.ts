@@ -314,10 +314,11 @@ export async function POST(req: NextRequest) {
           model_id: "eleven_multilingual_v2",
 
           voice_settings: {
-            stability: 0.35,
-            similarity_boost: 0.85,
-            style: 0.65,
-            use_speaker_boost: true,
+            stability: 0.55,
+            similarity_boost: 0.75,
+            style: 0.0,
+            use_speaker_boost: false,
+            speed: 1.08,
           },
         }),
       }
