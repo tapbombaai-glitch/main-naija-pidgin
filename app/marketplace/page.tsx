@@ -42,6 +42,17 @@ export default function Marketplace() {
   const [loading, setLoading] = useState(false);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  // API V1 TEST CONSOLE
+  const [testApiKey, setTestApiKey] = useState("");
+  const [testVoice, setTestVoice] = useState("warri-babe");
+  const [testText, setTestText] = useState(
+    "My people, welcome to Main Naija Pidgin."
+  );
+  const [testLoading, setTestLoading] = useState(false);
+  const [testAudio, setTestAudio] = useState("");
+  const [testRemaining, setTestRemaining] = useState<number | null>(null);
+  const [testMessage, setTestMessage] = useState("");
+  const [testError, setTestError] = useState("");
 
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"success" | "error">("success");
@@ -308,6 +319,122 @@ export default function Marketplace() {
     }
   }
 
+  // =====================================================
+  // CUSTOMER API V1 TEST CONSOLE
+  // =====================================================
+
+  async function testCustomerV1() {
+    setTestError("");
+    setTestMessage("");
+    setTestAudio("");
+
+    const cleanKey = testApiKey.trim();
+    const cleanText = testText.trim();
+
+    if (!cleanKey) {
+      setTestError("Paste your API key first.");
+      return;
+    }
+
+    if (cleanText.length < 3) {
+      setTestError("Enter at least 3 characters to test.");
+      return;
+    }
+
+    if (cleanText.length > 5000) {
+      setTestError("Text cannot exceed 5,000 characters.");
+      return;
+    }
+
+    setTestLoading(true);
+
+    try {
+      const res = await fetch("/api/v1/speak", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": cleanKey,
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          voice: testVoice,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setTestError(
+          data.error || "API test failed. Please try again."
+        );
+        return;
+      }
+
+      if (!data.audio_base64) {
+        setTestError("API returned no audio.");
+        return;
+      }
+
+      const byteCharacters = atob(data.audio_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+
+      const byteArray = new Uint8Array(byteNumbers);
+
+      const blob = new Blob([byteArray], {
+        type: data.audio_mime || "audio/mpeg",
+      });
+
+      const audioUrl = URL.createObjectURL(blob);
+
+      setTestAudio(audioUrl);
+
+      if (
+        data.credits &&
+        typeof data.credits.remaining !== "undefined"
+      ) {
+        setTestRemaining(Number(data.credits.remaining));
+
+        // Keep the Marketplace credit display in sync.
+        setCreditsLeft(Number(data.credits.remaining));
+
+        if (testVoice === "warri-babe") {
+          setFreeLeft((current) =>
+            current > 0 ? current - 1 : current
+          );
+        }
+
+        setTestMessage(
+          `✅ ${data.voice?.name || "Voice"} generated successfully. 1 credit deducted.`
+        );
+      } else {
+        setTestMessage(
+          `✅ ${data.voice?.name || "Voice"} generated successfully.`
+        );
+      }
+
+      // Automatically play the generated voice.
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error("Customer V1 test error:", error);
+
+      setTestError(
+        "Connection failed. Make sure the API is deployed and try again."
+      );
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setUser(null);
@@ -506,6 +633,331 @@ export default function Marketplace() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* =====================================================
+            CUSTOMER API V1 TEST CONSOLE
+        ====================================================== */}
+
+        <div
+          style={{
+            marginTop: "16px",
+            background: "#0B160B",
+            border: "1.5px solid #00E676",
+            borderRadius: "14px",
+            padding: "13px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: "900",
+                  color: "white",
+                }}
+              >
+                🧪 API V1 Test Console
+              </div>
+
+              <div
+                style={{
+                  fontSize: "9px",
+                  color: "#81C784",
+                  marginTop: "3px",
+                }}
+              >
+                Test your Main Naija Pidgin API key with real voices
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#14301A",
+                border: "1px solid #245C2D",
+                color: "#00E676",
+                borderRadius: "20px",
+                padding: "5px 8px",
+                fontSize: "8px",
+                fontWeight: "900",
+                flexShrink: 0,
+              }}
+            >
+              V1 LIVE
+            </div>
+          </div>
+
+          {/* API KEY */}
+
+          <div style={{ marginTop: "12px" }}>
+            <div
+              style={{
+                color: "#A5D6A7",
+                fontSize: "9px",
+                fontWeight: "900",
+                marginBottom: "5px",
+              }}
+            >
+              🔑 API KEY
+            </div>
+
+            <input
+              type="password"
+              value={testApiKey}
+              onChange={(event) =>
+                setTestApiKey(event.target.value)
+              }
+              placeholder="Paste your sk_live_... API key"
+              autoComplete="off"
+              style={{
+                width: "100%",
+                background: "#050A05",
+                border: "1px solid #294329",
+                color: "white",
+                padding: "11px",
+                borderRadius: "8px",
+                outline: "none",
+                fontSize: "11px",
+                fontFamily: "monospace",
+              }}
+            />
+
+            <div
+              style={{
+                fontSize: "8px",
+                color: "#666",
+                marginTop: "5px",
+              }}
+            >
+              Your secret key stays in this browser request and is
+              not displayed back by the API.
+            </div>
+          </div>
+
+          {/* VOICE */}
+
+          <div style={{ marginTop: "10px" }}>
+            <div
+              style={{
+                color: "#A5D6A7",
+                fontSize: "9px",
+                fontWeight: "900",
+                marginBottom: "5px",
+              }}
+            >
+              🎙️ CHOOSE VOICE
+            </div>
+
+            <select
+              value={testVoice}
+              onChange={(event) =>
+                setTestVoice(event.target.value)
+              }
+              style={{
+                width: "100%",
+                background: "#050A05",
+                border: "1px solid #294329",
+                color: "white",
+                padding: "11px",
+                borderRadius: "8px",
+                outline: "none",
+                fontSize: "11px",
+              }}
+            >
+              <option value="warri-babe">
+                🇳🇬 Warri Babe
+              </option>
+
+              <option value="chairman-voice">
+                🇳🇬 Chairman Voice
+              </option>
+            </select>
+          </div>
+
+          {/* TEXT */}
+
+          <div style={{ marginTop: "10px" }}>
+            <div
+              style={{
+                color: "#A5D6A7",
+                fontSize: "9px",
+                fontWeight: "900",
+                marginBottom: "5px",
+              }}
+            >
+              ✍️ TEXT TO SPEAK
+            </div>
+
+            <textarea
+              value={testText}
+              onChange={(event) =>
+                setTestText(event.target.value)
+              }
+              maxLength={5000}
+              rows={4}
+              placeholder="Enter Nigerian Pidgin text..."
+              style={{
+                width: "100%",
+                resize: "vertical",
+                background: "#050A05",
+                border: "1px solid #294329",
+                color: "white",
+                padding: "11px",
+                borderRadius: "8px",
+                outline: "none",
+                fontSize: "11px",
+                lineHeight: "1.5",
+                fontFamily: "inherit",
+              }}
+            />
+
+            <div
+              style={{
+                textAlign: "right",
+                fontSize: "8px",
+                color: "#666",
+                marginTop: "3px",
+              }}
+            >
+              {testText.length}/5000
+            </div>
+          </div>
+
+          {/* TEST BUTTON */}
+
+          <button
+            type="button"
+            onClick={testCustomerV1}
+            disabled={testLoading}
+            style={{
+              width: "100%",
+              marginTop: "10px",
+              background: testLoading
+                ? "#245C2D"
+                : "#00C853",
+              color: "white",
+              border: "none",
+              padding: "13px",
+              borderRadius: "9px",
+              fontSize: "12px",
+              fontWeight: "900",
+              cursor: testLoading
+                ? "wait"
+                : "pointer",
+            }}
+          >
+            {testLoading
+              ? "🎙️ GENERATING VOICE..."
+              : "▶ TEST API & SPEAK"}
+          </button>
+
+          {/* SUCCESS */}
+
+          {testMessage && (
+            <div
+              style={{
+                marginTop: "9px",
+                background: "#102915",
+                border: "1px solid #245C2D",
+                color: "#A5D6A7",
+                padding: "9px",
+                borderRadius: "8px",
+                fontSize: "9px",
+                fontWeight: "800",
+                lineHeight: "1.4",
+              }}
+            >
+              {testMessage}
+
+              {testRemaining !== null && (
+                <div
+                  style={{
+                    marginTop: "5px",
+                    color: "#00E676",
+                    fontSize: "11px",
+                    fontWeight: "900",
+                  }}
+                >
+                  💳 {testRemaining.toLocaleString()} credits remaining
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ERROR */}
+
+          {testError && (
+            <div
+              style={{
+                marginTop: "9px",
+                background: "#351414",
+                border: "1px solid #6D2929",
+                color: "#FF8A80",
+                padding: "9px",
+                borderRadius: "8px",
+                fontSize: "9px",
+                fontWeight: "800",
+                lineHeight: "1.4",
+              }}
+            >
+              ❌ {testError}
+            </div>
+          )}
+
+          {/* AUDIO PLAYER */}
+
+          {testAudio && (
+            <div
+              style={{
+                marginTop: "10px",
+                background: "#121C12",
+                border: "1px solid #1E4D2B",
+                borderRadius: "9px",
+                padding: "9px",
+              }}
+            >
+              <div
+                style={{
+                  color: "#00E676",
+                  fontSize: "9px",
+                  fontWeight: "900",
+                  marginBottom: "6px",
+                }}
+              >
+                🔊 GENERATED AUDIO
+              </div>
+
+              <audio
+                controls
+                autoPlay
+                src={testAudio}
+                style={{
+                  width: "100%",
+                  height: "38px",
+                }}
+              />
+            </div>
+          )}
+
+          <div
+            style={{
+              marginTop: "9px",
+              color: "#555",
+              fontSize: "8px",
+              lineHeight: "1.4",
+              textAlign: "center",
+            }}
+          >
+            Each successful API generation deducts 1 credit.
+            Preview voices above do not deduct credits.
           </div>
         </div>
 
