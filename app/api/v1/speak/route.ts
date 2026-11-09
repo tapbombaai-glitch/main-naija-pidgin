@@ -56,6 +56,14 @@ const CUSTOMER_VOICES: Record<
   },
 };
 
+// =====================================================
+// PROFESSIONAL NAIJA TEXT FIX
+// Fixes "Pidgin" -> "Pijin" so ElevenLabs no go talk "Pigeon"
+// =====================================================
+function normalizeNaijaText(text: string): string {
+  return text.replace(/\bPidgin\b/gi, "Pijin");
+}
+
 function getHeaders() {
   return {
     "Cache-Control": "private, no-store, max-age=0",
@@ -194,7 +202,7 @@ export async function POST(req: NextRequest) {
         ? (body as Record<string, unknown>)
         : {};
 
-    const text =
+    const rawText =
       typeof requestBody.text === "string"
         ? requestBody.text.trim()
         : "";
@@ -209,7 +217,7 @@ export async function POST(req: NextRequest) {
         ? requestBody.voiceId.trim()
         : "";
 
-    if (text.length < 3) {
+    if (rawText.length < 3) {
       return jsonResponse(
         {
           success: false,
@@ -220,7 +228,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (text.length > 5000) {
+    if (rawText.length > 5000) {
       return jsonResponse(
         {
           success: false,
@@ -230,6 +238,9 @@ export async function POST(req: NextRequest) {
         400
       );
     }
+
+    // FIX 1: Normalize Pidgin -> Pijin before ElevenLabs
+    const text = normalizeNaijaText(rawText);
 
     // =================================================
     // 3. RESOLVE CUSTOMER VOICE
@@ -292,7 +303,7 @@ export async function POST(req: NextRequest) {
     }
 
     // =================================================
-    // 4. GENERATE AUDIO
+    // 4. GENERATE AUDIO - PROFESSIONAL FIX
     // =================================================
 
     const elevenLabsResponse = await fetch(
@@ -311,12 +322,13 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           text,
 
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_flash_v2_5",
+          language_code: "en",
 
           voice_settings: {
-            stability: 0.38,
-            similarity_boost: 0.82,
-            style: 0.45,
+            stability: 0.55,
+            similarity_boost: 0.85,
+            style: 0.20,
             use_speaker_boost: false,
             speed: 1.0,
           },
