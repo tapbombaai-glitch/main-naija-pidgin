@@ -298,7 +298,7 @@ export async function POST(req: NextRequest) {
     const elevenLabsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
         voiceConfig.elevenlabsVoiceId
-      )}?output_format=mp3_44100_192`,
+      )}?output_format=mp3_44100_128`,
       {
         method: "POST",
 
