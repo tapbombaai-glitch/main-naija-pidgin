@@ -39,7 +39,10 @@ export default function Marketplace() {
   const [paidLeft, setPaidLeft] = useState(0);
   const [creditsLeft, setCreditsLeft] = useState(0);
 
-  const [loading, setLoading] = useState(false);
+  // FIXED: Split loading - Free and Buy no longer block each other
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [buyingId, setBuyingId] = useState<string | null>(null);
+
   const [voices, setVoices] = useState<Voice[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   // API V1 TEST CONSOLE
@@ -241,7 +244,7 @@ export default function Marketplace() {
       showToast("Use Chairman Login for the Chairman account.", "error");
       return;
     }
-    setLoading(true);
+    setClaimLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -260,6 +263,8 @@ export default function Marketplace() {
 
       if (data.api_key) {
         setRealKey(data.api_key);
+        // FIXED: Auto-fill Test Console so Test button go work immediately
+        setTestApiKey(data.api_key);
         setApiKey(data.key_prefix || "");
         setFreeLeft(Number(data.free_requests_remaining ?? data.free_credits ?? 1000));
         setPaidLeft(Number(data.paid_requests_remaining || 0));
@@ -279,7 +284,7 @@ export default function Marketplace() {
       console.error("Free key error:", error);
       showToast("Connection failed. Please try again.", "error");
     } finally {
-      setLoading(false);
+      setClaimLoading(false);
     }
   }
 
@@ -293,8 +298,13 @@ export default function Marketplace() {
       showToast("Use Chairman Login for the Chairman account.", "error");
       return;
     }
+    // FIXED: Tell user clearly if dem never claim Free first
+    if (!apiKey) {
+      showToast("Claim your 1,000 Free Credits first to activate your account, then Buy.", "error");
+      return;
+    }
 
-    setLoading(true);
+    setBuyingId(packageId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
@@ -315,13 +325,9 @@ export default function Marketplace() {
       console.error("Paystack error:", error);
       showToast("Connection failed. Please try again.", "error");
     } finally {
-      setLoading(false);
+      setBuyingId(null);
     }
   }
-
-  // =====================================================
-  // CUSTOMER API V1 TEST CONSOLE
-  // =====================================================
 
   async function testCustomerV1() {
     setTestError("");
@@ -397,8 +403,6 @@ export default function Marketplace() {
         typeof data.credits.remaining !== "undefined"
       ) {
         setTestRemaining(Number(data.credits.remaining));
-
-        // Keep the Marketplace credit display in sync.
         setCreditsLeft(Number(data.credits.remaining));
 
         if (testVoice === "warri-babe") {
@@ -416,7 +420,6 @@ export default function Marketplace() {
         );
       }
 
-      // Automatically play the generated voice.
       const audio = new Audio(audioUrl);
 
       audio.onended = () => {
@@ -511,10 +514,7 @@ export default function Marketplace() {
             <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px" }}>
               <button
                 type="button"
-                onPointerUp={(event) => {
-                  event.preventDefault();
-                  openLogin("login");
-                }}
+                onClick={() => openLogin("login")}
                 style={{
                   border: "1px solid #00E676",
                   background: "#00C853",
@@ -523,6 +523,7 @@ export default function Marketplace() {
                   borderRadius: "9px",
                   fontSize: "10px",
                   fontWeight: "900",
+                  cursor: "pointer",
                 }}
               >
                 🔐 FREE API LOGIN
@@ -530,10 +531,7 @@ export default function Marketplace() {
 
               <button
                 type="button"
-                onPointerUp={(event) => {
-                  event.preventDefault();
-                  openLogin("signup");
-                }}
+                onClick={() => openLogin("signup")}
                 style={{
                   border: "1px solid #2E7D32",
                   background: "#0F1A0F",
@@ -542,6 +540,7 @@ export default function Marketplace() {
                   borderRadius: "9px",
                   fontSize: "10px",
                   fontWeight: "900",
+                  cursor: "pointer",
                 }}
               >
                 CREATE ACCOUNT
@@ -597,8 +596,8 @@ export default function Marketplace() {
             </div>
             <div style={{ fontSize: "22px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>1,000 FREE</div>
             <div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div>
-            <button type="button" onClick={claimFree} disabled={loading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800" }}>
-              {loading ? "..." : user ? "Get 1,000 Free Credits →" : "Login to Get Free Credits →"}
+            <button type="button" onClick={claimFree} disabled={claimLoading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: claimLoading ? "wait" : "pointer" }}>
+              {claimLoading ? "..." : user ? "Get 1,000 Free Credits →" : "Login to Get Free Credits →"}
             </button>
           </div>
 
@@ -611,8 +610,8 @@ export default function Marketplace() {
                 </div>
                 <div style={{ fontSize: "16px", fontWeight: "900", color: "white", marginTop: "6px" }}>{pkg.credits.toLocaleString()} Credits</div>
                 <div style={{ fontSize: "16px", fontWeight: "900", color: "#00E676", marginTop: "2px" }}>₦{pkg.price.toLocaleString()}</div>
-                <button type="button" onClick={() => buy(pkg.id)} disabled={loading} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800" }}>
-                  {loading ? "..." : "Buy with Paystack"}
+                <button type="button" onClick={() => buy(pkg.id)} disabled={buyingId !== null} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800", cursor: buyingId !== null ? "wait" : "pointer" }}>
+                  {buyingId === pkg.id ? "..." : apiKey ? "Buy with Paystack" : "Claim Free First → Buy"}
                 </button>
               </div>
             ))}
@@ -635,10 +634,6 @@ export default function Marketplace() {
             ))}
           </div>
         </div>
-
-        {/* =====================================================
-            CUSTOMER API V1 TEST CONSOLE
-        ====================================================== */}
 
         <div
           style={{
@@ -695,8 +690,6 @@ export default function Marketplace() {
             </div>
           </div>
 
-          {/* API KEY */}
-
           <div style={{ marginTop: "12px" }}>
             <div
               style={{
@@ -730,6 +723,32 @@ export default function Marketplace() {
               }}
             />
 
+            <button
+              type="button"
+              onClick={() => {
+                if (realKey) {
+                  setTestApiKey(realKey);
+                  showToast("✅ Your key don enter Test Console.");
+                } else {
+                  showToast("Your full key only show once when you claim it. Claim Free again if you never copy am.", "error");
+                }
+              }}
+              style={{
+                marginTop: "6px",
+                width: "100%",
+                background: "#14301A",
+                color: "#00E676",
+                border: "1px solid #245C2D",
+                padding: "9px",
+                borderRadius: "8px",
+                fontSize: "10px",
+                fontWeight: "800",
+                cursor: "pointer",
+              }}
+            >
+              ↪ USE MY CLAIMED KEY FOR TEST
+            </button>
+
             <div
               style={{
                 fontSize: "8px",
@@ -741,8 +760,6 @@ export default function Marketplace() {
               not displayed back by the API.
             </div>
           </div>
-
-          {/* VOICE */}
 
           <div style={{ marginTop: "10px" }}>
             <div
@@ -781,8 +798,6 @@ export default function Marketplace() {
               </option>
             </select>
           </div>
-
-          {/* TEXT */}
 
           <div style={{ marginTop: "10px" }}>
             <div
@@ -831,8 +846,6 @@ export default function Marketplace() {
             </div>
           </div>
 
-          {/* TEST BUTTON */}
-
           <button
             type="button"
             onClick={testCustomerV1}
@@ -858,8 +871,6 @@ export default function Marketplace() {
               ? "🎙️ GENERATING VOICE..."
               : "▶ TEST API & SPEAK"}
           </button>
-
-          {/* SUCCESS */}
 
           {testMessage && (
             <div
@@ -892,8 +903,6 @@ export default function Marketplace() {
             </div>
           )}
 
-          {/* ERROR */}
-
           {testError && (
             <div
               style={{
@@ -911,8 +920,6 @@ export default function Marketplace() {
               ❌ {testError}
             </div>
           )}
-
-          {/* AUDIO PLAYER */}
 
           {testAudio && (
             <div
