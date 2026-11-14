@@ -53,9 +53,10 @@ export async function GET(request: NextRequest) {
     let credits = Number(meta.credits || getCustom("credits") || 0);
     let amount = Math.round((payData.amount || 0) / 100);
 
+    // FIXED: Only select columns that REALLY exist in your api_payments table
     const { data: dbPayment } = await supabaseAdmin
       .from("api_payments")
-      .select("reference, user_id, package_id, amount, currency, credits, payment_status, paystack_transaction_id")
+      .select("reference, user_id, package_id, amount, credits, payment_status")
       .eq("reference", reference)
       .maybeSingle();
 
@@ -95,27 +96,28 @@ export async function GET(request: NextRequest) {
     // --- SAVE PAYMENT + AUTO-CREATE KEY IF NO KEY ---
     if (!credited || alreadySuccess) {
       if (!dbPayment) {
+        // FIXED: No currency, no paystack_transaction_id - your table no get am
         await supabaseAdmin.from("api_payments").insert({
-          user_id: userId, package_id: packageId, reference, amount, currency: "NGN", credits,
-          payment_status: "success", paystack_transaction_id: String(payData.id),
+          user_id: userId, package_id: packageId, reference, amount, credits,
+          payment_status: "success", paid_at: new Date().toISOString(),
         });
       } else {
         await supabaseAdmin.from("api_payments").update({
-          payment_status: "success", paystack_transaction_id: String(payData.id), amount, credits,
+          payment_status: "success", amount, credits, paid_at: new Date().toISOString(),
         }).eq("reference", reference);
       }
 
       // Find key
       let key: any = null;
       const { data: activeKey } = await supabaseAdmin.from("api_keys")
-        .select("id, paid_requests_remaining")
+        .select("id, paid_requests_remaining, credits_remaining, remaining_credits")
         .eq("user_id", userId).eq("is_active", true)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       key = activeKey;
 
       if (!key) {
         const { data: anyKey } = await supabaseAdmin.from("api_keys")
-          .select("id, paid_requests_remaining")
+          .select("id, paid_requests_remaining, credits_remaining, remaining_credits")
           .eq("user_id", userId)
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         key = anyKey;
@@ -123,34 +125,36 @@ export async function GET(request: NextRequest) {
 
       if (key) {
         if (!alreadySuccess) {
-          await supabaseAdmin.from("api_keys")
-            .update({ paid_requests_remaining: (key.paid_requests_remaining || 0) + credits })
-            .eq("id", key.id);
+          const newPaid = (key.paid_requests_remaining || 0) + credits;
+          await supabaseAdmin.from("api_keys").update({
+            paid_requests_remaining: newPaid,
+            credits_remaining: (key.credits_remaining || 0) + credits,
+            remaining_credits: (key.remaining_credits || 0) + credits,
+          }).eq("id", key.id);
         }
         credited = true;
       } else {
-        // *** NEW: NO KEY? CREATE ONE AUTOMATICALLY ***
+        // *** UPGRADED: AUTO-CREATE - USES ONLY YOUR REAL COLUMNS ***
         const newKey = generateApiKey();
         const { error: createErr } = await supabaseAdmin.from("api_keys").insert({
           user_id: userId,
           key: newKey,
+          key_prefix: newKey.slice(0, 7),
           name: `${pkg?.name || packageId} Key`,
           is_active: true,
+          status: "active",
+          plan: packageId,
+          type: "paid",
           paid_requests_remaining: credits,
           free_requests_remaining: 0,
+          credits_remaining: credits,
+          remaining_credits: credits,
+          credits_limit: credits,
+          credits_used: 0,
+          used_credits: 0,
         });
         if (createErr) {
           console.error("AUTO CREATE KEY FAILED:", createErr.message);
-          // Try with api_key column name if your table uses api_key instead of key
-          const { error: retryErr } = await supabaseAdmin.from("api_keys").insert({
-            user_id: userId,
-            api_key: newKey,
-            name: `${pkg?.name || packageId} Key`,
-            is_active: true,
-            paid_requests_remaining: credits,
-          });
-          if (retryErr) console.error("AUTO CREATE KEY RETRY FAILED:", retryErr.message);
-          else credited = true;
         } else {
           credited = true;
         }
