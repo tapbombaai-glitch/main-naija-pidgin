@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { PIDGIN_500 } from "@/app/data/pidgin-500";
 
 export default function WorkersPage() {
   const [isRecording, setIsRecording] = useState(false);
@@ -38,16 +39,9 @@ export default function WorkersPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const languageChangeMounted = useRef(false);
 
+  // ✅ FIXED: Workers Panel NOW USES 500
   const allSentences: Record<string, string[]> = {
-    Pidgin: [
-      "How you dey? I dey come now now.",
-      "Abeg come help me for here.",
-      "Wetin dey happen for Lagos today?",
-      "I no go gree make dem cheat me.",
-      "Oga, how much be this?",
-      "Make we go market tomorrow morning.",
-      "My pikin dey school for Port Harcourt.",
-    ],
+    Pidgin: [...new Set(PIDGIN_500)],
     Igbo: [
       "Kedu? Ana m abia ugbu a.",
       "Biko nyere m aka.",
@@ -85,7 +79,7 @@ export default function WorkersPage() {
         if (p.progress && typeof p.progress.total === "number") setTaskProgress(p.progress);
         if (p.earnings && typeof p.earnings.total === "number") setEarnings(p.earnings);
         const index = Number(p.index) || 0;
-        setCurrentSentenceIndex(Math.max(0, Math.min(index, allSentences.Pidgin.length - 1)));
+        setCurrentSentenceIndex(Math.max(0, Math.min(index, sentences.length - 1)));
       }
     } catch (e) { console.error(e); }
     try {
@@ -168,14 +162,12 @@ export default function WorkersPage() {
     const wid = localStorage.getItem("gin_worker_id");
     if (!wid) return alert("Worker account not found. Please logout and login again.");
     setSavingRecording(true);
-    let uploadedPath: string | null = null;
     try {
       const blob = await fetch(audioURL).then((r) => r.blob());
       const fileName = `GIN-${selectedLang}-${Date.now()}.webm`;
       const storagePath = `${wid}/${fileName}`;
       const { error: uploadError } = await supabase.storage.from("voice-clips").upload(storagePath, blob, { contentType: "audio/webm", upsert: false });
       if (uploadError) throw new Error("Audio upload failed: " + uploadError.message);
-      uploadedPath = storagePath;
       const { data: publicData } = supabase.storage.from("voice-clips").getPublicUrl(storagePath);
       const audioUrl = publicData?.publicUrl || "";
       if (!audioUrl) throw new Error("Could not create recording audio URL.");
@@ -186,7 +178,6 @@ export default function WorkersPage() {
       }).select().single();
       if (insertError) {
         try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {}
-        uploadedPath = null;
         throw new Error("Recording could not be submitted: " + insertError.message);
       }
       const blobUrl = URL.createObjectURL(blob);
@@ -239,7 +230,6 @@ export default function WorkersPage() {
           </div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", marginTop: "5px" }} />
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginTop: "12px" }}>
           <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}>
             <div style={{ fontSize: "10px", color: "#888" }}>TOTAL</div>
@@ -254,7 +244,6 @@ export default function WorkersPage() {
             <div style={{ color: "#4ADE80", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.approved}</div>
           </div>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
             <span style={{ color: "#aaa" }}>TASK PROGRESS</span>
@@ -265,17 +254,13 @@ export default function WorkersPage() {
           </div>
           <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
         </div>
-
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
-
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
           {["Pidgin", "Igbo", "Hausa", "Yoruba"].map((lang) => (
             <button key={lang} onClick={() => setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang}</button>
           ))}
         </div>
-
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
-
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {currentSentenceIndex + 1}/{sentences.length}</div>
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
@@ -295,7 +280,6 @@ export default function WorkersPage() {
             </button>
           </div>
         </div>
-
         {savedFiles.length > 0 && (
           <div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}>
             <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Phone for Chairman</div>
@@ -305,7 +289,6 @@ export default function WorkersPage() {
           </div>
         )}
       </div>
-
       {showModal === "bank" && (
         <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: "18px", zIndex: 2000 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "390px", maxHeight: "90vh", overflowY: "auto", background: "#0D130D", border: "1px solid #EAB308", borderRadius: "20px", padding: "20px", boxSizing: "border-box" }}>
