@@ -56,10 +56,7 @@ export async function POST(request: NextRequest) {
     const token = authorization.slice(7);
 
     const authClient = createClient(supabaseUrl, anonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
 
     const { data: authData, error: authError } =
@@ -69,10 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user?.email) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Your session has expired. Please log in again.",
-        },
+        { success: false, error: "Your session has expired. Please log in again." },
         { status: 401 }
       );
     }
@@ -93,82 +87,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
-    // Confirm that this authenticated customer owns an active API key.
-    const { data: activeKey, error: keyError } = await admin
-      .from("api_keys")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-
-    if (keyError) {
-      console.error("ACTIVE API KEY CHECK ERROR:", {
-        message: keyError.message,
-        code: keyError.code,
-        details: keyError.details,
-        hint: keyError.hint,
-      });
-
-      return NextResponse.json(
-        { success: false, error: "Could not verify your API key." },
-        { status: 500 }
-      );
-    }
-
-    if (!activeKey) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Please claim your free API key before purchasing credits.",
-        },
-        { status: 409 }
-      );
-    }
-
-    // Generate a unique payment reference and explicit UUID.
+    // OLD WORKING PATTERN: No save to Supabase before Paystack.
+    // We only generate reference here. Saving + crediting happens in /api/paystack/verify AFTER Paystack confirms payment.
+    // This is why old Marketplace worked and new one showed "Could not save your payment record".
     const paymentId = randomUUID();
     const reference = `MNP${Date.now()}${randomBytes(12).toString("hex")}`;
-
-    // Save the pending payment before contacting Paystack.
-    const { data: payment, error: paymentError } = await admin
-      .from("api_payments")
-      .insert({
-        id: paymentId,
-        user_id: user.id,
-        package_id: packageId,
-        reference,
-        amount: selectedPackage.amount,
-        currency: "NGN",
-        credits: selectedPackage.credits,
-        payment_status: "pending",
-      })
-      .select("id, reference")
-      .single();
-
-    if (paymentError || !payment) {
-      console.error("PAYMENT RECORD ERROR:", {
-        message: paymentError?.message,
-        code: paymentError?.code,
-        details: paymentError?.details,
-        hint: paymentError?.hint,
-      });
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Could not save your payment record. Please try again.",
-        },
-        { status: 500 }
-      );
-    }
 
     const baseUrl = (
       process.env.NEXT_PUBLIC_SITE_URL ||
@@ -176,7 +99,7 @@ export async function POST(request: NextRequest) {
       "https://main-naija-pidgin.onrender.com"
     ).replace(/\/+$/, "");
 
-    // Paystack expects the amount in kobo.
+    // Paystack expects amount in kobo.
     const paystackResponse = await fetch(
       "https://api.paystack.co/transaction/initialize",
       {
@@ -190,7 +113,7 @@ export async function POST(request: NextRequest) {
           amount: selectedPackage.amount * 100,
           currency: "NGN",
           reference,
-          callback_url: `${baseUrl}/api/paystack/verify`,
+          callback_url: `${baseUrl}/api/paystack/verify?reference=${reference}`,
           metadata: {
             userId: user.id,
             packageId,
@@ -215,29 +138,12 @@ export async function POST(request: NextRequest) {
         reference,
       });
 
-      await admin
-        .from("api_payments")
-        .update({ payment_status: "failed" })
-        .eq("id", payment.id);
-
       return NextResponse.json(
         {
           success: false,
           error: paystackData.message || "Paystack initialization failed.",
         },
         { status: 400 }
-      );
-    }
-
-    if (paystackData.data.reference !== reference) {
-      console.error("PAYSTACK REFERENCE MISMATCH:", reference);
-
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Payment reference verification failed.",
-        },
-        { status: 502 }
       );
     }
 
@@ -254,10 +160,7 @@ export async function POST(request: NextRequest) {
     console.error("PAYMENT INITIALIZATION UNEXPECTED ERROR:", error);
 
     return NextResponse.json(
-      {
-        success: false,
-        error: "Unable to initialize payment. Please try again.",
-      },
+      { success: false, error: "Unable to initialize payment. Please try again." },
       { status: 500 }
     );
   }
