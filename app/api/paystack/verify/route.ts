@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,31 +22,24 @@ function redirectToMarketplace(request: NextRequest, params: Record<string, stri
   return NextResponse.redirect(url);
 }
 
+function generateApiKey() {
+  return `np_${crypto.randomBytes(24).toString("hex")}`;
+}
+
 export async function GET(request: NextRequest) {
   const secret = process.env.PAYSTACK_SECRET_KEY;
-  if (!secret) {
-    return redirectToMarketplace(request, { error: "payment_configuration" });
-  }
+  if (!secret) return redirectToMarketplace(request, { error: "payment_configuration" });
 
   const reference = request.nextUrl.searchParams.get("reference");
-  if (!reference) {
-    return redirectToMarketplace(request, { error: "missing_reference" });
-  }
+  if (!reference) return redirectToMarketplace(request, { error: "missing_reference" });
 
   try {
-    // 1. Verify with Paystack FIRST — Paystack is the truth
     const verifyResponse = await fetch(
       `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
-        cache: "no-store",
-      }
+      { method: "GET", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, cache: "no-store" }
     );
     const verification: any = await verifyResponse.json();
-
     if (!verifyResponse.ok || !verification.status || verification.data?.status !== "success") {
-      console.error("PAYSTACK VERIFICATION FAILED:", verification.message);
       return redirectToMarketplace(request, { error: "payment_verification_failed" });
     }
 
@@ -59,7 +53,6 @@ export async function GET(request: NextRequest) {
     let credits = Number(meta.credits || getCustom("credits") || 0);
     let amount = Math.round((payData.amount || 0) / 100);
 
-    // 2. Fallback: DB payment
     const { data: dbPayment } = await supabaseAdmin
       .from("api_payments")
       .select("reference, user_id, package_id, amount, currency, credits, payment_status, paystack_transaction_id")
@@ -74,7 +67,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (!userId || !packageId) {
-      console.error("VERIFY METADATA MISSING:", { reference, meta, dbPayment, email: payData.customer?.email });
       return redirectToMarketplace(request, { error: "invalid_payment_record" });
     }
 
@@ -85,94 +77,87 @@ export async function GET(request: NextRequest) {
     }
 
     const alreadySuccess = dbPayment?.payment_status === "success";
-
     let credited = false;
+
     if (!alreadySuccess) {
       const { data: result, error: rpcError } = await supabaseAdmin.rpc("complete_api_payment", {
         p_reference: reference,
         p_paystack_transaction_id: String(payData.id),
       });
-
       if (!rpcError && result?.success) {
         credited = true;
         credits = result.credits || credits;
-      } else {
-        console.log("RPC fallback to direct credit:", rpcError?.message);
       }
     } else {
       credited = true;
     }
 
+    // --- SAVE PAYMENT + AUTO-CREATE KEY IF NO KEY ---
     if (!credited || alreadySuccess) {
       if (!dbPayment) {
-        const { error: insertErr } = await supabaseAdmin.from("api_payments").insert({
-          user_id: userId,
-          package_id: packageId,
-          reference,
-          amount,
-          currency: "NGN",
-          credits,
-          payment_status: "success",
-          paystack_transaction_id: String(payData.id),
+        await supabaseAdmin.from("api_payments").insert({
+          user_id: userId, package_id: packageId, reference, amount, currency: "NGN", credits,
+          payment_status: "success", paystack_transaction_id: String(payData.id),
         });
-        if (insertErr) console.error("INSERT PAYMENT FAILED:", insertErr.message);
       } else {
-        const { error: updateErr } = await supabaseAdmin
-          .from("api_payments")
-          .update({
-            payment_status: "success",
-            paystack_transaction_id: String(payData.id),
-            amount,
-            credits,
-          })
-          .eq("reference", reference);
-        if (updateErr) console.error("UPDATE PAYMENT FAILED:", updateErr.message);
+        await supabaseAdmin.from("api_payments").update({
+          payment_status: "success", paystack_transaction_id: String(payData.id), amount, credits,
+        }).eq("reference", reference);
       }
 
+      // Find key
       let key: any = null;
-      const { data: activeKey } = await supabaseAdmin
-        .from("api_keys")
+      const { data: activeKey } = await supabaseAdmin.from("api_keys")
         .select("id, paid_requests_remaining")
-        .eq("user_id", userId)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+        .eq("user_id", userId).eq("is_active", true)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
       key = activeKey;
 
       if (!key) {
-        const { data: anyKey } = await supabaseAdmin
-          .from("api_keys")
+        const { data: anyKey } = await supabaseAdmin.from("api_keys")
           .select("id, paid_requests_remaining")
           .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
         key = anyKey;
       }
 
       if (key) {
         if (!alreadySuccess) {
-          const { error: keyErr } = await supabaseAdmin
-            .from("api_keys")
+          await supabaseAdmin.from("api_keys")
             .update({ paid_requests_remaining: (key.paid_requests_remaining || 0) + credits })
             .eq("id", key.id);
-          if (keyErr) console.error("UPDATE KEY FAILED:", keyErr.message);
+        }
+        credited = true;
+      } else {
+        // *** NEW: NO KEY? CREATE ONE AUTOMATICALLY ***
+        const newKey = generateApiKey();
+        const { error: createErr } = await supabaseAdmin.from("api_keys").insert({
+          user_id: userId,
+          key: newKey,
+          name: `${pkg?.name || packageId} Key`,
+          is_active: true,
+          paid_requests_remaining: credits,
+          free_requests_remaining: 0,
+        });
+        if (createErr) {
+          console.error("AUTO CREATE KEY FAILED:", createErr.message);
+          // Try with api_key column name if your table uses api_key instead of key
+          const { error: retryErr } = await supabaseAdmin.from("api_keys").insert({
+            user_id: userId,
+            api_key: newKey,
+            name: `${pkg?.name || packageId} Key`,
+            is_active: true,
+            paid_requests_remaining: credits,
+          });
+          if (retryErr) console.error("AUTO CREATE KEY RETRY FAILED:", retryErr.message);
           else credited = true;
         } else {
           credited = true;
         }
-      } else {
-        console.error("NO API KEY FOUND FOR USER:", userId);
-        credited = true;
       }
     }
 
-    if (!credited) {
-      return redirectToMarketplace(request, { error: "credit_processing_failed" });
-    }
-
+    if (!credited) return redirectToMarketplace(request, { error: "credit_processing_failed" });
     return redirectToMarketplace(request, { success: packageId, credits: String(credits) });
   } catch (error: any) {
     console.error("PAYSTACK VERIFY ERROR:", error?.message || error);
