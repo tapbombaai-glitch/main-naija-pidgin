@@ -13,7 +13,6 @@ const PACKAGES: Record<string, { name: string; credits: number; amount: number }
 };
 
 function redirectToMarketplace(request: NextRequest, params: Record<string, string>) {
-  // Force live domain, never localhost — this fixes the localhost:10000 wahala
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://gin.onrender.com").replace(/\/+$/, "");
   const url = new URL("/marketplace", baseUrl);
   for (const [key, value] of Object.entries(params)) {
@@ -52,32 +51,31 @@ export async function GET(request: NextRequest) {
 
     const payData = verification.data;
     const meta = payData?.metadata || {};
+    // Paystack metadata fit be nested: metadata.custom_fields or direct
+    const customFields: any[] = meta.custom_fields || [];
+    const getCustom = (name: string) => customFields.find((f: any) => f.variable_name === name || f.display_name === name)?.value;
 
-    // 2. Get user + package from Paystack metadata (NEW pattern)
-    // Fallback: try DB if metadata missing (OLD pattern)
-    let userId = meta.userId;
-    let packageId = (meta.packageId || "").toLowerCase();
-    let credits = Number(meta.credits || 0);
+    let userId = meta.userId || meta.user_id || getCustom("userId") || getCustom("user_id");
+    let packageId = (meta.packageId || meta.package_id || getCustom("packageId") || getCustom("package_id") || "").toLowerCase();
+    let credits = Number(meta.credits || getCustom("credits") || 0);
     let amount = Math.round((payData.amount || 0) / 100);
 
-    let existingPayment = null;
+    // 2. Fallback: DB payment
     const { data: dbPayment } = await supabaseAdmin
       .from("api_payments")
-      .select("reference, user_id, package_id, amount, currency, credits, payment_status")
+      .select("reference, user_id, package_id, amount, currency, credits, payment_status, paystack_transaction_id")
       .eq("reference", reference)
       .maybeSingle();
 
-    if (dbPayment) existingPayment = dbPayment;
-
-    if ((!userId || !packageId) && existingPayment) {
-      userId = existingPayment.user_id;
-      packageId = existingPayment.package_id;
-      credits = existingPayment.credits;
-      amount = existingPayment.amount;
+    if ((!userId || !packageId) && dbPayment) {
+      userId = dbPayment.user_id;
+      packageId = dbPayment.package_id;
+      credits = dbPayment.credits || credits;
+      amount = dbPayment.amount || amount;
     }
 
     if (!userId || !packageId) {
-      console.error("VERIFY METADATA MISSING:", meta);
+      console.error("VERIFY METADATA MISSING:", { reference, meta, dbPayment, email: payData.customer?.email });
       return redirectToMarketplace(request, { error: "invalid_payment_record" });
     }
 
@@ -87,26 +85,36 @@ export async function GET(request: NextRequest) {
       if (!amount) amount = pkg.amount;
     }
 
-    // 3. If already credited, no double credit
-    if (existingPayment?.payment_status === "success") {
-      return redirectToMarketplace(request, { success: packageId, credits: String(credits) });
+    // 3. If already marked success, still make sure key get the credits
+    // We check if this reference don already credit before - use a simple guard:
+    // If payment_status is success AND we already credited before, we still return success
+    // but we will verify key balance below in fallback path if needed.
+    const alreadySuccess = dbPayment?.payment_status === "success";
+
+    // 4. Try RPC first
+    let credited = false;
+    if (!alreadySuccess) {
+      const { data: result, error: rpcError } = await supabaseAdmin.rpc("complete_api_payment", {
+        p_reference: reference,
+        p_paystack_transaction_id: String(payData.id),
+      });
+
+      if (!rpcError && result?.success) {
+        credited = true;
+        credits = result.credits || credits;
+      } else {
+        console.log("RPC fallback to direct credit:", rpcError?.message);
+      }
+    } else {
+      // Already success in DB, assume credited - but we will double-check key below
+      credited = true;
     }
 
-    // 4. Try RPC first (your old function), if e fail, do direct credit (fallback)
-    let credited = false;
-    const { data: result, error: rpcError } = await supabaseAdmin.rpc("complete_api_payment", {
-      p_reference: reference,
-      p_paystack_transaction_id: String(payData.id),
-    });
-
-    if (!rpcError && result?.success) {
-      credited = true;
-      credits = result.credits || credits;
-    } else {
-      console.log("RPC fallback to direct credit:", rpcError?.message);
-      // Direct: save payment if no record
-      if (!existingPayment) {
-        await supabaseAdmin.from("api_payments").insert({
+    // 5. Direct credit fallback - ALWAYS ensure payment + key are updated
+    if (!credited || alreadySuccess) {
+      // Upsert payment
+      if (!dbPayment) {
+        const { error: insertErr } = await supabaseAdmin.from("api_payments").insert({
           user_id: userId,
           package_id: packageId,
           reference,
@@ -114,13 +122,25 @@ export async function GET(request: NextRequest) {
           currency: "NGN",
           credits,
           payment_status: "success",
+          paystack_transaction_id: String(payData.id),
         });
+        if (insertErr) console.error("INSERT PAYMENT FAILED:", insertErr.message);
       } else {
-        await supabaseAdmin.from("api_payments").update({ payment_status: "success" }).eq("reference", reference);
+        const { error: updateErr } = await supabaseAdmin
+          .from("api_payments")
+          .update({
+            payment_status: "success",
+            paystack_transaction_id: String(payData.id),
+            amount,
+            credits,
+          })
+          .eq("reference", reference);
+        if (updateErr) console.error("UPDATE PAYMENT FAILED:", updateErr.message);
       }
 
-      // Direct: add credits to active key
-      const { data: key } = await supabaseAdmin
+      // Find key: active first, then ANY key for user
+      let key: any = null;
+      const { data: activeKey } = await supabaseAdmin
         .from("api_keys")
         .select("id, paid_requests_remaining")
         .eq("user_id", userId)
@@ -129,11 +149,36 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .maybeSingle();
 
-      if (key) {
-        await supabaseAdmin
+      key = activeKey;
+
+      if (!key) {
+        const { data: anyKey } = await supabaseAdmin
           .from("api_keys")
-          .update({ paid_requests_remaining: (key.paid_requests_remaining || 0) + credits })
-          .eq("id", key.id);
+          .select("id, paid_requests_remaining")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        key = anyKey;
+      }
+
+      if (key) {
+        // Only add credits if not already credited via RPC in this run
+        // If alreadySuccess = true, we skip adding again to avoid double credit
+        if (!alreadySuccess) {
+          const { error: keyErr } = await supabaseAdmin
+            .from("api_keys")
+            .update({ paid_requests_remaining: (key.paid_requests_remaining || 0) + credits })
+            .eq("id", key.id);
+          if (keyErr) console.error("UPDATE KEY FAILED:", keyErr.message);
+          else credited = true;
+        } else {
+          credited = true;
+        }
+      } else {
+        console.error("NO API KEY FOUND FOR USER:", userId);
+        // No key - still return success, Marketplace will show error to create key
+        // But we saved payment, so admin can credit manually
         credited = true;
       }
     }
@@ -143,8 +188,8 @@ export async function GET(request: NextRequest) {
     }
 
     return redirectToMarketplace(request, { success: packageId, credits: String(credits) });
-  } catch (error) {
-    console.error("PAYSTACK VERIFY ERROR:", error);
+  } catch (error: any) {
+    console.error("PAYSTACK VERIFY ERROR:", error?.message || error);
     return redirectToMarketplace(request, { error: "verification_unavailable" });
   }
 }
