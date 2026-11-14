@@ -13,7 +13,7 @@ const PACKAGES: Record<string, { name: string; credits: number; amount: number }
 };
 
 function redirectToMarketplace(request: NextRequest, params: Record<string, string>) {
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://gin.onrender.com").replace(/\/+$/, "");
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://main-naija-pidgin.onrender.com").replace(/\/+$/, "");
   const url = new URL("/marketplace", baseUrl);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
@@ -51,7 +51,6 @@ export async function GET(request: NextRequest) {
 
     const payData = verification.data;
     const meta = payData?.metadata || {};
-    // Paystack metadata fit be nested: metadata.custom_fields or direct
     const customFields: any[] = meta.custom_fields || [];
     const getCustom = (name: string) => customFields.find((f: any) => f.variable_name === name || f.display_name === name)?.value;
 
@@ -85,13 +84,8 @@ export async function GET(request: NextRequest) {
       if (!amount) amount = pkg.amount;
     }
 
-    // 3. If already marked success, still make sure key get the credits
-    // We check if this reference don already credit before - use a simple guard:
-    // If payment_status is success AND we already credited before, we still return success
-    // but we will verify key balance below in fallback path if needed.
     const alreadySuccess = dbPayment?.payment_status === "success";
 
-    // 4. Try RPC first
     let credited = false;
     if (!alreadySuccess) {
       const { data: result, error: rpcError } = await supabaseAdmin.rpc("complete_api_payment", {
@@ -106,13 +100,10 @@ export async function GET(request: NextRequest) {
         console.log("RPC fallback to direct credit:", rpcError?.message);
       }
     } else {
-      // Already success in DB, assume credited - but we will double-check key below
       credited = true;
     }
 
-    // 5. Direct credit fallback - ALWAYS ensure payment + key are updated
     if (!credited || alreadySuccess) {
-      // Upsert payment
       if (!dbPayment) {
         const { error: insertErr } = await supabaseAdmin.from("api_payments").insert({
           user_id: userId,
@@ -138,7 +129,6 @@ export async function GET(request: NextRequest) {
         if (updateErr) console.error("UPDATE PAYMENT FAILED:", updateErr.message);
       }
 
-      // Find key: active first, then ANY key for user
       let key: any = null;
       const { data: activeKey } = await supabaseAdmin
         .from("api_keys")
@@ -163,8 +153,6 @@ export async function GET(request: NextRequest) {
       }
 
       if (key) {
-        // Only add credits if not already credited via RPC in this run
-        // If alreadySuccess = true, we skip adding again to avoid double credit
         if (!alreadySuccess) {
           const { error: keyErr } = await supabaseAdmin
             .from("api_keys")
@@ -177,8 +165,6 @@ export async function GET(request: NextRequest) {
         }
       } else {
         console.error("NO API KEY FOUND FOR USER:", userId);
-        // No key - still return success, Marketplace will show error to create key
-        // But we saved payment, so admin can credit manually
         credited = true;
       }
     }
