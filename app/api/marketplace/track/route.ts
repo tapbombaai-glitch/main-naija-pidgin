@@ -12,7 +12,11 @@ const ALLOWED_PACKAGES = [
   "premium",
 ];
 
-const ALLOWED_EVENTS = ["page_view", "buy_click"];
+const ALLOWED_EVENTS = [
+  "page_view",
+  "buy_click",
+  "community_click",
+];
 
 export async function POST(request: NextRequest) {
   try {
