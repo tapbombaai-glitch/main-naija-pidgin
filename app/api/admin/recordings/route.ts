@@ -79,7 +79,10 @@ async function verifyChairman(request: NextRequest) {
   return admin;
 }
 
-function getStorageFile(audioUrl: string, supabaseUrl: string) {
+function getStorageFile(
+  audioUrl: string,
+  supabaseUrl: string
+) {
   try {
     const fileUrl = new URL(audioUrl);
     const configuredUrl = new URL(supabaseUrl);
@@ -152,7 +155,8 @@ async function getRecordingAudioUrl(
   if (!bucket || !path) {
     return {
       signedUrl: null,
-      audioError: "No valid audio storage path was found.",
+      audioError:
+        "No valid audio storage path was found.",
     };
   }
 
@@ -166,7 +170,8 @@ async function getRecordingAudioUrl(
   if (error || !data?.signedUrl) {
     return {
       signedUrl: null,
-      audioError: "Could not create a playback link.",
+      audioError:
+        "Could not create a playback link.",
     };
   }
 
@@ -176,19 +181,13 @@ async function getRecordingAudioUrl(
   };
 }
 
-/* =========================================================
-   GET RECORDINGS
-   ========================================================= */
-
 export async function GET(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
-        {
-          error: "Chairman access required.",
-        },
+        { error: "Chairman access required." },
         { status: 403 }
       );
     }
@@ -205,17 +204,6 @@ export async function GET(request: NextRequest) {
       ),
       100
     );
-
-    /*
-     * IMPORTANT:
-     * We DO NOT delete recordings from Supabase.
-     *
-     * hidden_from_review = true means:
-     * "Do not show this recording on the Chairman
-     * Recording Review screen."
-     *
-     * The actual recording row and audio file remain safe.
-     */
 
     let query = admin
       .from("recordings")
@@ -245,10 +233,11 @@ export async function GET(request: NextRequest) {
 
     const recordings = await Promise.all(
       (data || []).map(async (recording) => {
-        const audio = await getRecordingAudioUrl(
-          admin,
-          recording
-        );
+        const audio =
+          await getRecordingAudioUrl(
+            admin,
+            recording
+          );
 
         return {
           ...recording,
@@ -271,25 +260,18 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error: any) {
-    console.error(
-      "Load recordings error:",
-      error
-    );
-
     return NextResponse.json(
       {
         error:
-          error?.message ||
+          error.message ||
           "Could not load recordings.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
-
-/* =========================================================
-   APPROVE / REJECT RECORDING
-   ========================================================= */
 
 export async function POST(request: NextRequest) {
   try {
@@ -300,7 +282,9 @@ export async function POST(request: NextRequest) {
         {
           error: "Chairman access required.",
         },
-        { status: 403 }
+        {
+          status: 403,
+        }
       );
     }
 
@@ -311,14 +295,18 @@ export async function POST(request: NextRequest) {
 
     if (
       !id ||
-      !["approved", "rejected"].includes(newStatus)
+      !["approved", "rejected"].includes(
+        newStatus
+      )
     ) {
       return NextResponse.json(
         {
           error:
             "A valid recording ID and status are required.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
@@ -327,15 +315,11 @@ export async function POST(request: NextRequest) {
         {
           error: "Invalid recording ID.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
-
-    /*
-     * Keep the existing earnings behaviour.
-     * Approved recordings receive ₦30 through the
-     * existing atomic RPC.
-     */
 
     const amount = 30;
 
@@ -363,7 +347,9 @@ export async function POST(request: NextRequest) {
             "Approval failed: " +
             rpcError.message,
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
@@ -374,32 +360,27 @@ export async function POST(request: NextRequest) {
             rpcResult?.error ||
             "Approval failed.",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
     const {
       data: updatedRecording,
-      error: updatedError,
     } = await admin
       .from("recordings")
       .select(
-        "id, worker_id, status, is_approved, earnings, earnings_paid, hidden_from_review"
+        "id, worker_id, status, is_approved, earnings, earnings_paid"
       )
       .eq("id", id)
       .single();
 
-    if (updatedError) {
-      console.error(
-        "Updated recording lookup error:",
-        updatedError
-      );
-    }
-
     return NextResponse.json({
       success: true,
       message: rpcResult.message,
-      earnings_added: rpcResult.earnings_added,
+      earnings_added:
+        rpcResult.earnings_added,
       recording: updatedRecording,
     });
   } catch (error: any) {
@@ -411,19 +392,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          error?.message ||
+          error.message ||
           "Recording review failed.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
 
-/* =========================================================
-   SAFE DELETE / HIDE FROM REVIEW
-   ========================================================= */
-
-export async function DELETE(request: NextRequest) {
+/*
+ * DELETE = hide from Chairman Review only.
+ *
+ * IMPORTANT:
+ * - Does NOT delete the recording row.
+ * - Does NOT delete the audio file.
+ * - Does NOT touch Supabase Storage.
+ * - Does NOT affect worker earnings.
+ * - Does NOT affect approval history.
+ */
+export async function DELETE(
+  request: NextRequest
+) {
   try {
     const admin = await verifyChairman(request);
 
@@ -432,20 +423,25 @@ export async function DELETE(request: NextRequest) {
         {
           error: "Chairman access required.",
         },
-        { status: 403 }
+        {
+          status: 403,
+        }
       );
     }
 
     const body = await request.json();
 
-    const id = body?.id;
+    const id = body.id;
 
     if (!id) {
       return NextResponse.json(
         {
-          error: "Recording ID is required.",
+          error:
+            "A recording ID is required.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
@@ -454,137 +450,69 @@ export async function DELETE(request: NextRequest) {
         {
           error: "Invalid recording ID.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * We are NOT using .delete().
-     *
-     * The recording remains inside Supabase.
-     * The audio file remains inside Storage.
-     * Earnings/history remain untouched.
-     *
-     * We only mark it as hidden from the Chairman
-     * Recording Review page.
-     */
-
     const {
-      data: existingRecording,
+      data: recording,
       error: findError,
     } = await admin
       .from("recordings")
-      .select(
-        "id, worker_id, status, earnings, hidden_from_review"
-      )
+      .select("id, hidden_from_review")
       .eq("id", id)
       .maybeSingle();
 
     if (findError) {
-      console.error(
-        "Find recording before hide:",
-        findError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Could not find recording: " +
-            findError.message,
-        },
-        { status: 500 }
-      );
+      throw findError;
     }
 
-    if (!existingRecording) {
+    if (!recording) {
       return NextResponse.json(
         {
           error: "Recording not found.",
         },
-        { status: 404 }
+        {
+          status: 404,
+        }
       );
     }
 
-    if (existingRecording.hidden_from_review === true) {
-      return NextResponse.json({
-        success: true,
-        message:
-          "Recording is already hidden from review.",
-        deleted: false,
-        hidden: true,
-        preserved_in_supabase: true,
-      });
-    }
-
     const {
-      data: hiddenRecording,
-      error: hideError,
+      error: updateError,
     } = await admin
       .from("recordings")
       .update({
         hidden_from_review: true,
       })
-      .eq("id", id)
-      .select(
-        "id, worker_id, status, earnings, hidden_from_review"
-      )
-      .single();
+      .eq("id", id);
 
-    if (hideError) {
-      console.error(
-        "Hide recording error:",
-        hideError
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            "Could not hide recording: " +
-            hideError.message,
-        },
-        { status: 500 }
-      );
+    if (updateError) {
+      throw updateError;
     }
 
     return NextResponse.json({
       success: true,
-
-      /*
-       * The frontend can use this to remove the card
-       * immediately.
-       */
-
-      deleted: true,
-      hidden: true,
-
-      /*
-       * This makes it explicit that the actual data
-       * was preserved.
-       */
-
-      preserved_in_supabase: true,
-      audio_deleted: false,
-
       message:
-        "Recording removed from the review list. The recording and audio remain safely stored in Supabase.",
-
-      recording: hiddenRecording,
+        "Recording removed from review. The voice/audio file is still safely stored.",
     });
   } catch (error: any) {
     console.error(
-      "Recording hide/delete error:",
+      "Recording hide error:",
       error
     );
 
     return NextResponse.json(
       {
         error:
-          error?.message ||
+          error.message ||
           "Could not remove recording from review.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
