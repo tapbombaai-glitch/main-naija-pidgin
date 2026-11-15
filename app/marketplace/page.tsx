@@ -8,6 +8,8 @@ import { createClient } from "@/lib/supabase/client";
 const supabase = createClient();
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+const WHATSAPP_COMMUNITY_LINK =
+  "https://chat.whatsapp.com/DM0KpQtO6MhAmrbnTFZ0Kj?s=cl&p=a&mlu=4&ilr=4&iam=2";
 
 function getMarketplaceVisitorId() {
   let visitorId = localStorage.getItem("mnp_marketplace_visitor");
@@ -19,7 +21,7 @@ function getMarketplaceVisitorId() {
 }
 
 async function trackMarketplaceEvent(
-  eventType: "page_view" | "buy_click",
+  eventType: "page_view" | "buy_click" | "community_click",
   packageId?: string
 ) {
   try {
@@ -501,17 +503,7 @@ export default function Marketplace() {
 
   return (
     <div style={{ background: "#080C08", minHeight: "100vh", width: "100%", padding: "8px" }}>
-      <style>{`
-        * { box-sizing: border-box; }
-        body { margin: 0; }
-        button:active { transform: scale(0.97); }
-        .voice-scroll { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-        @media (max-width: 380px) {
-          .voice-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }
-          .voice-scroll::-webkit-scrollbar { display: none; }
-          .voice-card { min-width: 88px; flex-shrink: 0; }
-        }
-      `}</style>
+      <style>{`  * { box-sizing: border-box; }   body { margin: 0; }   button:active { transform: scale(0.97); }   .voice-scroll { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }   @media (max-width: 380px) {   .voice-scroll { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: none; }   .voice-scroll::-webkit-scrollbar { display: none; }   .voice-card { min-width: 88px; flex-shrink: 0; }   }  `}</style>
 
       {toast && (
         <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: toastType === "error" ? "#FF5252" : "#00E676", color: toastType === "error" ? "white" : "black", padding: "10px 18px", borderRadius: "20px", fontSize: "11px", fontWeight: "900", zIndex: 200, maxWidth: "90%", textAlign: "center", boxShadow: "0 10px 30px rgba(0,0,0,.35)" }}>
@@ -585,6 +577,64 @@ export default function Marketplace() {
             </div>
           )}
         </div>
+
+        <a
+          href={WHATSAPP_COMMUNITY_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => {
+            trackMarketplaceEvent("community_click");
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "10px",
+            marginTop: "10px",
+            background: "#0B2A18",
+            border: "1.5px solid #00E676",
+            borderRadius: "12px",
+            padding: "13px",
+            textDecoration: "none",
+            color: "white",
+          }}
+        >
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                fontSize: "12px",
+                fontWeight: "900",
+                color: "#00E676",
+              }}
+            >
+              🇳🇬 JOIN MAIN NAIJA PIDGIN COMMUNITY
+            </div>
+
+            <div
+              style={{
+                fontSize: "9px",
+                color: "#A5D6A7",
+                marginTop: "3px",
+              }}
+            >
+              Meet other users, get updates & follow the project
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#00C853",
+              color: "white",
+              padding: "8px 11px",
+              borderRadius: "8px",
+              fontSize: "9px",
+              fontWeight: "900",
+              flexShrink: 0,
+            }}
+          >
+            JOIN →
+          </div>
+        </a>
 
         <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div>
