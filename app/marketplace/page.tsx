@@ -9,6 +9,32 @@ const supabase = createClient();
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
+function getMarketplaceVisitorId() {
+  let visitorId = localStorage.getItem("mnp_marketplace_visitor");
+  if (!visitorId) {
+    visitorId = crypto.randomUUID();
+    localStorage.setItem("mnp_marketplace_visitor", visitorId);
+  }
+  return visitorId;
+}
+
+async function trackMarketplaceEvent(
+  eventType: "page_view" | "buy_click",
+  packageId?: string
+) {
+  try {
+    const visitorId = getMarketplaceVisitorId();
+    await fetch("/api/marketplace/track", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId, eventType, packageId }),
+      keepalive: true,
+    });
+  } catch (error) {
+    console.error("Marketplace analytics error:", error);
+  }
+}
+
 type LoginMode = "login" | "signup";
 
 type Voice = {
@@ -74,6 +100,8 @@ export default function Marketplace() {
 
   useEffect(() => {
     loadData();
+
+    trackMarketplaceEvent("page_view");
 
     const {
       data: { subscription },
@@ -263,7 +291,6 @@ export default function Marketplace() {
 
       if (data.api_key) {
         setRealKey(data.api_key);
-        // FIXED: Auto-fill Test Console so Test button go work immediately
         setTestApiKey(data.api_key);
         setApiKey(data.key_prefix || "");
         setFreeLeft(Number(data.free_requests_remaining ?? data.free_credits ?? 1000));
@@ -289,6 +316,8 @@ export default function Marketplace() {
   }
 
   async function buy(packageId: string) {
+    trackMarketplaceEvent("buy_click", packageId);
+
     if (!user) {
       openLogin("login");
       showToast("🔐 Login first before buying API credits.", "error");
@@ -298,7 +327,6 @@ export default function Marketplace() {
       showToast("Use Chairman Login for the Chairman account.", "error");
       return;
     }
-    // FIXED: Tell user clearly if dem never claim Free first
     if (!apiKey) {
       showToast("Claim your 1,000 Free Credits first to activate your account, then Buy.", "error");
       return;
