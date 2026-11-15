@@ -12,21 +12,16 @@ export default function WorkersPage() {
   const [showModal, setShowModal] = useState<string | null>(null);
   const [workerId, setWorkerId] = useState("WORKER");
 
-  const [earnings, setEarnings] = useState({
-    total: 1250,
-    pending: 450,
-    approved: 87,
-  });
-
-  const [taskProgress, setTaskProgress] = useState({
-    total: 45,
-    today: 12,
-  });
-
+  const [earnings, setEarnings] = useState({ total: 0, pending: 0, approved: 0 });
+  const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<any[]>([]);
   const [savingRecording, setSavingRecording] = useState(false);
+
+  // CHAIRMAN ANNOUNCEMENTS
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementLoading, setAnnouncementLoading] = useState(true);
 
   const [accountName, setAccountName] = useState("");
   const [bankName, setBankName] = useState("");
@@ -39,54 +34,37 @@ export default function WorkersPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const languageChangeMounted = useRef(false);
 
-  // ✅ FIXED: Workers Panel NOW USES 500
   const allSentences: Record<string, string[]> = {
     Pidgin: [...new Set(PIDGIN_500)],
-    Igbo: [
-      "Kedu? Ana m abia ugbu a.",
-      "Biko nyere m aka.",
-      "Kedu ihe na-eme?",
-      "Agaghi m ekwe ka ha ghogbuo m.",
-      "Oga, ego ole ka nke a bu?",
-      "Anyi ga-aga ahia echi.",
-    ],
-    Hausa: [
-      "Yaya kake? Ina zuwa yanzu.",
-      "Don Allah ka taimake ni.",
-      "Me ke faruwa?",
-      "Ba zan yarda su yaudare ni ba.",
-      "Oga, nawa ne wannan?",
-      "Mu je kasuwa gobe.",
-    ],
-    Yoruba: [
-      "Bawo ni? Mo n bo nisisinyi.",
-      "Ejo e ran mi lowo.",
-      "Kini n sele?",
-      "Mi o ni gba ki won tan mi.",
-      "Oga, elo ni eyi?",
-      "Jeka lo si oja laaro.",
-    ],
+    Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?", "Agaghi m ekwe ka ha ghogbuo m.", "Oga, ego ole ka nke a bu?", "Anyi ga-aga ahia echi."],
+    Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni.", "Me ke faruwa?", "Ba zan yarda su yaudare ni ba.", "Oga, nawa ne wannan?", "Mu je kasuwa gobe."],
+    Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo.", "Kini n sele?", "Mi o ni gba ki won tan mi.", "Oga, elo ni eyi?", "Jeka lo si oja laaro."],
   };
 
   const sentences = allSentences[selectedLang];
 
+  // LOAD WORKER DATA + ANNOUNCEMENTS + REAL EARNINGS
   useEffect(() => {
-    setWorkerId(localStorage.getItem("gin_worker_id") || "WORKER");
+    const wid = localStorage.getItem("gin_worker_id") || "WORKER";
+    setWorkerId(wid);
+    if (wid !== "WORKER") {
+      loadWorkerData(wid);
+      // Track entry so Chairman go know person enter
+      supabase.from("marketplace_visits").insert({ worker_id: wid, page: "workers", entered_at: new Date().toISOString() }).then(()=>{});
+    }
     try {
       const saved = localStorage.getItem("naija_progress");
       if (saved) {
         const p = JSON.parse(saved);
-        if (p.progress && typeof p.progress.total === "number") setTaskProgress(p.progress);
-        if (p.earnings && typeof p.earnings.total === "number") setEarnings(p.earnings);
         const index = Number(p.index) || 0;
         setCurrentSentenceIndex(Math.max(0, Math.min(index, sentences.length - 1)));
       }
-    } catch (e) { console.error(e); }
+    } catch {}
     try {
       const raw = localStorage.getItem("gin_recordings");
       const parsed = raw ? JSON.parse(raw) : [];
       setSavedFiles(Array.isArray(parsed) ? parsed : []);
-    } catch (e) { setSavedFiles([]); }
+    } catch { setSavedFiles([]); }
     try {
       const savedBank = localStorage.getItem("gin_bank_details");
       if (savedBank) {
@@ -96,13 +74,45 @@ export default function WorkersPage() {
         setAccountNumber(bank.accountNumber || "");
         setPhoneNumber(bank.phoneNumber || "");
       }
-    } catch (e) { console.error(e); }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+  const loadWorkerData = async (wid: string) => {
+    const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false }).limit(5);
+    if (anns) setAnnouncements(anns);
+    setAnnouncementLoading(false);
+    const { data: recs } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
+    if (recs) {
+      let total = 0, pending = 0, approved = 0, today = 0;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      recs.forEach((r: any) => {
+        const amt = Number(r.earnings) || 0;
+        total += amt;
+        if (r.status === "approved") approved += amt; else pending += amt;
+        if (String(r.created_at).slice(0, 10) === todayStr) today += 1;
+      });
+      setEarnings({ total, pending, approved });
+      setTaskProgress({ total: recs.length, today });
+    }
   };
+
+  // CHAIRMAN ANNOUNCEMENT CONNECTION - REALTIME
+  useEffect(() => {
+    let active = true;
+    async function loadAnnouncements() {
+      const { data, error } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false });
+      if (!active) return;
+      if (error) console.error("Announcement loading error:", error.message);
+      else setAnnouncements(data || []);
+      setAnnouncementLoading(false);
+    }
+    loadAnnouncements();
+    const channel = supabase.channel("worker-announcements").on("postgres_changes", { event: "*", schema: "public", table: "announcements" }, () => loadAnnouncements()).subscribe();
+    return () => { active = false; supabase.removeChannel(channel); };
+  }, []);
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   const saveBankDetails = () => {
     if (!accountName.trim()) return alert("Please enter your Account Name.");
@@ -110,51 +120,25 @@ export default function WorkersPage() {
     if (!accountNumber.trim()) return alert("Please enter your Account Number.");
     if (!phoneNumber.trim()) return alert("Please enter your Phone Number.");
     const bankDetails = { accountName: accountName.trim(), bankName: bankName.trim(), accountNumber: accountNumber.trim(), phoneNumber: phoneNumber.trim() };
-    try {
-      localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails));
-      setShowModal(null);
-      showToast("✅ Bank details saved successfully.");
-    } catch (e) { alert("Could not save bank details on this phone."); }
+    try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); setShowModal(null); showToast("✅ Bank details saved successfully."); } catch { alert("Could not save bank details on this phone."); }
   };
 
   const toggleRecording = async () => {
-    if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-      return;
-    }
+    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
       streamRef.current = stream;
       const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-      mediaRecorderRef.current = mr;
-      audioChunksRef.current = [];
+      mediaRecorderRef.current = mr; audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        setAudioURL(URL.createObjectURL(blob));
-        stream.getTracks().forEach((t) => t.stop());
-      };
-      mr.start();
-      setIsRecording(true);
-      setAudioURL(null);
-      setTimer(0);
+      mr.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach((t) => t.stop()); };
+      mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0);
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
     } catch { alert("Abeg allow microphone!"); }
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60).toString().padStart(2, "0");
-    const sec = (s % 60).toString().padStart(2, "0");
-    return `${m}:${sec}`;
-  };
-
-  const reRecord = () => {
-    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); }
-    setAudioURL(null); setTimer(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
+  const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
+  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
   const saveAndNext = async () => {
     if (!audioURL) return alert("🎤 Record first!");
@@ -172,29 +156,14 @@ export default function WorkersPage() {
       const audioUrl = publicData?.publicUrl || "";
       if (!audioUrl) throw new Error("Could not create recording audio URL.");
       const recordingText = sentences[currentSentenceIndex];
-      const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({
-        worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText,
-        audio_url: audioUrl, file_name: fileName, duration: timer, earnings: 30, status: "pending", is_approved: false,
-      }).select().single();
-      if (insertError) {
-        try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {}
-        throw new Error("Recording could not be submitted: " + insertError.message);
-      }
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl; a.download = fileName; a.style.display = "none";
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 500);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const data = { id: recordingRow?.id || Date.now(), worker_id: wid, lang: selectedLang, sentence: recordingText, fileName, audioData: reader.result, audio_url: audioUrl, storage_path: storagePath, time: new Date().toISOString(), earnings: 30, status: "pending", approved: false };
-        let old: any[] = [];
-        try { const raw = localStorage.getItem("gin_recordings"); const parsed = raw ? JSON.parse(raw) : []; old = Array.isArray(parsed) ? parsed : []; } catch { old = []; }
-        old.unshift(data);
-        const updated = old.slice(0, 100);
-        try { localStorage.setItem("gin_recordings", JSON.stringify(updated)); setSavedFiles(updated); } catch {}
-      };
-      reader.readAsDataURL(blob);
+      const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: 30, status: "pending", is_approved: false }).select().single();
+      if (insertError) { try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {} throw new Error("Recording could not be submitted: " + insertError.message); }
+      const data = { id: recordingRow?.id || Date.now(), worker_id: wid, lang: selectedLang, sentence: recordingText, fileName, audio_url: audioUrl, storage_path: storagePath, time: new Date().toISOString(), earnings: 30, status: "pending", approved: false };
+      let old: any[] = [];
+      try { const raw = localStorage.getItem("gin_recordings"); const parsed = raw ? JSON.parse(raw) : []; old = Array.isArray(parsed) ? parsed : []; } catch { old = []; }
+      old.unshift(data);
+      const updated = old.slice(0, 100);
+      try { localStorage.setItem("gin_recordings", JSON.stringify(updated)); setSavedFiles(updated); } catch {}
       const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved };
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = (currentSentenceIndex + 1) % sentences.length;
@@ -202,22 +171,12 @@ export default function WorkersPage() {
       localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
       setAudioURL(null); setTimer(0);
       showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • ₦30`);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Recording submission failed. Please try again.");
-    } finally { setSavingRecording(false); }
+    } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
+    finally { setSavingRecording(false); }
   };
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop());
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!languageChangeMounted.current) { languageChangeMounted.current = true; return; }
-    setCurrentSentenceIndex(0); setAudioURL(null); setTimer(0);
-  }, [selectedLang]);
+  useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
+  useEffect(() => { if (!languageChangeMounted.current) { languageChangeMounted.current = true; return; } setCurrentSentenceIndex(0); setAudioURL(null); setTimer(0); }, [selectedLang]);
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
@@ -230,65 +189,72 @@ export default function WorkersPage() {
           </div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", marginTop: "5px" }} />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginTop: "12px" }}>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}>
-            <div style={{ fontSize: "10px", color: "#888" }}>TOTAL</div>
-            <div style={{ color: "#00E676", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.total}</div>
+
+        {/* CHAIRMAN ANNOUNCEMENT BOARD */}
+        <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <strong style={{ color: "#FACC15", fontSize: "14px" }}>📢 CHAIRMAN ANNOUNCEMENTS</strong>
+            {announcements.length > 0 && <span style={{ background: "#EAB308", color: "black", padding: "3px 8px", borderRadius: "20px", fontSize: "10px", fontWeight: "900" }}>{announcements.length} MESSAGES</span>}
           </div>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}>
-            <div style={{ fontSize: "10px", color: "#888" }}>PENDING</div>
-            <div style={{ color: "#EAB308", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.pending}</div>
-          </div>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}>
-            <div style={{ fontSize: "10px", color: "#888" }}>APPROVED</div>
-            <div style={{ color: "#4ADE80", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.approved}</div>
-          </div>
+          {announcementLoading ? <p style={{ color: "#aaa", fontSize: "12px" }}>Loading announcements...</p>
+          : announcements.length === 0 ? <p style={{ color: "#888", fontSize: "12px" }}>No announcements yet. Check again later.</p>
+          : announcements.map((a) => (
+            <div key={a.id} style={{ background: "#080E08", border: "1px solid #263526", borderRadius: "10px", padding: "10px", marginTop: "10px" }}>
+              <div style={{ color: a.type === "urgent" ? "#ff5252" : "#FACC15", fontSize: "10px", fontWeight: "900" }}>📢 {String(a.type || "GENERAL").toUpperCase()}</div>
+              <div style={{ fontWeight: "900", fontSize: "14px", marginTop: "5px" }}>{a.title}</div>
+              <p style={{ color: "#ccc", fontSize: "12px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{a.message}</p>
+              <div style={{ color: "#777", fontSize: "10px" }}>{new Date(a.created_at).toLocaleString()}</div>
+            </div>
+          ))}
         </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginTop: "12px" }}>
+          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>TOTAL</div><div style={{ color: "#00E676", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.total}</div></div>
+          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>PENDING</div><div style={{ color: "#EAB308", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.pending}</div></div>
+          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>APPROVED</div><div style={{ color: "#4ADE80", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.approved}</div></div>
+        </div>
+
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}>
-            <span style={{ color: "#aaa" }}>TASK PROGRESS</span>
-            <strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong>
-          </div>
-          <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}>
-            <div style={{ width: `${Math.min((taskProgress.today / 50) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} />
-          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
+          <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 50) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
           <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
         </div>
+
+        {/* ANNOUNCEMENT BOARD BUTTON - ADD ONLY */}
+        <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
+
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
+
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
           {["Pidgin", "Igbo", "Hausa", "Yoruba"].map((lang) => (
             <button key={lang} onClick={() => setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang}</button>
           ))}
         </div>
+
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
+
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {currentSentenceIndex + 1}/{sentences.length}</div>
-          <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}>
-            <p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>{sentences[currentSentenceIndex]}</p>
-          </div>
+          <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
-            <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>
-              {isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}
-            </button>
+            <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
           </div>
           <div style={{ textAlign: "center", fontSize: "11px", color: "#ff5252", fontFamily: "monospace" }}>REC {formatTime(timer)} / 00:15</div>
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "12px 0", height: "36px" }} />}
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
-            <button onClick={saveAndNext} disabled={!audioURL || savingRecording} style={{ flex: 1.6, background: audioURL && !savingRecording ? "#00E676" : "#1A3A1A", color: audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "900" }}>
-              {savingRecording ? "⏳ SUBMITTING..." : audioURL ? "💾 SUBMIT TO CHAIRMAN →" : "Save & Next →"}
-            </button>
+            <button onClick={saveAndNext} disabled={!audioURL || savingRecording} style={{ flex: 1.6, background: audioURL && !savingRecording ? "#00E676" : "#1A3A1A", color: audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "900" }}>{savingRecording ? "⏳ SUBMITTING..." : audioURL ? "💾 SUBMIT TO CHAIRMAN →" : "Save & Next →"}</button>
           </div>
         </div>
+
         {savedFiles.length > 0 && (
           <div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}>
-            <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Phone for Chairman</div>
-            {savedFiles.slice(0, 3).map((f: any) => (
-              <div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName || "Recording"} — {typeof f.sentence === "string" ? f.sentence.slice(0, 20) : "Saved audio"}...</div>
-            ))}
+            <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Supabase</div>
+            {savedFiles.slice(0, 3).map((f: any) => (<div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName || "Recording"} — {typeof f.sentence === "string" ? f.sentence.slice(0, 20) : "Saved audio"}...</div>))}
           </div>
         )}
       </div>
+
       {showModal === "bank" && (
         <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: "18px", zIndex: 2000 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "390px", maxHeight: "90vh", overflowY: "auto", background: "#0D130D", border: "1px solid #EAB308", borderRadius: "20px", padding: "20px", boxSizing: "border-box" }}>
