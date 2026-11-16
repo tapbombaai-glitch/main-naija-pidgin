@@ -60,7 +60,7 @@ const EMPTY_SUMMARY: Summary = {
 };
 
 export default function ApiManagementPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
 
   const [customers, setCustomers] = useState<ApiCustomer[]>([]);
   const [summary, setSummary] = useState<Summary>(EMPTY_SUMMARY);
@@ -156,6 +156,67 @@ export default function ApiManagementPage() {
       customer.email ||
       "API Customer"
     );
+  }
+
+  async function deactivateCustomer(customer: ApiCustomer) {
+    const name = customerName(customer);
+
+    const confirmed = window.confirm(
+      `Deactivate API access for ${name}?\n\n` +
+        `The API key will stop working immediately.\n\n` +
+        `Payment and usage history will NOT be deleted.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError("");
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      const response = await fetch(
+        "/api/admin/api/deactivate",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            key_id: customer.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error ||
+            "Could not deactivate API customer."
+        );
+      }
+
+      await loadApiManagement(true);
+    } catch (err) {
+      console.error(
+        "DEACTIVATE CUSTOMER ERROR:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not deactivate API customer."
+      );
+    }
   }
 
   if (loading) {
@@ -647,6 +708,53 @@ export default function ApiManagementPage() {
                         customer.paid_requests_remaining
                       )}
                     />
+                  </div>
+
+                  {/* CHAIRMAN ACTION */}
+                  <div
+                    style={{
+                      marginTop: 14,
+                      paddingTop: 14,
+                      borderTop: "1px solid #27272a",
+                    }}
+                  >
+                    {customer.is_active ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          deactivateCustomer(customer)
+                        }
+                        style={{
+                          width: "100%",
+                          border: "1px solid #7f1d1d",
+                          background: "#2b0b0b",
+                          color: "#f87171",
+                          borderRadius: 12,
+                          padding: "11px 14px",
+                          fontSize: 12,
+                          fontWeight: 900,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ⛔ DEACTIVATE API KEY
+                      </button>
+                    ) : (
+                      <div
+                        style={{
+                          width: "100%",
+                          border: "1px solid #27272a",
+                          background: "#111",
+                          color: "#71717a",
+                          borderRadius: 12,
+                          padding: "11px 14px",
+                          fontSize: 12,
+                          fontWeight: 800,
+                          textAlign: "center",
+                        }}
+                      >
+                        🔒 API KEY DEACTIVATED
+                      </div>
+                    )}
                   </div>
 
                   {/* DETAILS */}
