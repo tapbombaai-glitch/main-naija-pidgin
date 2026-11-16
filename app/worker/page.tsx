@@ -4,6 +4,37 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { PIDGIN_500 } from "@/app/data/pidgin-500";
 
+const DAILY_RECORDING_LIMIT = 50;
+
+function getLagosRecordingWindow(now = new Date()) {
+  // Lagos uses UTC+1.
+  const offset = 60 * 60 * 1000;
+  const lagosNow = new Date(now.getTime() + offset);
+
+  let start = Date.UTC(
+    lagosNow.getUTCFullYear(),
+    lagosNow.getUTCMonth(),
+    lagosNow.getUTCDate(),
+    17,
+    0,
+    0
+  );
+
+  // Before 5 p.m., the current recording day began yesterday.
+  if (lagosNow.getUTCHours() < 17) {
+    start -= 24 * 60 * 60 * 1000;
+  }
+
+  const startUtc = start - offset;
+
+  return {
+    startMs: startUtc,
+    startIso: new Date(startUtc).toISOString(),
+    key: String(startUtc),
+    nextResetMs: startUtc + 24 * 60 * 60 * 1000,
+  };
+}
+
 export default function WorkersPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
@@ -11,6 +42,9 @@ export default function WorkersPage() {
   const [selectedLang, setSelectedLang] = useState("Pidgin");
   const [showModal, setShowModal] = useState<string | null>(null);
   const [workerId, setWorkerId] = useState("WORKER");
+
+  const [recordingDayKey, setRecordingDayKey] =
+    useState(() => getLagosRecordingWindow().key);
 
   const [earnings, setEarnings] = useState({ total: 0, pending: 0, approved: 0 });
   const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
@@ -32,7 +66,19 @@ export default function WorkersPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const languageChangeMounted = useRef(false);
+
+  // VOICE COLLECTION TARGET - DISPLAY ONLY
+  const TOTAL_RECORDING_TARGET = 500;
+
+  const remainingToday = Math.max(
+    0,
+    DAILY_RECORDING_LIMIT - taskProgress.today
+  );
+
+  const remainingTotal = Math.max(
+    0,
+    TOTAL_RECORDING_TARGET - taskProgress.total
+  );
 
   const allSentences: Record<string, string[]> = {
     Pidgin: [...new Set(PIDGIN_500)],
@@ -53,14 +99,6 @@ export default function WorkersPage() {
       supabase.from("marketplace_visits").insert({ worker_id: wid, page: "workers", entered_at: new Date().toISOString() }).then(()=>{});
     }
     try {
-      const saved = localStorage.getItem("naija_progress");
-      if (saved) {
-        const p = JSON.parse(saved);
-        const index = Number(p.index) || 0;
-        setCurrentSentenceIndex(Math.max(0, Math.min(index, sentences.length - 1)));
-      }
-    } catch {}
-    try {
       const raw = localStorage.getItem("gin_recordings");
       const parsed = raw ? JSON.parse(raw) : [];
       setSavedFiles(Array.isArray(parsed) ? parsed : []);
@@ -79,23 +117,152 @@ export default function WorkersPage() {
   }, []);
 
   const loadWorkerData = async (wid: string) => {
-    const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false }).limit(5);
+    const { data: anns } = await supabase
+      .from("announcements")
+      .select("id, title, message, type, created_at")
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(5);
+
     if (anns) setAnnouncements(anns);
+
     setAnnouncementLoading(false);
-    const { data: recs } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
+
+    const window = getLagosRecordingWindow();
+
+    const { data: recs, error } = await supabase
+      .from("recordings")
+      .select("earnings, status, created_at")
+      .eq("worker_id", wid);
+
+    if (error) {
+      console.error("Worker recordings loading error:", error.message);
+      return;
+    }
+
     if (recs) {
-      let total = 0, pending = 0, approved = 0, today = 0;
-      const todayStr = new Date().toISOString().slice(0, 10);
+      let total = 0;
+      let pending = 0;
+      let approved = 0;
+      let today = 0;
+
       recs.forEach((r: any) => {
         const amt = Number(r.earnings) || 0;
-        total += amt;
-        if (r.status === "approved") approved += amt; else pending += amt;
-        if (String(r.created_at).slice(0, 10) === todayStr) today += 1;
+
+        // FIX 1: Rejected recordings do not count as earnings.
+        if (r.status === "approved") {
+          total += amt;
+          approved += amt;
+        } else if (r.status === "pending") {
+          total += amt;
+          pending += amt;
+        }
+
+        if (r.created_at) {
+          const createdTime = new Date(r.created_at).getTime();
+
+          if (
+            createdTime >= window.startMs &&
+            createdTime < window.nextResetMs
+          ) {
+            today += 1;
+          }
+        }
       });
+
       setEarnings({ total, pending, approved });
-      setTaskProgress({ total: recs.length, today });
+
+      setTaskProgress({
+        total: recs.length,
+        today,
+      });
     }
   };
+
+  // RESTORE SENTENCE PROGRESS FOR CURRENT RECORDING DAY
+  useEffect(() => {
+    if (workerId === "WORKER") return;
+
+    const progressKey =
+      `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
+
+    try {
+      const saved = localStorage.getItem(progressKey);
+
+      if (saved) {
+        const progress = JSON.parse(saved);
+        const index = Number(progress.index) || 0;
+
+        setCurrentSentenceIndex(
+          Math.max(
+            0,
+            Math.min(index, Math.min(50, sentences.length))
+          )
+        );
+      } else {
+        setCurrentSentenceIndex(0);
+      }
+    } catch {
+      setCurrentSentenceIndex(0);
+    }
+
+    setAudioURL(null);
+    setTimer(0);
+
+  }, [workerId, selectedLang, recordingDayKey, sentences.length]);
+
+  // AUTO RESET AT 5 P.M. LAGOS
+  useEffect(() => {
+    const checkRecordingDay = () => {
+      const window = getLagosRecordingWindow();
+
+      if (window.key !== recordingDayKey) {
+        setRecordingDayKey(window.key);
+
+        setCurrentSentenceIndex(0);
+        setTaskProgress(prev => ({
+          ...prev,
+          today: 0,
+        }));
+
+        // Discard unfinished recording at daily reset
+        if (mediaRecorderRef.current?.state === "recording") {
+          // Discard the unfinished recording at the daily reset.
+          mediaRecorderRef.current.onstop = null;
+          mediaRecorderRef.current.stop();
+        }
+
+        setIsRecording(false);
+        setAudioURL(null);
+        setTimer(0);
+
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+
+        audioChunksRef.current = [];
+
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+
+        if (workerId !== "WORKER") {
+          loadWorkerData(workerId);
+        }
+
+        showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
+      }
+    };
+
+    const interval = setInterval(
+      checkRecordingDay,
+      15000
+    );
+
+    return () => clearInterval(interval);
+
+  }, [recordingDayKey, workerId]);
 
   // CHAIRMAN ANNOUNCEMENT CONNECTION - REALTIME
   useEffect(() => {
@@ -124,6 +291,18 @@ export default function WorkersPage() {
   };
 
   const toggleRecording = async () => {
+    if (!isRecording) {
+      if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
+        alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time.");
+        return;
+      }
+
+      if (currentSentenceIndex >= dailySentenceCount) {
+        alert("You have completed today's unique sentences in this language.");
+        return;
+      }
+    }
+
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
@@ -140,7 +319,24 @@ export default function WorkersPage() {
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
+  const dailySentenceCount = Math.min(
+    DAILY_RECORDING_LIMIT,
+    sentences.length
+  );
+
   const saveAndNext = async () => {
+    if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
+      return alert(
+        "You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."
+      );
+    }
+
+    if (currentSentenceIndex >= dailySentenceCount) {
+      return alert(
+        "You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."
+      );
+    }
+
     if (!audioURL) return alert("🎤 Record first!");
     if (savingRecording) return;
     const wid = localStorage.getItem("gin_worker_id");
@@ -166,9 +362,18 @@ export default function WorkersPage() {
       try { localStorage.setItem("gin_recordings", JSON.stringify(updated)); setSavedFiles(updated); } catch {}
       const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved };
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
-      const nextIndex = (currentSentenceIndex + 1) % sentences.length;
+      const nextIndex = currentSentenceIndex + 1;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-      localStorage.setItem("naija_progress", JSON.stringify({ progress: newProgress, earnings: newEarnings, index: nextIndex }));
+      const progressKey =
+        `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
+
+      localStorage.setItem(
+        progressKey,
+        JSON.stringify({
+          index: nextIndex,
+          dayKey: recordingDayKey,
+        })
+      );
       setAudioURL(null); setTimer(0);
       showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • ₦30`);
     } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
@@ -176,7 +381,6 @@ export default function WorkersPage() {
   };
 
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
-  useEffect(() => { if (!languageChangeMounted.current) { languageChangeMounted.current = true; return; } setCurrentSentenceIndex(0); setAudioURL(null); setTimer(0); }, [selectedLang]);
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
@@ -220,6 +424,15 @@ export default function WorkersPage() {
           <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
         </div>
 
+        {/* VOICE COLLECTION TARGET - DISPLAY ONLY */}
+        <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
+          <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "#00E676" }}>🎯 VOICE COLLECTION TARGET</h3>
+          <p style={{ margin: "8px 0 0", fontSize: "16px", fontWeight: "900" }}>{taskProgress.total} / {TOTAL_RECORDING_TARGET} Voices</p>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#aaa" }}>{remainingTotal} Voices Remaining</p>
+          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#ccc" }}>Today&apos;s recordings: {taskProgress.today} / {DAILY_RECORDING_LIMIT} — {remainingToday} remaining today</p>
+          <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.total / TOTAL_RECORDING_TARGET) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
+        </div>
+
         {/* ANNOUNCEMENT BOARD BUTTON - ADD ONLY */}
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
 
@@ -227,15 +440,29 @@ export default function WorkersPage() {
 
         <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
           {["Pidgin", "Igbo", "Hausa", "Yoruba"].map((lang) => (
-            <button key={lang} onClick={() => setSelectedLang(lang)} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang}</button>
+            <button key={lang} onClick={() => {
+              // FIX 2: Prevent language change during recording
+              if (isRecording || audioURL || savingRecording) {
+                alert("Please finish or discard your current recording before changing language.");
+                return;
+              }
+
+              setSelectedLang(lang);
+            }} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang}</button>
           ))}
         </div>
 
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
 
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {currentSentenceIndex + 1}/{sentences.length}</div>
-          <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>{sentences[currentSentenceIndex]}</p></div>
+          <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
+          <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
+            {taskProgress.today >= DAILY_RECORDING_LIMIT
+              ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day."
+              : currentSentenceIndex >= Math.min(50, sentences.length)
+              ? "You have completed all unique sentences available in this language today."
+              : sentences[currentSentenceIndex]}
+          </p></div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
             <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
           </div>
@@ -243,7 +470,12 @@ export default function WorkersPage() {
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "12px 0", height: "36px" }} />}
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
-            <button onClick={saveAndNext} disabled={!audioURL || savingRecording} style={{ flex: 1.6, background: audioURL && !savingRecording ? "#00E676" : "#1A3A1A", color: audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "900" }}>{savingRecording ? "⏳ SUBMITTING..." : audioURL ? "💾 SUBMIT TO CHAIRMAN →" : "Save & Next →"}</button>
+            <button onClick={saveAndNext} disabled={
+              !audioURL ||
+              savingRecording ||
+              taskProgress.today >= DAILY_RECORDING_LIMIT ||
+              currentSentenceIndex >= Math.min(50, sentences.length)
+            } style={{ flex: 1.6, background: audioURL && !savingRecording ? "#00E676" : "#1A3A1A", color: audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "900" }}>{savingRecording ? "⏳ SUBMITTING..." : audioURL ? "💾 SUBMIT TO CHAIRMAN →" : "Save & Next →"}</button>
           </div>
         </div>
 
