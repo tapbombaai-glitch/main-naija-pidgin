@@ -17,9 +17,26 @@ type SavedCookie = {
 export async function POST(req: NextRequest) {
   const cookiesToSave: SavedCookie[] = [];
 
+  const sendResponse = (
+    body: Record<string, any>,
+    status: number
+  ) => {
+    const response = NextResponse.json(body, { status });
+
+    response.headers.set("Cache-Control", "no-store");
+    response.headers.set("Pragma", "no-cache");
+
+    cookiesToSave.forEach(({ name, value, options }) => {
+      response.cookies.set(name, value, options);
+    });
+
+    return response;
+  };
+
   try {
     const body = await req.json();
 
+    // Keep the existing login fields.
     const identifier =
       typeof body.identifier === "string"
         ? body.identifier.trim()
@@ -31,36 +48,47 @@ export async function POST(req: NextRequest) {
         : "";
 
     if (!identifier || !password) {
-      return NextResponse.json(
-        { error: "Enter your Worker ID or email and password." },
-        { status: 400 }
+      return sendResponse(
+        {
+          error: "Enter your Worker ID or email and password.",
+        },
+        400
       );
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL;
+
     const supabaseAnonKey =
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("Worker login: Supabase environment variables missing.");
+      console.error(
+        "Worker login: Supabase environment variables missing."
+      );
 
-      return NextResponse.json(
-        { error: "Login service is not configured. Please contact support." },
-        { status: 500 }
+      return sendResponse(
+        {
+          error:
+            "Login service is temporarily unavailable. Please contact support.",
+        },
+        500
       );
     }
 
-    // Look up the worker securely on the server.
-    // This avoids unauthenticated browser requests being blocked by RLS.
-    const cleanIdentifier = identifier.includes("@")
+    // Normalize the identifier without changing the worker's login method.
+    const isEmail = identifier.includes("@");
+
+    const cleanIdentifier = isEmail
       ? identifier.toLowerCase()
       : identifier.toUpperCase();
 
+    // Find the registered worker using the server-side admin client.
     let query = supabaseAdmin
       .from("workers")
       .select("email, worker_id, auth_user_id");
 
-    query = identifier.includes("@")
+    query = isEmail
       ? query.eq("email", cleanIdentifier)
       : query.eq("worker_id", cleanIdentifier);
 
@@ -68,32 +96,45 @@ export async function POST(req: NextRequest) {
       await query.maybeSingle();
 
     if (workerError) {
-      console.error("Worker lookup error:", workerError.message);
+      console.error(
+        "Worker lookup error:",
+        workerError.message
+      );
 
-      return NextResponse.json(
-        { error: "Unable to verify your worker account. Please try again." },
-        { status: 500 }
+      return sendResponse(
+        {
+          error:
+            "Unable to verify your worker account. Please try again.",
+        },
+        500
       );
     }
 
     if (!worker?.email || !worker?.worker_id) {
-      return NextResponse.json(
-        { error: "Worker account not found. Check your Worker ID or email." },
-        { status: 404 }
+      return sendResponse(
+        {
+          error:
+            "Worker account not found. Check your Worker ID or email.",
+        },
+        404
       );
     }
 
-    const email = String(worker.email).trim().toLowerCase();
+    const email = String(worker.email)
+      .trim()
+      .toLowerCase();
 
-    // Chairman must use the separate Chairman login.
+    // Chairman must use the separate Chairman Login.
     if (email === CHAIRMAN_EMAIL) {
-      return NextResponse.json(
-        { error: "Please use the Chairman Login." },
-        { status: 403 }
+      return sendResponse(
+        {
+          error: "Please use the Chairman Login.",
+        },
+        403
       );
     }
 
-    // Create the authenticated Supabase session.
+    // Create the existing Supabase cookie-based session.
     const cookieStore = await cookies();
 
     const supabase = createServerClient(
@@ -104,6 +145,7 @@ export async function POST(req: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
+
           setAll(cookiesToSet) {
             cookiesToSave.push(...cookiesToSet);
           },
@@ -111,6 +153,7 @@ export async function POST(req: NextRequest) {
       }
     );
 
+    // Authenticate using the worker's existing email and password.
     const { data, error: loginError } =
       await supabase.auth.signInWithPassword({
         email,
@@ -123,65 +166,140 @@ export async function POST(req: NextRequest) {
         loginError?.message
       );
 
-      return NextResponse.json(
-        { error: "Wrong Worker ID or password." },
-        { status: 401 }
+      return sendResponse(
+        {
+          error: "Wrong Worker ID or password.",
+        },
+        401
       );
     }
 
-    // Confirm that the authenticated account matches the worker record.
     const authenticatedEmail =
       data.user.email?.trim().toLowerCase();
 
-    const emailMatches = authenticatedEmail === email;
-
-    const authIdMatches =
-      !worker.auth_user_id ||
-      data.user.id === worker.auth_user_id;
-
-    if (!emailMatches || !authIdMatches) {
+    // Confirm the authenticated email belongs to this worker.
+    if (authenticatedEmail !== email) {
       await supabase.auth.signOut();
 
-      const response = NextResponse.json(
-        { error: "Worker account verification failed." },
-        { status: 403 }
+      return sendResponse(
+        {
+          error: "Worker account verification failed.",
+        },
+        403
       );
-
-      response.headers.set("Cache-Control", "no-store");
-
-      cookiesToSave.forEach(({ name, value, options }) => {
-        response.cookies.set(name, value, options);
-      });
-
-      return response;
     }
 
-    const response = NextResponse.json(
+    // Verify or securely establish the worker's Supabase user mapping.
+    let verifiedAuthUserId = worker.auth_user_id;
+
+    if (verifiedAuthUserId) {
+      // Existing mappings must match exactly.
+      if (verifiedAuthUserId !== data.user.id) {
+        await supabase.auth.signOut();
+
+        return sendResponse(
+          {
+            error:
+              "This worker account is linked to a different login. Please contact support.",
+          },
+          403
+        );
+      }
+    } else {
+      // First successful login: claim the mapping only if it is still empty.
+      const { data: linkedWorker, error: linkError } =
+        await supabaseAdmin
+          .from("workers")
+          .update({
+            auth_user_id: data.user.id,
+          })
+          .eq("worker_id", worker.worker_id)
+          .is("auth_user_id", null)
+          .select("auth_user_id")
+          .maybeSingle();
+
+      if (linkError) {
+        console.error(
+          "Worker account linking error:",
+          linkError.message
+        );
+
+        await supabase.auth.signOut();
+
+        return sendResponse(
+          {
+            error:
+              "We could not securely link your worker account. Please try again or contact support.",
+          },
+          500
+        );
+      }
+
+      if (linkedWorker?.auth_user_id) {
+        verifiedAuthUserId = linkedWorker.auth_user_id;
+      } else {
+        // Another request may have linked the account first.
+        const { data: existingWorker, error: verifyError } =
+          await supabaseAdmin
+            .from("workers")
+            .select("auth_user_id")
+            .eq("worker_id", worker.worker_id)
+            .maybeSingle();
+
+        if (verifyError) {
+          console.error(
+            "Worker mapping verification error:",
+            verifyError.message
+          );
+
+          await supabase.auth.signOut();
+
+          return sendResponse(
+            {
+              error:
+                "Unable to verify your worker account. Please try again.",
+            },
+            500
+          );
+        }
+
+        verifiedAuthUserId =
+          existingWorker?.auth_user_id || null;
+      }
+
+      if (verifiedAuthUserId !== data.user.id) {
+        await supabase.auth.signOut();
+
+        return sendResponse(
+          {
+            error:
+              "Worker account verification failed. Please contact support.",
+          },
+          403
+        );
+      }
+    }
+
+    // Successful login. Keep the response fields unchanged
+    // so the existing worker login page can continue working.
+    return sendResponse(
       {
         success: true,
         message: "Worker login successful!",
         workerId: worker.worker_id,
         email,
       },
-      { status: 200 }
+      200
     );
-
-    response.headers.set("Cache-Control", "no-store");
-
-    cookiesToSave.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
-    });
-
-    return response;
   } catch (error) {
     console.error("Worker login error:", error);
 
-    return NextResponse.json(
-      { error: "Something went wrong during login. Please try again." },
+    return sendResponse(
       {
-        status: 500,
-        headers: { "Cache-Control": "no-store" },
-      }
+        error:
+          "Something went wrong during login. Please try again.",
+      },
+      500
     );
   }
 }
