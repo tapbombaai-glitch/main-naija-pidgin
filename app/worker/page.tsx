@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { PIDGIN_500 } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 50;
 
-// AKWA IBOM SENTENCES - INSIDE THIS FILE SO BUTTON GO WORK IMMEDIATELY
-// Ibibio / Efik - Each na 32-38 words = 11-15 seconds = PASS ✅
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
 "Uyo adiaha mi, mkpo mfo adiaha mi, ami nkpo mfo ke ndin nte afo ade. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
@@ -61,7 +60,6 @@ const AKWAIBOM_500: string[] = [
 "Abasi, ami mmedi idem mfo, mkpo mfo adiaha mi, ami nka afia mkpa ke Uyo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
 ];
 
-// IGBO 15 - LONG = 11-15 SECONDS ✅
 const IGBO_15: string[] = [
 "Ndewo, kedu ka i mere taa? A na m ekele gi nke ukwuu maka oru oma a, a na m ekwu okwu nwayo nwayo ka i wee nuru olu m nke oma, enweghi oso oso ozo na ndekọ a.",
 "Biko nyere m aka taa, a choro m ka ihe nile gaa nke oma maka oru a, a na m ekwu okwu nke oma na nwayo, ka olu m wee doo anya ma di uto na nti maka oru a.",
@@ -80,7 +78,6 @@ const IGBO_15: string[] = [
 "Ndewo, ka anyi malite oru taa, a choro m ka ihe nile gaa nke oma, a na m ekwu okwu nwayo nwayo, enweghi oso oso, ka o ruo sekọnd iri na otu.",
 ];
 
-// HAUSA 15 - LONG = 11-15 SECONDS ✅
 const HAUSA_15: string[] = [
 "Sannu, yaya kake yau? Ina gode maka wannan aiki mai kyau, ina magana a hankali don ka ji muryata da kyau, babu gaggawa kwata-kwata a cikin wannan rikodi.",
 "Don Allah ka taimake ni yau, ina son komai ya tafi da kyau don wannan aiki, ina magana a hankali, don muryata ta zama a fili kuma ta yi dadi a kunne.",
@@ -99,7 +96,6 @@ const HAUSA_15: string[] = [
 "Sannu, mu fara aiki yau, ina son komai ya tafi da kyau, ina magana a hankali, babu gaggawa, don ya kai daƙiƙa goma sha ɗaya.",
 ];
 
-// YORUBA 15 - LONG = 11-15 SECONDS ✅
 const YORUBA_15: string[] = [
 "Ẹ n lẹ, bawo ni o se wa loni? Mo dupẹ pupọ fun iṣẹ rere yi, mo n sọ ọrọ laiyara ki ẹ le gbọ ohun mi daradara, ko si iyara rara ninu gbigbasilẹ yi.",
 "Ẹ jọ ẹ ran mi lọwọ loni, mo fẹ ki ohun gbogbo lọ daradara fun iṣẹ yi, mo n sọ ọrọ laiyara, ki ohun mi le han gbangba ki o si dun ni eti.",
@@ -118,26 +114,29 @@ const YORUBA_15: string[] = [
 "Ẹ n lẹ, ki a bẹrẹ iṣẹ loni, mo fẹ ki ohun gbogbo lọ daradara, mo n sọ ọrọ laiyara, ko si iyara, ki o de iṣẹju-aaya mọkanla.",
 ];
 
-// HEBREW 15 - LONG = 11-15 SECONDS ✅
-const HEBREW_15: string[] = [
-"Shalom, ma shlomcha hayom? Ani modeh lecha meod al haavoda hatova hazot, ani medaber leat leat kedey shetishma oti tov, ein maharut klal bahaklata hazot.",
-"Bevakasha taazor li hayom, ani rotze shehakol yelech tov baavoda hazot, ani medaber leat leat, kedey shekoli yihye barur venayim laoznayim.",
-"Ma koreh kan hayom? Anachnu ovdim kol yom, anachnu mishtadlim meod, Elohim yevarech et avodatenu, hakol yelech tov bahaklat hakol hazot.",
-"Ani lo eten lahem leramot oti, ani omer emet tamid, ani medaber leat leat, kedey shekulam yishmeu oti tov, kedey sheyagia leakhad asar shniyot.",
-"Adoni, kama ze oleh hayom? Bevakasha tagid li et hamechir haamiti, ani oved tov, ani medaber leat leat, kedey shekoli yihye barur laavoda hazot.",
-"Neilech lashuk machar baboker, nikneh et ma sheanachnu tzrichim, nachzor habaita beshalom, ani medaber leat leat kedey shetishma oti tov.",
-"Toda raba meod al haezra shelcha hayom, asita avoda tova meod, ani modeh lecha mikol halev, ani medaber leat leat kedey sheyagia leshteym esreh shniyot.",
-"Achi, leaan ata holech achshav? Bevakasha chakeh li kzat, neilech yachad, ani medaber leat leat kedey shetishma oti tov hayom.",
-"Hayom yom tov meod, hashemesh zocheret tov, anachnu smechim, anachnu ovdim tov, hakol yelech tov baavoda hazot.",
-"Bevakasha takshiv tov, ani omer davar chashuv achshav, al temaher, daber leat leat, kedey shekolcha yagia leakhad asar shniyot laavoda hazot.",
-"Ani ba achshav, bevakasha chakeh li, ani baderech, ani agia bekarov, ani medaber leat leat kedey shetishma oti tov hayom.",
-"Kama teshalem li baavoda hazot? Bevakasha tagid emet, ani oved tov kol yom, ani medaber leat leat kedey sheyihye barur.",
-"Neochal yachad acharey haavoda hazot, nishteh mayim, nanuach, nihyeh smechim, ani medaber leat leat kedey sheyagia leshteym esreh shniyot.",
-"Elohim yevarech otcha meod hayom, sheavodatcha telech tov, shekaspecha yigdal, shebeitcha yihye beshalom, ani medaber leat leat kedey shetishma oti.",
-"Shalom, bo natchil et haavoda hayom, ani rotze shehakol yelech tov, ani medaber leat leat, ein maharut, kedey sheyagia leakhad asar shniyot.",
+// IJAW / IZON - SENTENCES REQUIRE NATIVE SPEAKER VALIDATION
+// ⚠️ WARNING: THESE ARE DRAFT EXAMPLES ONLY - NOT VERIFIED CENTRAL IZON
+// WRITTEN AS EXAMPLES BY AI, NOT SUPPLIED BY AN IJAW SPEAKER
+// DO NOT CLASSIFY THESE RECORDINGS AS GENUINE IZON UNTIL A NATIVE SPEAKER CONFIRMS THEM
+// PROTECTED: Recording + Submission are BLOCKED in UI until validation is complete
+const IJAW_15: string[] = [
+"[DRAFT - NEEDS VALIDATION] Tobou, nua bomo? I bieke tobara se, I tobou ke emi, I dey talk am slow slow, make you hear am well well, no rush at all for this recording, make e reach 11 seconds.",
+"[DRAFT - NEEDS VALIDATION] Emi tobou tobara, I bieke emi, I dey talk am clear clear, make you hear am well well, I dey work for this place everyday, God go bless our work for this recording.",
+"[DRAFT - NEEDS VALIDATION] Nua se dei? We dey work everyday, we dey hustle for Naija, God go bless our work, I dey talk am slow slow, make my voice clear for this voice work.",
+"[DRAFT - NEEDS VALIDATION] Emi na-emi, I no go lie, I dey talk true true, I dey talk am slow slow, make everybody hear am well well, make e reach 11 seconds for this recording.",
+"[DRAFT - NEEDS VALIDATION] Oga, gbolo na-emi? Abeg tell me true price, I dey work well well, I dey talk am slow slow, make my voice clear for Chairman to hear am today.",
+"[DRAFT - NEEDS VALIDATION] We go go market tomorrow morning, we go buy wetin we need, we go come back house for peace, I dey talk am slow slow, make you hear am well well.",
+"[DRAFT - NEEDS VALIDATION] Tobou well well for your help today, you do good work, I thank you from my heart, I dey talk am slow slow, make e reach 12 seconds for this voice.",
+"[DRAFT - NEEDS VALIDATION] My brother, where you dey go now? Abeg wait me small, make we go together, I dey talk am slow slow, make you hear am well well today.",
+"[DRAFT - NEEDS VALIDATION] Today na good day well well, sun dey shine well, we dey happy, we dey work well, everything go go well for this recording work today.",
+"[DRAFT - NEEDS VALIDATION] Abeg listen well well, I dey talk important thing now, no rush, talk am slow slow, make your voice reach 11 seconds for this work today.",
+"[DRAFT - NEEDS VALIDATION] I dey come now, abeg wait me, I dey for road, I go reach soon, I dey talk am slow slow, make you hear am well well today.",
+"[DRAFT - NEEDS VALIDATION] How much you go pay me for this work? Abeg talk true, I dey work well well everyday, I dey talk am slow slow, make e clear for you.",
+"[DRAFT - NEEDS VALIDATION] We go chop together after this work, we go drink water, we go rest, we go happy, I dey talk am slow slow, make e reach 12 seconds.",
+"[DRAFT - NEEDS VALIDATION] God bless you well well today, make your work go well, make your money plenty, make your house get peace, I dey talk am slow slow, make you hear am.",
+"[DRAFT - NEEDS VALIDATION] Tobou, make we start work today, I want everything go well, I dey talk am slow slow, no rush, make e reach 11 seconds for this recording.",
 ];
 
-// RANDOM SHUFFLE - Make worker no dey see same order every time
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -157,6 +156,7 @@ function getLagosRecordingWindow(now = new Date()) {
 }
 
 export default function WorkersPage() {
+  const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [timer, setTimer] = useState(0);
@@ -176,6 +176,8 @@ export default function WorkersPage() {
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [noiseScore, setNoiseScore] = useState(0);
+  const [noiseWarning, setNoiseWarning] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
@@ -188,17 +190,18 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  // FIXED: ALL LANGUAGES - RANDOM + LONG - NOTHING REMOVED
   const allSentences: Record<string, string[]> = useMemo(() => ({
     Pidgin: shuffleArray([...new Set(PIDGIN_500)].slice(0, 30)),
-    Igbo: shuffleArray(IGBO_15),
     Hausa: shuffleArray(HAUSA_15),
+    Igbo: shuffleArray(IGBO_15),
     Yoruba: shuffleArray(YORUBA_15),
-    Hebrew: shuffleArray(HEBREW_15),
     "Akwa Ibom": shuffleArray([...new Set(AKWAIBOM_500)]),
+    "Ijaw / Izon": shuffleArray(IJAW_15),
   }), []);
 
   const sentences = allSentences[selectedLang] || allSentences["Pidgin"];
+  // 1. IJAW PROTECTION FLAG
+  const isIjawDraft = selectedLang === "Ijaw / Izon";
 
   useEffect(() => {
     const wid = localStorage.getItem("gin_worker_id") || "WORKER";
@@ -271,6 +274,27 @@ export default function WorkersPage() {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
+  const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to logout?");
+    if (!confirmed) return;
+    try {
+      if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.onstop = null; mediaRecorderRef.current.stop(); }
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (streamRef.current) { streamRef.current.getTracks().forEach((track) => track.stop()); streamRef.current = null; }
+      await supabase.auth.signOut();
+      localStorage.removeItem("gin_worker_id");
+      localStorage.removeItem("worker_id");
+      router.replace("/worker/login");
+      router.refresh();
+    } catch (error) {
+      console.error("Worker logout error:", error);
+      localStorage.removeItem("gin_worker_id");
+      localStorage.removeItem("worker_id");
+      router.replace("/worker/login");
+      router.refresh();
+    }
+  };
+
   const saveBankDetails = () => {
     if (!accountName.trim()) return alert("Please enter your Account Name.");
     if (!bankName.trim()) return alert("Please select your Bank Name.");
@@ -280,7 +304,40 @@ export default function WorkersPage() {
     try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); setShowModal(null); showToast("✅ Bank details saved successfully."); } catch { alert("Could not save bank details on this phone."); }
   };
 
+  async function analyzeNoise(blob: Blob): Promise<{ status: string; reason: string; score: number }> {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const data = audioBuffer.getChannelData(0);
+      let sum = 0; let silenceCount = 0; let loudCount = 0;
+      for (let i = 0; i < data.length; i++) {
+        const s = Math.abs(data[i]);
+        sum += s * s;
+        if (s < 0.005) silenceCount++;
+        if (s > 0.9) loudCount++;
+      }
+      const rms = Math.sqrt(sum / data.length);
+      const silenceRatio = silenceCount / data.length;
+      const loudRatio = loudCount / data.length;
+      await audioCtx.close();
+      let score = 100;
+      if (rms < 0.01) score -= 50;
+      if (silenceRatio > 0.6) score -= 40;
+      if (loudRatio > 0.05) score -= 30;
+      if (rms > 0.3) score -= 20;
+      if (score < 60) return { status: "NOISY", reason: "🔊 NOISY! Background noise too much! Go quiet room, close door, no music, no generator, record again!", score };
+      if (score < 80) return { status: "WARNING", reason: "⚠️ Small noise dey! Try go more quiet place!", score };
+      return { status: "CLEAN", reason: "✅ CLEAN - Good voice!", score };
+    } catch { return { status: "CLEAN", reason: "Could not check noise", score: 100 }; }
+  }
+
   const toggleRecording = async () => {
+    // 2. BLOCK STARTING AN IJAW RECORDING
+    if (isIjawDraft) {
+      alert("Ijaw / Izon recording is temporarily unavailable. The sentences must first be checked and approved by a native Ijaw speaker.");
+      return;
+    }
     if (!isRecording) {
       if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
@@ -293,16 +350,21 @@ export default function WorkersPage() {
       mediaRecorderRef.current = mr; audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach((t) => t.stop()); };
-      mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0);
+      mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
     } catch { alert("Abeg allow microphone!"); }
   };
 
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
-  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
+  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); if (timerRef.current) clearInterval(timerRef.current); };
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
+    // 3. BLOCK SUBMISSION OF IJAW RECORDINGS - SECOND CHECK
+    if (isIjawDraft) {
+      alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete.");
+      return;
+    }
     if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
     if (taskProgress.today >= DAILY_RECORDING_LIMIT) { return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."); }
     if (currentSentenceIndex >= dailySentenceCount) { return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."); }
@@ -313,6 +375,19 @@ export default function WorkersPage() {
     setSavingRecording(true);
     try {
       const blob = await fetch(audioURL).then((r) => r.blob());
+      showToast("🔍 Checking for background noise...");
+      const noiseResult = await analyzeNoise(blob);
+      setNoiseScore(noiseResult.score);
+      if (noiseResult.status === "NOISY") {
+        setSavingRecording(false);
+        setNoiseWarning(noiseResult.reason);
+        alert(`❌ REJECTED - NOISY!\n\n${noiseResult.reason}\n\nScore: ${noiseResult.score}/100 (Need 60+)\n\nAbeg go quiet room, close door, off music / generator, record again!`);
+        return;
+      }
+      if (noiseResult.status === "WARNING") {
+        const goAhead = confirm(`⚠️ ${noiseResult.reason}\n\nScore: ${noiseResult.score}/100\n\nYou want submit am still, or you want record again for cleaner voice?`);
+        if (!goAhead) { setSavingRecording(false); return; }
+      }
       const safeLang = selectedLang.replace(/\s/g, "");
       const fileName = `GIN-${safeLang}-${Date.now()}.webm`;
       const storagePath = `${wid}/${fileName}`;
@@ -336,7 +411,7 @@ export default function WorkersPage() {
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
       const progressKey = `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
       localStorage.setItem(progressKey, JSON.stringify({ index: nextIndex, dayKey: recordingDayKey }));
-      setAudioURL(null); setTimer(0);
+      setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
       showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • ₦30`);
     } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
     finally { setSavingRecording(false); }
@@ -348,12 +423,12 @@ export default function WorkersPage() {
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 1000 }}>{toast}</div>}
       <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
-          <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
+          <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1>
             <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{workerId} ● {savedFiles.length} files saved</div>
           </div>
-          <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", marginTop: "5px" }} />
+          <button type="button" onClick={handleLogout} style={{ flexShrink: 0, background: "#2A0A0A", color: "#FF6B6B", border: "1px solid #7F1D1D", borderRadius: "10px", padding: "9px 11px", fontSize: "11px", fontWeight: "900", cursor: "pointer" }}>🚪 LOGOUT</button>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -390,32 +465,66 @@ export default function WorkersPage() {
         </div>
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
-
         <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
-          {["Pidgin", "Igbo", "Hausa", "Yoruba", "Hebrew", "Akwa Ibom"].map((lang) => (
-            <button key={lang} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording before changing language."); return; } setSelectedLang(lang); }} style={{ flex: lang === "Akwa Ibom" ? "1 1 100%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: lang === "Akwa Ibom" ? "12px" : "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang}</button>
+          {["Pidgin", "Hausa", "Igbo", "Yoruba", "Akwa Ibom", "Ijaw / Izon"].map((lang) => (
+            <button key={lang} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording before changing language."); return; } setSelectedLang(lang); }} style={{ flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang}</button>
           ))}
         </div>
-
+        {/* 4. REPLACED IJAW WARNING */}
+        {isIjawDraft && (
+          <div style={{
+            background: "#2A1A00",
+            border: "1px solid #FFA500",
+            borderRadius: "10px",
+            padding: "14px",
+            marginTop: "10px",
+            fontSize: "12px",
+            color: "#FFD580",
+            lineHeight: 1.7,
+            fontWeight: "700"
+          }}>
+            🌊 IJAW / IZON — VALIDATION IN PROGRESS
+            <br /><br />
+            Recording is temporarily disabled because the current sentences
+            are AI-generated drafts and have not been verified by native
+            Ijaw / Izon speakers.
+            <br /><br />
+            We want genuine Ijaw voices and correct native-language sentences
+            in our Nigerian voice dataset.
+            <br /><br />
+            Native Ijaw speakers can contact the Chairman to help validate
+            the sentences.
+          </div>
+        )}
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
+          {/* 5. HIDE DRAFT SENTENCE */}
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
-            {taskProgress.today >= DAILY_RECORDING_LIMIT ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day." : currentSentenceIndex >= Math.min(50, sentences.length) ? "You have completed all unique sentences available in this language today." : sentences[currentSentenceIndex]}
+            {isIjawDraft
+              ? "Ijaw / Izon sentences are awaiting native-speaker validation."
+              : taskProgress.today >= DAILY_RECORDING_LIMIT
+              ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day."
+              : currentSentenceIndex >= Math.min(50, sentences.length)
+              ? "You have completed all unique sentences available in this language today."
+              : sentences[currentSentenceIndex]}
           </p></div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
-            <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
+            <button onClick={toggleRecording} disabled={isIjawDraft} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : isIjawDraft ? "#333" : "#E53935", border: "4px solid #7f1d1d", opacity: isIjawDraft ? 0.5 : 1, cursor: isIjawDraft ? "not-allowed" : "pointer" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
           </div>
           <div style={{ textAlign: "center", fontSize: "12px", fontWeight: "900", fontFamily: "monospace", color: timer >= 11 ? "#00E676" : "#ff5252", background: timer >= 11 ? "#0A2A0A" : timer > 0 ? "#2A0A0A" : "transparent", padding: "6px", borderRadius: "8px" }}>
             {timer < 11 && timer > 0 ? `❌ REC ${formatTime(timer)} / 00:15 - RED - FAIL` : timer >= 11 ? `✅ REC ${formatTime(timer)} / 00:15 - GREEN - PASS` : `REC ${formatTime(timer)} / 00:15`}
           </div>
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "12px 0", height: "36px" }} />}
-          <div style={{ display: "flex", gap: "8px" }}>
+          {audioURL && noiseScore > 0 && (<div style={{ textAlign: "center", padding: "8px", borderRadius: "8px", marginTop: "6px", background: noiseScore >= 80 ? "#0A2A0A" : noiseScore >= 60 ? "#2A1A00" : "#2A0A0A", color: noiseScore >= 80 ? "#00E676" : noiseScore >= 60 ? "#FFA500" : "#FF5252", fontSize: "12px", fontWeight: "900" }}>{noiseScore >= 80 ? `✅ CLEAN - Noise Score: ${noiseScore}/100 - Good!` : noiseScore >= 60 ? `⚠️ SMALL NOISE - Score: ${noiseScore}/100 - Go more quiet!` : `🔊 NOISY - Score: ${noiseScore}/100 - Go quiet room!`}</div>)}
+          {noiseWarning && (<div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "8px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginTop: "6px" }}>{noiseWarning}</div>)}
+          <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "8px", padding: "8px", marginTop: "8px", fontSize: "11px", color: "#FACC15", textAlign: "center" }}>🤫 QUIET RULE: No record for road / market / where generator dey! Go inside room, close door, no music!</div>
+          <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
             <div style={{ flex: 1.6 }}>
               {audioURL && isTooShort && (<div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>❌ FAIL! {timer}s - RED - Too short! Must reach 11!</div>)}
               {audioURL && isPass && (<div style={{ background: "#00E676", color: "black", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>{isPerfect ? `⭐ PERFECT! ${timer}s - GREEN - You don pass!` : `✅ PASS! ${timer}s - GREEN - You don pass!`}</div>)}
-              <button onClick={() => { if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; } saveAndNext(); }} disabled={!audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)} style={{ width: "100%", background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A", color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: timer < 11 && audioURL ? "2px solid #FF0000" : "none", fontWeight: "900", cursor: timer < 11 ? "not-allowed" : "pointer" }}>
+              <button onClick={() => { if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; } saveAndNext(); }} disabled={isIjawDraft || !audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)} style={{ width: "100%", background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A", color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: timer < 11 && audioURL ? "2px solid #FF0000" : "none", fontWeight: "900", cursor: timer < 11 ? "not-allowed" : "pointer" }}>
                 {savingRecording ? "⏳ SUBMITTING..." : !audioURL ? "Save & Next →" : timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` : isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` : `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
               </button>
               {audioURL && (<div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}><span style={{ background: timer === 9 || timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>9 ❌ RED</span><span style={{ background: timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>10 ❌ RED</span><span style={{ background: timer === 11 ? "#00E676" : "#333", color: timer === 11 ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>11 ✅ GREEN</span><span style={{ background: isPerfect ? "#00E676" : "#333", color: isPerfect ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>12 ⭐ GREEN</span></div>)}
