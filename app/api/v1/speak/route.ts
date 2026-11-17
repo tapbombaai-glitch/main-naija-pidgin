@@ -52,7 +52,7 @@ const CUSTOMER_VOICES: Record<
 
   "chairman-voice": {
     name: "Chairman Voice",
-    elevenlabsVoiceId: "trUA3YUtv2X5gHxPt97C",
+    elevenlabsVoiceId: "GVstkJ8LC6TRgAgOZ5IA",
   },
 };
 
@@ -60,6 +60,7 @@ const CUSTOMER_VOICES: Record<
 // PROFESSIONAL NAIJA TEXT FIX
 // Fixes "Pidgin" -> "Pijin" so ElevenLabs no go talk "Pigeon"
 // =====================================================
+
 function normalizeNaijaText(text: string): string {
   return text.replace(/\bPidgin\b/gi, "Pijin");
 }
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // FIX 1: Normalize Pidgin -> Pijin before ElevenLabs
+    // Normalize Pidgin -> Pijin before ElevenLabs
     const text = normalizeNaijaText(rawText);
 
     // =================================================
@@ -262,7 +263,7 @@ export async function POST(req: NextRequest) {
      * OR:
      *
      * voiceId: "w5p3k3PueAgQOT4lq0SF"
-     * voiceId: "trUA3YUtv2X5gHxPt97C"
+     * voiceId: "GVstkJ8LC6TRgAgOZ5IA"
      */
 
     if (requestedVoice) {
@@ -294,7 +295,7 @@ export async function POST(req: NextRequest) {
               id: "chairman-voice",
               name: "Chairman Voice",
               voice_id:
-                "trUA3YUtv2X5gHxPt97C",
+                "GVstkJ8LC6TRgAgOZ5IA",
             },
           ],
         },
@@ -303,7 +304,8 @@ export async function POST(req: NextRequest) {
     }
 
     // =================================================
-    // 4. GENERATE AUDIO - PROFESSIONAL FIX
+    // 4. GENERATE AUDIO
+    // MODEL AND SETTINGS LEFT UNCHANGED
     // =================================================
 
     const elevenLabsResponse = await fetch(
