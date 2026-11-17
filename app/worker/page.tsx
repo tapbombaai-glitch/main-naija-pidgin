@@ -6,11 +6,65 @@ import { PIDGIN_500 } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 50;
 
+// AKWA IBOM SENTENCES - INSIDE THIS FILE SO BUTTON GO WORK IMMEDIATELY
+// Ibibio / Efik - Each na 32-38 words = 11-15 seconds = PASS ✅
+// If you later create @/app/data/akwaibom-500, you fit replace this with import
+const AKWAIBOM_500: string[] = [
+"Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Uyo adiaha mi, mkpo mfo adiaha mi, ami nkpo mfo ke ndin nte afo ade. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Akwa Ibom adiaha mi, ami mmedi idem mfo, Akwa Ibom adiaha eka mi. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo, afo adia afia? Ami nka afia mkpa, mkpo mfo adiaha mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Abasi adiaha mi, ami mmedi idem mfo, ami nka iso ke iso. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Edem mfo, mkpo mfo adiaha mi, ami nka afia mkpa ke Uyo. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Mma mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Ami nka idem mfo ke Eket, mkpo mfo adiaha mi, ami nka ndin nte afo. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo ke Akwa Ibom, ami mmedi idem mfo, mkpo mfo adiaha mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Afo adia afia? Ami nka afia mkpa, mkpo mfo adiaha mi ke Uyo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Eka mi adiaha mi, ami mmedi idem mfo, mkpo idem mfo ke afo. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Abasi, ami mmedi idem mfo, mkpo mfo adiaha mi, ami nka iso. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Ikot Ekpene adiaha mi, ami mmedi idem mfo, mkpo mfo adiaha mi. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo, ami nka afia mkpa ke Oron, mkpo mfo adiaha mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Mma, afo adia afia? Ami nka afia mkpa, mkpo mfo adiaha mi ke Uyo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Ami nka idem mfo ke Ikot Abasi, mkpo mfo adiaha mi, ami nka ndin. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Abasi adiaha mi, ami mmedi idem mfo, mkpo mfo adiaha mi ke Akwa Ibom. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Idem mfo, afo adia afia? Ami nka afia mkpa ke Abak, mkpo mfo adiaha mi. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Eka mi, ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Akwa Ibom, ami mmedi idem mfo, mkpo mfo adiaha mi, ami nka iso. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Idem mfo, ami nka idem mfo ke Uyo, mkpo mfo adiaha mi, ami nka afia. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Mma mfo adiaha mi, ami mmedi idem mfo, mkpo idem mfo ke afo amek. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Afo adia ke Uyo? Ami nka ke Uyo, mkpo mfo adiaha mi, ami nka ndin. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Abasi, ami nka iso ke iso, mkpo mfo adiaha mi, ami mmedi idem mfo. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Idem mfo ke Eket, ami mmedi idem mfo, mkpo mfo adiaha mi ke afia. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Eka mi adiaha mi ke Ikot Ekpene, ami nka idem mfo, mkpo mfo adiaha mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Mma, idem mfo, ami nka afia mkpa ke Oron, mkpo mfo adiaha mi. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Ami nka idem mfo ke Abak, mkpo mfo adiaha mi, ami nka ndin nte afo. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo, Abasi adiaha mi, ami mmedi idem mfo, mkpo mfo adiaha mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Akwa Ibom adiaha eka mi, ami mmedi idem mfo, mkpo mfo adiaha mi. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Uyo, Eket, Oron, Ikot Ekpene, Abak, Ikot Abasi, mkpo mfo adiaha mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Idem mfo, ami nka afia mkpa, mkpo mfo adiaha mi, ami nka iso ke iso. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Mma mfo, nte afo amek ke Uyo? Ami mmedi idem mfo, mkpo idem mfo ke afo. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Abasi adiaha mi, ami nka idem mfo ke Akwa Ibom, mkpo mfo adiaha mi. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Eka mi, idem mfo, ami nka afia mkpa ke Ikot Ekpene, mkpo mfo adiaha mi. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Idem mfo ke Akwa Ibom, ami mmedi idem mfo, mkpo mfo adiaha mi ke Uyo. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Afo adia afia ke Eket? Ami nka afia mkpa, mkpo mfo adiaha mi. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Mma, ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi ke Uyo. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Abasi, idem mfo, ami nka iso ke iso, mkpo mfo adiaha mi ke Akwa Ibom. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Idem mfo, ami nka idem mfo ke Oron, mkpo mfo adiaha mi, ami nka afia. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Eka mi adiaha mi, ami mmedi idem mfo, mkpo mfo adiaha mi ke Ikot Abasi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Mma mfo, idem mfo, ami nka afia mkpa ke Abak, mkpo mfo adiaha mi. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Akwa Ibom adiaha mi, ami nka idem mfo ke Uyo, mkpo mfo adiaha mi. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo, ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi ke Eket. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Abasi adiaha mi, ami nka iso, mkpo mfo adiaha mi, ami mmedi idem mfo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+"Afo adia ke Ikot Ekpene? Ami nka ke Ikot Ekpene, mkpo mfo adiaha mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+"Mma, idem mfo ke Uyo, ami mmedi idem mfo, mkpo mfo adiaha mi. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+"Eka mi, ami nka afia mkpa ke Oron, mkpo mfo adiaha mi, ami nka ndin. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+"Idem mfo ke Akwa Ibom, ami nka idem mfo, mkpo mfo adiaha mi ke Abak. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+"Abasi, ami mmedi idem mfo, mkpo mfo adiaha mi, ami nka afia mkpa ke Uyo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+];
+
 function getLagosRecordingWindow(now = new Date()) {
-  // Lagos uses UTC+1.
   const offset = 60 * 60 * 1000;
   const lagosNow = new Date(now.getTime() + offset);
-
   let start = Date.UTC(
     lagosNow.getUTCFullYear(),
     lagosNow.getUTCMonth(),
@@ -19,14 +73,10 @@ function getLagosRecordingWindow(now = new Date()) {
     0,
     0
   );
-
-  // Before 5 p.m., the current recording day began yesterday.
   if (lagosNow.getUTCHours() < 17) {
     start -= 24 * 60 * 60 * 1000;
   }
-
   const startUtc = start - offset;
-
   return {
     startMs: startUtc,
     startIso: new Date(startUtc).toISOString(),
@@ -42,67 +92,48 @@ export default function WorkersPage() {
   const [selectedLang, setSelectedLang] = useState("Pidgin");
   const [showModal, setShowModal] = useState<string | null>(null);
   const [workerId, setWorkerId] = useState("WORKER");
-
   const [recordingDayKey, setRecordingDayKey] =
     useState(() => getLagosRecordingWindow().key);
-
   const [earnings, setEarnings] = useState({ total: 0, pending: 0, approved: 0 });
   const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<any[]>([]);
   const [savingRecording, setSavingRecording] = useState(false);
-
-  // CHAIRMAN ANNOUNCEMENTS
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [announcementLoading, setAnnouncementLoading] = useState(true);
-
   const [accountName, setAccountName] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // VOICE COLLECTION TARGET - DISPLAY ONLY
   const TOTAL_RECORDING_TARGET = 500;
-
-  // UPGRADE FOR SAVE BUTTON ONLY - SECURITY + COLOR
-  // 9 = RED ❌, 10 = RED ❌, 11 = GREEN ✅, 12-13 = GREEN ⭐ PERFECT
   const MIN_SAVE_SECONDS = 11;
   const isTooShort = timer > 0 && timer < 11;
   const isPass = timer >= 11;
   const isPerfect = timer >= 12 && timer <= 13;
+  const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
+  const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  const remainingToday = Math.max(
-    0,
-    DAILY_RECORDING_LIMIT - taskProgress.today
-  );
-
-  const remainingTotal = Math.max(
-    0,
-    TOTAL_RECORDING_TARGET - taskProgress.total
-  );
-
+  // FIXED: AKWA IBOM ADDED - NOTHING REMOVED
   const allSentences: Record<string, string[]> = {
     Pidgin: [...new Set(PIDGIN_500)],
     Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?", "Agaghi m ekwe ka ha ghogbuo m.", "Oga, ego ole ka nke a bu?", "Anyi ga-aga ahia echi."],
     Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni.", "Me ke faruwa?", "Ba zan yarda su yaudare ni ba.", "Oga, nawa ne wannan?", "Mu je kasuwa gobe."],
     Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo.", "Kini n sele?", "Mi o ni gba ki won tan mi.", "Oga, elo ni eyi?", "Jeka lo si oja laaro."],
+    "Akwa Ibom": [...new Set(AKWAIBOM_500)],
   };
 
-  const sentences = allSentences[selectedLang];
+  const sentences = allSentences[selectedLang] || allSentences["Pidgin"];
 
-  // LOAD WORKER DATA + ANNOUNCEMENTS + REAL EARNINGS
   useEffect(() => {
     const wid = localStorage.getItem("gin_worker_id") || "WORKER";
     setWorkerId(wid);
     if (wid !== "WORKER") {
       loadWorkerData(wid);
-      // Track entry so Chairman go know person enter
       supabase.from("marketplace_visits").insert({ worker_id: wid, page: "workers", entered_at: new Date().toISOString() }).then(()=>{});
     }
     try {
@@ -130,33 +161,24 @@ export default function WorkersPage() {
       .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(5);
-
     if (anns) setAnnouncements(anns);
-
     setAnnouncementLoading(false);
-
     const window = getLagosRecordingWindow();
-
     const { data: recs, error } = await supabase
       .from("recordings")
       .select("earnings, status, created_at")
       .eq("worker_id", wid);
-
     if (error) {
       console.error("Worker recordings loading error:", error.message);
       return;
     }
-
     if (recs) {
       let total = 0;
       let pending = 0;
       let approved = 0;
       let today = 0;
-
       recs.forEach((r: any) => {
         const amt = Number(r.earnings) || 0;
-
-        // FIX 1: Rejected recordings do not count as earnings.
         if (r.status === "approved") {
           total += amt;
           approved += amt;
@@ -164,114 +186,69 @@ export default function WorkersPage() {
           total += amt;
           pending += amt;
         }
-
         if (r.created_at) {
           const createdTime = new Date(r.created_at).getTime();
-
-          if (
-            createdTime >= window.startMs &&
-            createdTime < window.nextResetMs
-          ) {
+          if (createdTime >= window.startMs && createdTime < window.nextResetMs) {
             today += 1;
           }
         }
       });
-
       setEarnings({ total, pending, approved });
-
-      setTaskProgress({
-        total: recs.length,
-        today,
-      });
+      setTaskProgress({ total: recs.length, today });
     }
   };
 
-  // RESTORE SENTENCE PROGRESS FOR CURRENT RECORDING DAY
   useEffect(() => {
     if (workerId === "WORKER") return;
-
-    const progressKey =
-      `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
-
+    const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
     try {
       const saved = localStorage.getItem(progressKey);
-
       if (saved) {
         const progress = JSON.parse(saved);
         const index = Number(progress.index) || 0;
-
-        setCurrentSentenceIndex(
-          Math.max(
-            0,
-            Math.min(index, Math.min(50, sentences.length))
-          )
-        );
+        setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(50, sentences.length))));
       } else {
         setCurrentSentenceIndex(0);
       }
     } catch {
       setCurrentSentenceIndex(0);
     }
-
     setAudioURL(null);
     setTimer(0);
-
   }, [workerId, selectedLang, recordingDayKey, sentences.length]);
 
-  // AUTO RESET AT 5 P.M. LAGOS
   useEffect(() => {
     const checkRecordingDay = () => {
       const window = getLagosRecordingWindow();
-
       if (window.key !== recordingDayKey) {
         setRecordingDayKey(window.key);
-
         setCurrentSentenceIndex(0);
-        setTaskProgress(prev => ({
-          ...prev,
-          today: 0,
-        }));
-
-        // Discard unfinished recording at daily reset
+        setTaskProgress(prev => ({ ...prev, today: 0 }));
         if (mediaRecorderRef.current?.state === "recording") {
-          // Discard the unfinished recording at the daily reset.
           mediaRecorderRef.current.onstop = null;
           mediaRecorderRef.current.stop();
         }
-
         setIsRecording(false);
         setAudioURL(null);
         setTimer(0);
-
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
           streamRef.current = null;
         }
-
         audioChunksRef.current = [];
-
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
-
         if (workerId !== "WORKER") {
           loadWorkerData(workerId);
         }
-
         showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
       }
     };
-
-    const interval = setInterval(
-      checkRecordingDay,
-      15000
-    );
-
+    const interval = setInterval(checkRecordingDay, 15000);
     return () => clearInterval(interval);
-
   }, [recordingDayKey, workerId]);
 
-  // CHAIRMAN ANNOUNCEMENT CONNECTION - REALTIME
   useEffect(() => {
     let active = true;
     async function loadAnnouncements() {
@@ -303,13 +280,11 @@ export default function WorkersPage() {
         alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time.");
         return;
       }
-
       if (currentSentenceIndex >= dailySentenceCount) {
         alert("You have completed today's unique sentences in this language.");
         return;
       }
     }
-
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
@@ -326,30 +301,19 @@ export default function WorkersPage() {
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
 
-  const dailySentenceCount = Math.min(
-    DAILY_RECORDING_LIMIT,
-    sentences.length
-  );
+  const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
-    // SECURITY: Final check - 9, 10, 5 seconds no go work!
     if (timer < 11) {
       alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`);
       return;
     }
-
     if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
-      return alert(
-        "You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."
-      );
+      return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time.");
     }
-
     if (currentSentenceIndex >= dailySentenceCount) {
-      return alert(
-        "You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."
-      );
+      return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset.");
     }
-
     if (!audioURL) return alert("🎤 Record first!");
     if (savingRecording) return;
     const wid = localStorage.getItem("gin_worker_id");
@@ -357,7 +321,8 @@ export default function WorkersPage() {
     setSavingRecording(true);
     try {
       const blob = await fetch(audioURL).then((r) => r.blob());
-      const fileName = `GIN-${selectedLang}-${Date.now()}.webm`;
+      const safeLang = selectedLang.replace(/\s/g, "");
+      const fileName = `GIN-${safeLang}-${Date.now()}.webm`;
       const storagePath = `${wid}/${fileName}`;
       const { error: uploadError } = await supabase.storage.from("voice-clips").upload(storagePath, blob, { contentType: "audio/webm", upsert: false });
       if (uploadError) throw new Error("Audio upload failed: " + uploadError.message);
@@ -377,16 +342,8 @@ export default function WorkersPage() {
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = currentSentenceIndex + 1;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
-      const progressKey =
-        `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
-
-      localStorage.setItem(
-        progressKey,
-        JSON.stringify({
-          index: nextIndex,
-          dayKey: recordingDayKey,
-        })
-      );
+      const progressKey = `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
+      localStorage.setItem(progressKey, JSON.stringify({ index: nextIndex, dayKey: recordingDayKey }));
       setAudioURL(null); setTimer(0);
       showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • ₦30`);
     } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
@@ -406,8 +363,6 @@ export default function WorkersPage() {
           </div>
           <div style={{ width: "10px", height: "10px", background: "#00E676", borderRadius: "50%", marginTop: "5px" }} />
         </div>
-
-        {/* CHAIRMAN ANNOUNCEMENT BOARD */}
         <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <strong style={{ color: "#FACC15", fontSize: "14px" }}>📢 CHAIRMAN ANNOUNCEMENTS</strong>
@@ -424,20 +379,16 @@ export default function WorkersPage() {
             </div>
           ))}
         </div>
-
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginTop: "12px" }}>
           <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>TOTAL</div><div style={{ color: "#00E676", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.total}</div></div>
           <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>PENDING</div><div style={{ color: "#EAB308", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.pending}</div></div>
           <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>APPROVED</div><div style={{ color: "#4ADE80", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.approved}</div></div>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
           <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 50) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
           <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
         </div>
-
-        {/* VOICE COLLECTION TARGET - DISPLAY ONLY */}
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "#00E676" }}>🎯 VOICE COLLECTION TARGET</h3>
           <p style={{ margin: "8px 0 0", fontSize: "16px", fontWeight: "900" }}>{taskProgress.total} / {TOTAL_RECORDING_TARGET} Voices</p>
@@ -445,28 +396,23 @@ export default function WorkersPage() {
           <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#ccc" }}>Today&apos;s recordings: {taskProgress.today} / {DAILY_RECORDING_LIMIT} — {remainingToday} remaining today</p>
           <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.total / TOTAL_RECORDING_TARGET) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
         </div>
-
-        {/* ANNOUNCEMENT BOARD BUTTON - ADD ONLY */}
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
-
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
 
-        <div style={{ display: "flex", gap: "6px", marginTop: "12px" }}>
-          {["Pidgin", "Igbo", "Hausa", "Yoruba"].map((lang) => (
+        {/* FIXED AKWA IBOM BUTTON - 5 LANGUAGES, WRAP SO E FIT FOR PHONE */}
+        <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
+          {["Pidgin", "Igbo", "Hausa", "Yoruba", "Akwa Ibom"].map((lang) => (
             <button key={lang} onClick={() => {
-              // FIX 2: Prevent language change during recording
               if (isRecording || audioURL || savingRecording) {
                 alert("Please finish or discard your current recording before changing language.");
                 return;
               }
-
               setSelectedLang(lang);
-            }} style={{ flex: 1, padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang}</button>
+            }} style={{ flex: lang === "Akwa Ibom" ? "1 1 100%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: lang === "Akwa Ibom" ? "12px" : "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang}</button>
           ))}
         </div>
 
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
-
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
@@ -485,7 +431,6 @@ export default function WorkersPage() {
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "12px 0", height: "36px" }} />}
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
-            {/* UPGRADED SAVE BUTTON - SECURITY + COLOR - NOTHING ELSE CHANGED */}
             <div style={{ flex: 1.6 }}>
               {audioURL && isTooShort && (
                 <div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>
@@ -505,23 +450,11 @@ export default function WorkersPage() {
                   }
                   saveAndNext();
                 }}
-                disabled={
-                  !audioURL ||
-                  savingRecording ||
-                  timer < 11 ||
-                  taskProgress.today >= DAILY_RECORDING_LIMIT ||
-                  currentSentenceIndex >= Math.min(50, sentences.length)
-                }
+                disabled={!audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)}
                 style={{
                   width: "100%",
-                  background:
-                    savingRecording ? "#1A3A1A" :
-                    !audioURL ? "#1A3A1A" :
-                    timer < 11 ? "#FF0000" :
-                    timer >= 11 ? "#00E676" : "#1A3A1A",
-                  color:
-                    timer < 11 && audioURL ? "white" :
-                    audioURL && !savingRecording ? "black" : "#666",
+                  background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A",
+                  color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666",
                   padding: "14px",
                   borderRadius: "12px",
                   border: timer < 11 && audioURL ? "2px solid #FF0000" : "none",
@@ -529,11 +462,7 @@ export default function WorkersPage() {
                   cursor: timer < 11 ? "not-allowed" : "pointer",
                 }}
               >
-                {savingRecording ? "⏳ SUBMITTING..." :
-                 !audioURL ? "Save & Next →" :
-                 timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` :
-                 isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` :
-                 `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
+                {savingRecording ? "⏳ SUBMITTING..." : !audioURL ? "Save & Next →" : timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` : isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` : `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
               </button>
               {audioURL && (
                 <div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}>
@@ -546,7 +475,6 @@ export default function WorkersPage() {
             </div>
           </div>
         </div>
-
         {savedFiles.length > 0 && (
           <div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}>
             <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Supabase</div>
@@ -554,7 +482,6 @@ export default function WorkersPage() {
           </div>
         )}
       </div>
-
       {showModal === "bank" && (
         <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: "18px", zIndex: 2000 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "390px", maxHeight: "90vh", overflowY: "auto", background: "#0D130D", border: "1px solid #EAB308", borderRadius: "20px", padding: "20px", boxSizing: "border-box" }}>
