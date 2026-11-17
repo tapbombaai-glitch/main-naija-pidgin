@@ -70,6 +70,13 @@ export default function WorkersPage() {
   // VOICE COLLECTION TARGET - DISPLAY ONLY
   const TOTAL_RECORDING_TARGET = 500;
 
+  // UPGRADE FOR SAVE BUTTON ONLY - SECURITY + COLOR
+  // 9 = RED ❌, 10 = RED ❌, 11 = GREEN ✅, 12-13 = GREEN ⭐ PERFECT
+  const MIN_SAVE_SECONDS = 11;
+  const isTooShort = timer > 0 && timer < 11;
+  const isPass = timer >= 11;
+  const isPerfect = timer >= 12 && timer <= 13;
+
   const remainingToday = Math.max(
     0,
     DAILY_RECORDING_LIMIT - taskProgress.today
@@ -325,6 +332,12 @@ export default function WorkersPage() {
   );
 
   const saveAndNext = async () => {
+    // SECURITY: Final check - 9, 10, 5 seconds no go work!
+    if (timer < 11) {
+      alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`);
+      return;
+    }
+
     if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
       return alert(
         "You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."
@@ -466,16 +479,71 @@ export default function WorkersPage() {
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
             <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
           </div>
-          <div style={{ textAlign: "center", fontSize: "11px", color: "#ff5252", fontFamily: "monospace" }}>REC {formatTime(timer)} / 00:15</div>
+          <div style={{ textAlign: "center", fontSize: "12px", fontWeight: "900", fontFamily: "monospace", color: timer >= 11 ? "#00E676" : "#ff5252", background: timer >= 11 ? "#0A2A0A" : timer > 0 ? "#2A0A0A" : "transparent", padding: "6px", borderRadius: "8px" }}>
+            {timer < 11 && timer > 0 ? `❌ REC ${formatTime(timer)} / 00:15 - RED - FAIL` : timer >= 11 ? `✅ REC ${formatTime(timer)} / 00:15 - GREEN - PASS` : `REC ${formatTime(timer)} / 00:15`}
+          </div>
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", margin: "12px 0", height: "36px" }} />}
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
-            <button onClick={saveAndNext} disabled={
-              !audioURL ||
-              savingRecording ||
-              taskProgress.today >= DAILY_RECORDING_LIMIT ||
-              currentSentenceIndex >= Math.min(50, sentences.length)
-            } style={{ flex: 1.6, background: audioURL && !savingRecording ? "#00E676" : "#1A3A1A", color: audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: "none", fontWeight: "900" }}>{savingRecording ? "⏳ SUBMITTING..." : audioURL ? "💾 SUBMIT TO CHAIRMAN →" : "Save & Next →"}</button>
+            {/* UPGRADED SAVE BUTTON - SECURITY + COLOR - NOTHING ELSE CHANGED */}
+            <div style={{ flex: 1.6 }}>
+              {audioURL && isTooShort && (
+                <div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>
+                  ❌ FAIL! {timer}s - RED - Too short! Must reach 11!
+                </div>
+              )}
+              {audioURL && isPass && (
+                <div style={{ background: "#00E676", color: "black", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>
+                  {isPerfect ? `⭐ PERFECT! ${timer}s - GREEN - You don pass!` : `✅ PASS! ${timer}s - GREEN - You don pass!`}
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  if (timer < 11) {
+                    alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`);
+                    return;
+                  }
+                  saveAndNext();
+                }}
+                disabled={
+                  !audioURL ||
+                  savingRecording ||
+                  timer < 11 ||
+                  taskProgress.today >= DAILY_RECORDING_LIMIT ||
+                  currentSentenceIndex >= Math.min(50, sentences.length)
+                }
+                style={{
+                  width: "100%",
+                  background:
+                    savingRecording ? "#1A3A1A" :
+                    !audioURL ? "#1A3A1A" :
+                    timer < 11 ? "#FF0000" :
+                    timer >= 11 ? "#00E676" : "#1A3A1A",
+                  color:
+                    timer < 11 && audioURL ? "white" :
+                    audioURL && !savingRecording ? "black" : "#666",
+                  padding: "14px",
+                  borderRadius: "12px",
+                  border: timer < 11 && audioURL ? "2px solid #FF0000" : "none",
+                  fontWeight: "900",
+                  cursor: timer < 11 ? "not-allowed" : "pointer",
+                }}
+              >
+                {savingRecording ? "⏳ SUBMITTING..." :
+                 !audioURL ? "Save & Next →" :
+                 timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` :
+                 isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` :
+                 `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
+              </button>
+              {audioURL && (
+                <div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}>
+                  <span style={{ background: timer === 9 || timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>9 ❌ RED</span>
+                  <span style={{ background: timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>10 ❌ RED</span>
+                  <span style={{ background: timer === 11 ? "#00E676" : "#333", color: timer === 11 ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>11 ✅ GREEN</span>
+                  <span style={{ background: isPerfect ? "#00E676" : "#333", color: isPerfect ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>12 ⭐ GREEN</span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
