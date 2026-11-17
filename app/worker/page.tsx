@@ -181,6 +181,8 @@ export default function WorkersPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
+  // ✅ FIX ONLY: auto-stop timer for 15 sec
+  const stopTimeoutRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const TOTAL_RECORDING_TARGET = 500;
   const MIN_SAVE_SECONDS = 11;
@@ -250,6 +252,7 @@ export default function WorkersPage() {
         if (streamRef.current) { streamRef.current.getTracks().forEach(track => track.stop()); streamRef.current = null; }
         audioChunksRef.current = [];
         if (timerRef.current) { clearInterval(timerRef.current); }
+        if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
         if (workerId !== "WORKER") { loadWorkerData(workerId); }
         showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
       }
@@ -280,6 +283,7 @@ export default function WorkersPage() {
     try {
       if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.onstop = null; mediaRecorderRef.current.stop(); }
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+      if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
       if (streamRef.current) { streamRef.current.getTracks().forEach((track) => track.stop()); streamRef.current = null; }
       await supabase.auth.signOut();
       localStorage.removeItem("gin_worker_id");
@@ -342,21 +346,35 @@ export default function WorkersPage() {
       if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
     }
-    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
+    // ✅ FIX ONLY: manual stop - clear auto-stop + timer
+    if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
       streamRef.current = stream;
       const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
       mediaRecorderRef.current = mr; audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-      mr.onstop = () => { const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach((t) => t.stop()); };
+      mr.onstop = () => {
+        // ✅ FIX ONLY: stop timer + auto-stop when recording ends
+        if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+        if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach((t) => t.stop());
+      };
       mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
+      // ✅ FIX ONLY: AUTO-STOP at exactly 15 seconds
+      if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+      stopTimeoutRef.current = setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.stop();
+          setIsRecording(false);
+        }
+      }, 15000);
     } catch { alert("Abeg allow microphone!"); }
   };
 
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
-  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); if (timerRef.current) clearInterval(timerRef.current); };
+  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } };
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
@@ -417,7 +435,7 @@ export default function WorkersPage() {
     finally { setSavingRecording(false); }
   };
 
-  useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
+  useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
@@ -470,7 +488,6 @@ export default function WorkersPage() {
             <button key={lang} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording before changing language."); return; } setSelectedLang(lang); }} style={{ flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang}</button>
           ))}
         </div>
-        {/* 4. REPLACED IJAW WARNING */}
         {isIjawDraft && (
           <div style={{
             background: "#2A1A00",
@@ -499,7 +516,6 @@ export default function WorkersPage() {
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
-          {/* 5. HIDE DRAFT SENTENCE */}
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
             {isIjawDraft
               ? "Ijaw / Izon sentences are awaiting native-speaker validation."
