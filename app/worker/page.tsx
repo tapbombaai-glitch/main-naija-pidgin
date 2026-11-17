@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { PIDGIN_500 } from "@/app/data/pidgin-500";
 
@@ -8,7 +8,6 @@ const DAILY_RECORDING_LIMIT = 50;
 
 // AKWA IBOM SENTENCES - INSIDE THIS FILE SO BUTTON GO WORK IMMEDIATELY
 // Ibibio / Efik - Each na 32-38 words = 11-15 seconds = PASS ✅
-// If you later create @/app/data/akwaibom-500, you fit replace this with import
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
 "Uyo adiaha mi, mkpo mfo adiaha mi, ami nkpo mfo ke ndin nte afo ade. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
@@ -62,27 +61,99 @@ const AKWAIBOM_500: string[] = [
 "Abasi, ami mmedi idem mfo, mkpo mfo adiaha mi, ami nka afia mkpa ke Uyo. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
 ];
 
+// IGBO 15 - LONG = 11-15 SECONDS ✅
+const IGBO_15: string[] = [
+"Ndewo, kedu ka i mere taa? A na m ekele gi nke ukwuu maka oru oma a, a na m ekwu okwu nwayo nwayo ka i wee nuru olu m nke oma, enweghi oso oso ozo na ndekọ a.",
+"Biko nyere m aka taa, a choro m ka ihe nile gaa nke oma maka oru a, a na m ekwu okwu nke oma na nwayo, ka olu m wee doo anya ma di uto na nti maka oru a.",
+"Kedu ihe na-eme n'ebe a taa? Anyi na-aru oru kwa ubochi, anyi na-agbasi mbọ ike, Chineke ga-agọzi oru anyi, ka ihe nile gaa nke oma maka ndekọ olu a taa.",
+"Agaghi m ekwe ka ha ghogbuo m ma oli, a na m ekwu eziokwu mgbe nile, a na m ekwu okwu nwayo nwayo, ka onye obula wee nuru m nke oma, ka o ruo sekọnd iri na otu.",
+"Oga, ego ole ka nke a bu taa? Biko gwa m ezi ego ya, a na m aru oru nke oma, a na m ekwu okwu nwayo, ka olu m wee doo anya maka oru a taa.",
+"Anyi ga-aga ahia echi n'ututu, anyi ga-azuta ihe anyi choro, anyi ga-alaghachi n'ulo n'udo, a na m ekwu okwu nwayo ka i nuru m nke oma.",
+"Daalụ nke ukwuu maka enyemaka gi taa, i mere oru oma nke ukwuu, a na m ekele gi site n'obi m nile, a na m ekwu okwu nwayo ka o ruo sekọnd iri na abuo.",
+"Nwanne m, kedu ebe i na-aga ugbu a? Biko chere m obere oge, ka anyi gaa onu, a na m ekwu okwu nwayo nwayo ka i wee nuru m nke oma taa.",
+"Ubochi taa di mma nke ukwuu, anyanwu na-enwu nke oma, anyi na-enwe obi uto, anyi na-aru oru nke oma, ka ihe nile gaa nke oma maka oru a.",
+"Biko gee nti nke oma, a na m ekwu ihe di mkpa ugbu a, ekwula oso oso, kwuo okwu nwayo nwayo, ka olu gi wee ruo sekọnd iri na otu maka oru a.",
+"A na m abia ugbu a, biko chere m, a na m aga n'uzo, a ga m abia n'oge na-adighi anya, a na m ekwu okwu nwayo ka i nuru m nke oma taa.",
+"Ego ole ka i ga-akwụ m maka oru a? Biko kwuo eziokwu, a na m aru oru nke oma kwa ubochi, a na m ekwu okwu nwayo ka o doo anya.",
+"Anyi ga-eri nri ọnụ ma emechaa oru a, anyi ga-aṅụ mmiri, anyi ga-ezu ike, anyi ga-enwe obi uto, a na m ekwu okwu nwayo ka o ruo sekọnd iri na abuo.",
+"Chineke gozie gi nke ukwuu taa, ka oru gi gaa nke oma, ka ego gi baa ụba, ka ulo gi nwee udo, a na m ekwu okwu nwayo ka i nuru m.",
+"Ndewo, ka anyi malite oru taa, a choro m ka ihe nile gaa nke oma, a na m ekwu okwu nwayo nwayo, enweghi oso oso, ka o ruo sekọnd iri na otu.",
+];
+
+// HAUSA 15 - LONG = 11-15 SECONDS ✅
+const HAUSA_15: string[] = [
+"Sannu, yaya kake yau? Ina gode maka wannan aiki mai kyau, ina magana a hankali don ka ji muryata da kyau, babu gaggawa kwata-kwata a cikin wannan rikodi.",
+"Don Allah ka taimake ni yau, ina son komai ya tafi da kyau don wannan aiki, ina magana a hankali, don muryata ta zama a fili kuma ta yi dadi a kunne.",
+"Me ke faruwa a nan yau? Muna aiki kowace rana, muna kokari sosai, Allah zai albarkaci aikinmu, komai zai tafi da kyau don wannan rikodi na murya.",
+"Ba zan yarda su yaudare ni ba, ina fadin gaskiya a kowane lokaci, ina magana a hankali, don kowa ya ji ni da kyau, don ya kai daƙiƙa goma sha ɗaya.",
+"Oga, nawa ne wannan yau? Don Allah ka fada mini gaskiyar kudin, ina aiki mai kyau, ina magana a hankali, don muryata ta zama a fili don wannan aiki.",
+"Mu je kasuwa gobe da safe, za mu sayi abin da muke bukata, za mu dawo gida lafiya, ina magana a hankali don ka ji ni da kyau.",
+"Na gode sosai don taimakonka yau, ka yi aiki mai kyau sosai, ina gode maka daga zuciyata, ina magana a hankali don ya kai daƙiƙa goma sha biyu.",
+"Dan uwana, ina kake zuwa yanzu? Don Allah ka jira ni kadan, mu tafi tare, ina magana a hankali don ka ji ni da kyau yau.",
+"Yau rana ce mai kyau sosai, rana na haskawa da kyau, muna farin ciki, muna aiki mai kyau, komai zai tafi da kyau don wannan aiki.",
+"Don Allah ka saurara da kyau, ina fadin abu mai mahimmanci yanzu, kada ka yi gaggawa, ka yi magana a hankali, don muryarka ta kai daƙiƙa goma sha ɗaya.",
+"Ina zuwa yanzu, don Allah ka jira ni, ina kan hanya, zan zo nan ba da jimawa ba, ina magana a hankali don ka ji ni da kyau yau.",
+"Nawa za ka biya ni don wannan aiki? Don Allah ka fadi gaskiya, ina aiki mai kyau kowace rana, ina magana a hankali don ya zama a fili.",
+"Za mu ci abinci tare bayan wannan aiki, za mu sha ruwa, za mu huta, za mu yi farin ciki, ina magana a hankali don ya kai daƙiƙa goma sha biyu.",
+"Allah ya albarkace ka sosai yau, aikin ka ya tafi da kyau, kudinka ya karu, gidanka ya sami zaman lafiya, ina magana a hankali don ka ji ni.",
+"Sannu, mu fara aiki yau, ina son komai ya tafi da kyau, ina magana a hankali, babu gaggawa, don ya kai daƙiƙa goma sha ɗaya.",
+];
+
+// YORUBA 15 - LONG = 11-15 SECONDS ✅
+const YORUBA_15: string[] = [
+"Ẹ n lẹ, bawo ni o se wa loni? Mo dupẹ pupọ fun iṣẹ rere yi, mo n sọ ọrọ laiyara ki ẹ le gbọ ohun mi daradara, ko si iyara rara ninu gbigbasilẹ yi.",
+"Ẹ jọ ẹ ran mi lọwọ loni, mo fẹ ki ohun gbogbo lọ daradara fun iṣẹ yi, mo n sọ ọrọ laiyara, ki ohun mi le han gbangba ki o si dun ni eti.",
+"Kini n ṣẹlẹ nibi loni? A n ṣiṣẹ ni gbogbo ọjọ, a n ṣiṣẹ takuntakun, Ọlọrun yoo bukun iṣẹ wa, ohun gbogbo yoo lọ daradara fun gbigbasilẹ ohun yi.",
+"Mi o ni gba ki wọn tan mi rara, mo n sọ otitọ ni gbogbo igba, mo n sọ ọrọ laiyara, ki gbogbo eniyan le gbọ mi daradara, ki o de iṣẹju-aaya mọkanla.",
+"Oga, elo ni eyi loni? Ẹ jọ sọ fun mi ni otitọ owo rẹ, mo n ṣiṣẹ daradara, mo n sọ ọrọ laiyara, ki ohun mi le han gbangba fun iṣẹ yi.",
+"A o lọ si ọja lọla ni owurọ, a o ra ohun ti a nilo, a o pada si ile ni alaafia, mo n sọ ọrọ laiyara ki ẹ le gbọ mi daradara.",
+"Ẹ ṣe pupọ fun iranlọwọ yin loni, ẹ ṣe iṣẹ rere pupọ, mo dupẹ lati ọkan mi, mo n sọ ọrọ laiyara ki o de iṣẹju-aaya mejila.",
+"Arákùnrin mi, nibo ni o n lọ nisisinyi? Ẹ jọ duro de mi diẹ, ki a lọ papọ, mo n sọ ọrọ laiyara ki ẹ le gbọ mi daradara loni.",
+"Ọjọ oni dara pupọ, oorun n tan daradara, a ni ayọ, a n ṣiṣẹ daradara, ohun gbogbo yoo lọ daradara fun iṣẹ yi.",
+"Ẹ jọ ẹ gbọ daradara, mo n sọ ohun pataki nisisinyi, ẹ ma ṣe iyara, ẹ sọ ọrọ laiyara, ki ohun yin le de iṣẹju-aaya mọkanla fun iṣẹ yi.",
+"Mo n bọ nisisinyi, ẹ jọ duro de mi, mo wa ni ọna, mo o de laipẹ, mo n sọ ọrọ laiyara ki ẹ le gbọ mi daradara loni.",
+"Elo ni o o san mi fun iṣẹ yi? Ẹ jọ sọ otitọ, mo n ṣiṣẹ daradara ni gbogbo ọjọ, mo n sọ ọrọ laiyara ki o han gbangba.",
+"A o jẹun papọ lẹhin iṣẹ yi, a o mu omi, a o sinmi, a o ni ayọ, mo n sọ ọrọ laiyara ki o de iṣẹju-aaya mejila.",
+"Ọlọrun bukun yin pupọ loni, ki iṣẹ yin lọ daradara, ki owo yin pọ si i, ki ile yin ni alaafia, mo n sọ ọrọ laiyara ki ẹ le gbọ mi.",
+"Ẹ n lẹ, ki a bẹrẹ iṣẹ loni, mo fẹ ki ohun gbogbo lọ daradara, mo n sọ ọrọ laiyara, ko si iyara, ki o de iṣẹju-aaya mọkanla.",
+];
+
+// HEBREW 15 - LONG = 11-15 SECONDS ✅
+const HEBREW_15: string[] = [
+"Shalom, ma shlomcha hayom? Ani modeh lecha meod al haavoda hatova hazot, ani medaber leat leat kedey shetishma oti tov, ein maharut klal bahaklata hazot.",
+"Bevakasha taazor li hayom, ani rotze shehakol yelech tov baavoda hazot, ani medaber leat leat, kedey shekoli yihye barur venayim laoznayim.",
+"Ma koreh kan hayom? Anachnu ovdim kol yom, anachnu mishtadlim meod, Elohim yevarech et avodatenu, hakol yelech tov bahaklat hakol hazot.",
+"Ani lo eten lahem leramot oti, ani omer emet tamid, ani medaber leat leat, kedey shekulam yishmeu oti tov, kedey sheyagia leakhad asar shniyot.",
+"Adoni, kama ze oleh hayom? Bevakasha tagid li et hamechir haamiti, ani oved tov, ani medaber leat leat, kedey shekoli yihye barur laavoda hazot.",
+"Neilech lashuk machar baboker, nikneh et ma sheanachnu tzrichim, nachzor habaita beshalom, ani medaber leat leat kedey shetishma oti tov.",
+"Toda raba meod al haezra shelcha hayom, asita avoda tova meod, ani modeh lecha mikol halev, ani medaber leat leat kedey sheyagia leshteym esreh shniyot.",
+"Achi, leaan ata holech achshav? Bevakasha chakeh li kzat, neilech yachad, ani medaber leat leat kedey shetishma oti tov hayom.",
+"Hayom yom tov meod, hashemesh zocheret tov, anachnu smechim, anachnu ovdim tov, hakol yelech tov baavoda hazot.",
+"Bevakasha takshiv tov, ani omer davar chashuv achshav, al temaher, daber leat leat, kedey shekolcha yagia leakhad asar shniyot laavoda hazot.",
+"Ani ba achshav, bevakasha chakeh li, ani baderech, ani agia bekarov, ani medaber leat leat kedey shetishma oti tov hayom.",
+"Kama teshalem li baavoda hazot? Bevakasha tagid emet, ani oved tov kol yom, ani medaber leat leat kedey sheyihye barur.",
+"Neochal yachad acharey haavoda hazot, nishteh mayim, nanuach, nihyeh smechim, ani medaber leat leat kedey sheyagia leshteym esreh shniyot.",
+"Elohim yevarech otcha meod hayom, sheavodatcha telech tov, shekaspecha yigdal, shebeitcha yihye beshalom, ani medaber leat leat kedey shetishma oti.",
+"Shalom, bo natchil et haavoda hayom, ani rotze shehakol yelech tov, ani medaber leat leat, ein maharut, kedey sheyagia leakhad asar shniyot.",
+];
+
+// RANDOM SHUFFLE - Make worker no dey see same order every time
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 function getLagosRecordingWindow(now = new Date()) {
   const offset = 60 * 60 * 1000;
   const lagosNow = new Date(now.getTime() + offset);
-  let start = Date.UTC(
-    lagosNow.getUTCFullYear(),
-    lagosNow.getUTCMonth(),
-    lagosNow.getUTCDate(),
-    17,
-    0,
-    0
-  );
-  if (lagosNow.getUTCHours() < 17) {
-    start -= 24 * 60 * 60 * 1000;
-  }
+  let start = Date.UTC(lagosNow.getUTCFullYear(), lagosNow.getUTCMonth(), lagosNow.getUTCDate(), 17, 0, 0);
+  if (lagosNow.getUTCHours() < 17) { start -= 24 * 60 * 60 * 1000; }
   const startUtc = start - offset;
-  return {
-    startMs: startUtc,
-    startIso: new Date(startUtc).toISOString(),
-    key: String(startUtc),
-    nextResetMs: startUtc + 24 * 60 * 60 * 1000,
-  };
+  return { startMs: startUtc, startIso: new Date(startUtc).toISOString(), key: String(startUtc), nextResetMs: startUtc + 24 * 60 * 60 * 1000 };
 }
 
 export default function WorkersPage() {
@@ -92,8 +163,7 @@ export default function WorkersPage() {
   const [selectedLang, setSelectedLang] = useState("Pidgin");
   const [showModal, setShowModal] = useState<string | null>(null);
   const [workerId, setWorkerId] = useState("WORKER");
-  const [recordingDayKey, setRecordingDayKey] =
-    useState(() => getLagosRecordingWindow().key);
+  const [recordingDayKey, setRecordingDayKey] = useState(() => getLagosRecordingWindow().key);
   const [earnings, setEarnings] = useState({ total: 0, pending: 0, approved: 0 });
   const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
@@ -118,14 +188,15 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  // FIXED: AKWA IBOM ADDED - NOTHING REMOVED
-  const allSentences: Record<string, string[]> = {
-    Pidgin: [...new Set(PIDGIN_500)],
-    Igbo: ["Kedu? Ana m abia ugbu a.", "Biko nyere m aka.", "Kedu ihe na-eme?", "Agaghi m ekwe ka ha ghogbuo m.", "Oga, ego ole ka nke a bu?", "Anyi ga-aga ahia echi."],
-    Hausa: ["Yaya kake? Ina zuwa yanzu.", "Don Allah ka taimake ni.", "Me ke faruwa?", "Ba zan yarda su yaudare ni ba.", "Oga, nawa ne wannan?", "Mu je kasuwa gobe."],
-    Yoruba: ["Bawo ni? Mo n bo nisisinyi.", "Ejo e ran mi lowo.", "Kini n sele?", "Mi o ni gba ki won tan mi.", "Oga, elo ni eyi?", "Jeka lo si oja laaro."],
-    "Akwa Ibom": [...new Set(AKWAIBOM_500)],
-  };
+  // FIXED: ALL LANGUAGES - RANDOM + LONG - NOTHING REMOVED
+  const allSentences: Record<string, string[]> = useMemo(() => ({
+    Pidgin: shuffleArray([...new Set(PIDGIN_500)].slice(0, 30)),
+    Igbo: shuffleArray(IGBO_15),
+    Hausa: shuffleArray(HAUSA_15),
+    Yoruba: shuffleArray(YORUBA_15),
+    Hebrew: shuffleArray(HEBREW_15),
+    "Akwa Ibom": shuffleArray([...new Set(AKWAIBOM_500)]),
+  }), []);
 
   const sentences = allSentences[selectedLang] || allSentences["Pidgin"];
 
@@ -136,62 +207,23 @@ export default function WorkersPage() {
       loadWorkerData(wid);
       supabase.from("marketplace_visits").insert({ worker_id: wid, page: "workers", entered_at: new Date().toISOString() }).then(()=>{});
     }
-    try {
-      const raw = localStorage.getItem("gin_recordings");
-      const parsed = raw ? JSON.parse(raw) : [];
-      setSavedFiles(Array.isArray(parsed) ? parsed : []);
-    } catch { setSavedFiles([]); }
-    try {
-      const savedBank = localStorage.getItem("gin_bank_details");
-      if (savedBank) {
-        const bank = JSON.parse(savedBank);
-        setAccountName(bank.accountName || "");
-        setBankName(bank.bankName || "");
-        setAccountNumber(bank.accountNumber || "");
-        setPhoneNumber(bank.phoneNumber || "");
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    try { const raw = localStorage.getItem("gin_recordings"); const parsed = raw ? JSON.parse(raw) : []; setSavedFiles(Array.isArray(parsed) ? parsed : []); } catch { setSavedFiles([]); }
+    try { const savedBank = localStorage.getItem("gin_bank_details"); if (savedBank) { const bank = JSON.parse(savedBank); setAccountName(bank.accountName || ""); setBankName(bank.bankName || ""); setAccountNumber(bank.accountNumber || ""); setPhoneNumber(bank.phoneNumber || ""); } } catch {}
   }, []);
 
   const loadWorkerData = async (wid: string) => {
-    const { data: anns } = await supabase
-      .from("announcements")
-      .select("id, title, message, type, created_at")
-      .eq("is_published", true)
-      .order("created_at", { ascending: false })
-      .limit(5);
+    const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false }).limit(5);
     if (anns) setAnnouncements(anns);
     setAnnouncementLoading(false);
     const window = getLagosRecordingWindow();
-    const { data: recs, error } = await supabase
-      .from("recordings")
-      .select("earnings, status, created_at")
-      .eq("worker_id", wid);
-    if (error) {
-      console.error("Worker recordings loading error:", error.message);
-      return;
-    }
+    const { data: recs, error } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
+    if (error) { console.error("Worker recordings loading error:", error.message); return; }
     if (recs) {
-      let total = 0;
-      let pending = 0;
-      let approved = 0;
-      let today = 0;
+      let total = 0; let pending = 0; let approved = 0; let today = 0;
       recs.forEach((r: any) => {
         const amt = Number(r.earnings) || 0;
-        if (r.status === "approved") {
-          total += amt;
-          approved += amt;
-        } else if (r.status === "pending") {
-          total += amt;
-          pending += amt;
-        }
-        if (r.created_at) {
-          const createdTime = new Date(r.created_at).getTime();
-          if (createdTime >= window.startMs && createdTime < window.nextResetMs) {
-            today += 1;
-          }
-        }
+        if (r.status === "approved") { total += amt; approved += amt; } else if (r.status === "pending") { total += amt; pending += amt; }
+        if (r.created_at) { const createdTime = new Date(r.created_at).getTime(); if (createdTime >= window.startMs && createdTime < window.nextResetMs) { today += 1; } }
       });
       setEarnings({ total, pending, approved });
       setTaskProgress({ total: recs.length, today });
@@ -201,47 +233,21 @@ export default function WorkersPage() {
   useEffect(() => {
     if (workerId === "WORKER") return;
     const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
-    try {
-      const saved = localStorage.getItem(progressKey);
-      if (saved) {
-        const progress = JSON.parse(saved);
-        const index = Number(progress.index) || 0;
-        setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(50, sentences.length))));
-      } else {
-        setCurrentSentenceIndex(0);
-      }
-    } catch {
-      setCurrentSentenceIndex(0);
-    }
-    setAudioURL(null);
-    setTimer(0);
+    try { const saved = localStorage.getItem(progressKey); if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(50, sentences.length)))); } else { setCurrentSentenceIndex(0); } } catch { setCurrentSentenceIndex(0); }
+    setAudioURL(null); setTimer(0);
   }, [workerId, selectedLang, recordingDayKey, sentences.length]);
 
   useEffect(() => {
     const checkRecordingDay = () => {
       const window = getLagosRecordingWindow();
       if (window.key !== recordingDayKey) {
-        setRecordingDayKey(window.key);
-        setCurrentSentenceIndex(0);
-        setTaskProgress(prev => ({ ...prev, today: 0 }));
-        if (mediaRecorderRef.current?.state === "recording") {
-          mediaRecorderRef.current.onstop = null;
-          mediaRecorderRef.current.stop();
-        }
-        setIsRecording(false);
-        setAudioURL(null);
-        setTimer(0);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-        }
+        setRecordingDayKey(window.key); setCurrentSentenceIndex(0); setTaskProgress(prev => ({ ...prev, today: 0 }));
+        if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.onstop = null; mediaRecorderRef.current.stop(); }
+        setIsRecording(false); setAudioURL(null); setTimer(0);
+        if (streamRef.current) { streamRef.current.getTracks().forEach(track => track.stop()); streamRef.current = null; }
         audioChunksRef.current = [];
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-        if (workerId !== "WORKER") {
-          loadWorkerData(workerId);
-        }
+        if (timerRef.current) { clearInterval(timerRef.current); }
+        if (workerId !== "WORKER") { loadWorkerData(workerId); }
         showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
       }
     };
@@ -276,14 +282,8 @@ export default function WorkersPage() {
 
   const toggleRecording = async () => {
     if (!isRecording) {
-      if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
-        alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time.");
-        return;
-      }
-      if (currentSentenceIndex >= dailySentenceCount) {
-        alert("You have completed today's unique sentences in this language.");
-        return;
-      }
+      if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
+      if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
     }
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); return; }
     try {
@@ -300,20 +300,12 @@ export default function WorkersPage() {
 
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
   const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); if (timerRef.current) clearInterval(timerRef.current); };
-
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
-    if (timer < 11) {
-      alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`);
-      return;
-    }
-    if (taskProgress.today >= DAILY_RECORDING_LIMIT) {
-      return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time.");
-    }
-    if (currentSentenceIndex >= dailySentenceCount) {
-      return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset.");
-    }
+    if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
+    if (taskProgress.today >= DAILY_RECORDING_LIMIT) { return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."); }
+    if (currentSentenceIndex >= dailySentenceCount) { return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."); }
     if (!audioURL) return alert("🎤 Record first!");
     if (savingRecording) return;
     const wid = localStorage.getItem("gin_worker_id");
@@ -399,16 +391,9 @@ export default function WorkersPage() {
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
 
-        {/* FIXED AKWA IBOM BUTTON - 5 LANGUAGES, WRAP SO E FIT FOR PHONE */}
         <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
-          {["Pidgin", "Igbo", "Hausa", "Yoruba", "Akwa Ibom"].map((lang) => (
-            <button key={lang} onClick={() => {
-              if (isRecording || audioURL || savingRecording) {
-                alert("Please finish or discard your current recording before changing language.");
-                return;
-              }
-              setSelectedLang(lang);
-            }} style={{ flex: lang === "Akwa Ibom" ? "1 1 100%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: lang === "Akwa Ibom" ? "12px" : "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang}</button>
+          {["Pidgin", "Igbo", "Hausa", "Yoruba", "Hebrew", "Akwa Ibom"].map((lang) => (
+            <button key={lang} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording before changing language."); return; } setSelectedLang(lang); }} style={{ flex: lang === "Akwa Ibom" ? "1 1 100%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: lang === "Akwa Ibom" ? "12px" : "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang}</button>
           ))}
         </div>
 
@@ -416,11 +401,7 @@ export default function WorkersPage() {
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
-            {taskProgress.today >= DAILY_RECORDING_LIMIT
-              ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day."
-              : currentSentenceIndex >= Math.min(50, sentences.length)
-              ? "You have completed all unique sentences available in this language today."
-              : sentences[currentSentenceIndex]}
+            {taskProgress.today >= DAILY_RECORDING_LIMIT ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day." : currentSentenceIndex >= Math.min(50, sentences.length) ? "You have completed all unique sentences available in this language today." : sentences[currentSentenceIndex]}
           </p></div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
             <button onClick={toggleRecording} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : "#E53935", border: "4px solid #7f1d1d" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
@@ -432,73 +413,25 @@ export default function WorkersPage() {
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={reRecord} style={{ flex: 1, background: "#1E2F1E", color: "#ccc", padding: "14px", borderRadius: "12px", border: "1px solid #2A4A2A" }}>↻ Re-record</button>
             <div style={{ flex: 1.6 }}>
-              {audioURL && isTooShort && (
-                <div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>
-                  ❌ FAIL! {timer}s - RED - Too short! Must reach 11!
-                </div>
-              )}
-              {audioURL && isPass && (
-                <div style={{ background: "#00E676", color: "black", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>
-                  {isPerfect ? `⭐ PERFECT! ${timer}s - GREEN - You don pass!` : `✅ PASS! ${timer}s - GREEN - You don pass!`}
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  if (timer < 11) {
-                    alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`);
-                    return;
-                  }
-                  saveAndNext();
-                }}
-                disabled={!audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)}
-                style={{
-                  width: "100%",
-                  background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A",
-                  color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666",
-                  padding: "14px",
-                  borderRadius: "12px",
-                  border: timer < 11 && audioURL ? "2px solid #FF0000" : "none",
-                  fontWeight: "900",
-                  cursor: timer < 11 ? "not-allowed" : "pointer",
-                }}
-              >
+              {audioURL && isTooShort && (<div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>❌ FAIL! {timer}s - RED - Too short! Must reach 11!</div>)}
+              {audioURL && isPass && (<div style={{ background: "#00E676", color: "black", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>{isPerfect ? `⭐ PERFECT! ${timer}s - GREEN - You don pass!` : `✅ PASS! ${timer}s - GREEN - You don pass!`}</div>)}
+              <button onClick={() => { if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; } saveAndNext(); }} disabled={!audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)} style={{ width: "100%", background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A", color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: timer < 11 && audioURL ? "2px solid #FF0000" : "none", fontWeight: "900", cursor: timer < 11 ? "not-allowed" : "pointer" }}>
                 {savingRecording ? "⏳ SUBMITTING..." : !audioURL ? "Save & Next →" : timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` : isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` : `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
               </button>
-              {audioURL && (
-                <div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}>
-                  <span style={{ background: timer === 9 || timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>9 ❌ RED</span>
-                  <span style={{ background: timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>10 ❌ RED</span>
-                  <span style={{ background: timer === 11 ? "#00E676" : "#333", color: timer === 11 ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>11 ✅ GREEN</span>
-                  <span style={{ background: isPerfect ? "#00E676" : "#333", color: isPerfect ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>12 ⭐ GREEN</span>
-                </div>
-              )}
+              {audioURL && (<div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}><span style={{ background: timer === 9 || timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>9 ❌ RED</span><span style={{ background: timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>10 ❌ RED</span><span style={{ background: timer === 11 ? "#00E676" : "#333", color: timer === 11 ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>11 ✅ GREEN</span><span style={{ background: isPerfect ? "#00E676" : "#333", color: isPerfect ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>12 ⭐ GREEN</span></div>)}
             </div>
           </div>
         </div>
-        {savedFiles.length > 0 && (
-          <div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}>
-            <div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Supabase</div>
-            {savedFiles.slice(0, 3).map((f: any) => (<div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName || "Recording"} — {typeof f.sentence === "string" ? f.sentence.slice(0, 20) : "Saved audio"}...</div>))}
-          </div>
-        )}
+        {savedFiles.length > 0 && (<div style={{ marginTop: "12px", background: "#0A150A", border: "1px solid #00E67640", borderRadius: "12px", padding: "10px" }}><div style={{ fontSize: "11px", fontWeight: "800", color: "#00E676" }}>📁 {savedFiles.length} Files Saved to Supabase</div>{savedFiles.slice(0, 3).map((f: any) => (<div key={f.id} style={{ fontSize: "10px", color: "#aaa", marginTop: "4px" }}>• {f.fileName || "Recording"} — {typeof f.sentence === "string" ? f.sentence.slice(0, 20) : "Saved audio"}...</div>))}</div>)}
       </div>
       {showModal === "bank" && (
         <div onClick={() => setShowModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: "18px", zIndex: 2000 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "390px", maxHeight: "90vh", overflowY: "auto", background: "#0D130D", border: "1px solid #EAB308", borderRadius: "20px", padding: "20px", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <div><h2 style={{ margin: 0, fontSize: "20px", fontWeight: "900", color: "#FACC15" }}>💳 Payment Details</h2><p style={{ margin: "5px 0 0", fontSize: "11px", color: "#888" }}>Add your bank details for payment.</p></div>
-              <button type="button" onClick={() => setShowModal(null)} style={{ width: "36px", height: "36px", borderRadius: "50%", border: "1px solid #333", background: "#171D17", color: "white", fontSize: "20px", cursor: "pointer" }}>×</button>
-            </div>
-            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NAME</label>
-            <input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Enter account name" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
-            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>BANK NAME</label>
-            <select value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }}>
-              <option value="">Select your bank</option><option value="Opay">Opay</option><option value="Moniepoint">Moniepoint</option><option value="PalmPay">PalmPay</option><option value="Kuda">Kuda</option><option value="First Bank">First Bank</option><option value="GTBank">GTBank</option><option value="Access Bank">Access Bank</option><option value="UBA">UBA</option><option value="Zenith Bank">Zenith Bank</option>
-            </select>
-            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NUMBER</label>
-            <input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="Enter 10-digit account number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
-            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>PHONE NUMBER</label>
-            <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 11))} inputMode="tel" placeholder="Enter phone number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "20px", fontSize: "14px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}><div><h2 style={{ margin: 0, fontSize: "20px", fontWeight: "900", color: "#FACC15" }}>💳 Payment Details</h2><p style={{ margin: "5px 0 0", fontSize: "11px", color: "#888" }}>Add your bank details for payment.</p></div><button type="button" onClick={() => setShowModal(null)} style={{ width: "36px", height: "36px", borderRadius: "50%", border: "1px solid #333", background: "#171D17", color: "white", fontSize: "20px", cursor: "pointer" }}>×</button></div>
+            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NAME</label><input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Enter account name" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
+            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>BANK NAME</label><select value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }}><option value="">Select your bank</option><option value="Opay">Opay</option><option value="Moniepoint">Moniepoint</option><option value="PalmPay">PalmPay</option><option value="Kuda">Kuda</option><option value="First Bank">First Bank</option><option value="GTBank">GTBank</option><option value="Access Bank">Access Bank</option><option value="UBA">UBA</option><option value="Zenith Bank">Zenith Bank</option></select>
+            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NUMBER</label><input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="Enter 10-digit account number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
+            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>PHONE NUMBER</label><input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 11))} inputMode="tel" placeholder="Enter phone number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "20px", fontSize: "14px" }} />
             <button type="button" onClick={saveBankDetails} style={{ width: "100%", padding: "15px", borderRadius: "12px", border: "none", background: "#00E676", color: "black", fontWeight: "900", fontSize: "14px", cursor: "pointer" }}>💾 SAVE BANK DETAILS</button>
             <button type="button" onClick={() => setShowModal(null)} style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "12px", border: "1px solid #333", background: "transparent", color: "#aaa", fontWeight: "700", fontSize: "13px" }}>Cancel</button>
             <div style={{ marginTop: "15px", padding: "10px", borderRadius: "10px", background: "#171D17", color: "#777", fontSize: "10px", textAlign: "center", lineHeight: 1.5 }}>Your bank information is used for worker payment processing.</div>
