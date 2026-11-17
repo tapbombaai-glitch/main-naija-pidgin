@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { PIDGIN_500, getTodayPidgin } from "@/app/data/pidgin-500";
 
-const DAILY_RECORDING_LIMIT = 50;
+const DAILY_RECORDING_LIMIT = 30;
 
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
@@ -115,10 +115,6 @@ const YORUBA_15: string[] = [
 ];
 
 // IJAW / IZON - SENTENCES REQUIRE NATIVE SPEAKER VALIDATION
-// WARNING: THESE ARE DRAFT EXAMPLES ONLY - NOT VERIFIED CENTRAL IZON
-// WRITTEN AS EXAMPLES BY AI, NOT SUPPLIED BY AN IJAW SPEAKER
-// DO NOT CLASSIFY THESE RECORDINGS AS GENUINE IZON UNTIL A NATIVE SPEAKER CONFIRMS THEM
-// PROTECTED: Recording + Submission are BLOCKED in UI until validation is complete
 const IJAW_15: string[] = [
 "[DRAFT - NEEDS VALIDATION] Tobou, nua bomo? I bieke tobara se, I tobou ke emi, I dey talk am slow slow, make you hear am well well, no rush at all for this recording, make e reach 11 seconds.",
 "[DRAFT - NEEDS VALIDATION] Emi tobou tobara, I bieke emi, I dey talk am clear clear, make you hear am well well, I dey work for this place everyday, God go bless our work for this recording.",
@@ -137,7 +133,6 @@ const IJAW_15: string[] = [
 "[DRAFT - NEEDS VALIDATION] Tobou, make we start work today, I want everything go well, I dey talk am slow slow, no rush, make e reach 11 seconds for this recording.",
 ];
 
-// FIXED: STABLE SHUFFLE - Same order for same day + language, no change on refresh
 function seededRandom(seed: number) {
   let s = seed;
   return () => {
@@ -208,10 +203,9 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  // FIXED: Pidgin now uses getTodayPidgin() = 50 NEW sentences, stable order per day
   const allSentences: Record<string, string[]> = useMemo(() => {
     return {
-      Pidgin: shuffleArray([...new Set(getTodayPidgin())].slice(0, 50), `Pidgin-${recordingDayKey}`),
+      Pidgin: shuffleArray([...new Set(getTodayPidgin())].slice(0, 30), `Pidgin-${recordingDayKey}`),
       Hausa: shuffleArray(HAUSA_15, `Hausa-${recordingDayKey}`),
       Igbo: shuffleArray(IGBO_15, `Igbo-${recordingDayKey}`),
       Yoruba: shuffleArray(YORUBA_15, `Yoruba-${recordingDayKey}`),
@@ -256,7 +250,7 @@ export default function WorkersPage() {
   useEffect(() => {
     if (workerId === "WORKER") return;
     const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
-    try { const saved = localStorage.getItem(progressKey); if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(50, sentences.length)))); } else { setCurrentSentenceIndex(0); } } catch { setCurrentSentenceIndex(0); }
+    try { const saved = localStorage.getItem(progressKey); if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(30, sentences.length)))); } else { setCurrentSentenceIndex(0); } } catch { setCurrentSentenceIndex(0); }
     setAudioURL(null); setTimer(0);
   }, [workerId, selectedLang, recordingDayKey, sentences.length]);
 
@@ -272,7 +266,7 @@ export default function WorkersPage() {
         if (timerRef.current) { clearInterval(timerRef.current); }
         if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
         if (workerId !== "WORKER") { loadWorkerData(workerId); }
-        showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
+        showToast("🌅 NEW RECORDING DAY! Your 30-recording allowance has reset.");
       }
     };
     const interval = setInterval(checkRecordingDay, 15000);
@@ -360,7 +354,7 @@ export default function WorkersPage() {
       return;
     }
     if (!isRecording) {
-      if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
+      if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 30 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
     }
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
@@ -397,7 +391,7 @@ export default function WorkersPage() {
       return;
     }
     if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
-    if (taskProgress.today >= DAILY_RECORDING_LIMIT) { return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."); }
+    if (taskProgress.today >= DAILY_RECORDING_LIMIT) { return alert("You have completed your 30 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."); }
     if (currentSentenceIndex >= dailySentenceCount) { return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."); }
     if (!audioURL) return alert("🎤 Record first!");
     if (savingRecording) return;
@@ -484,7 +478,7 @@ export default function WorkersPage() {
         </div>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
-          <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 50) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
+          <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 30) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
           <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
@@ -519,8 +513,8 @@ export default function WorkersPage() {
             {isIjawDraft
               ? "Ijaw / Izon sentences are awaiting native-speaker validation."
               : taskProgress.today >= DAILY_RECORDING_LIMIT
-              ? "You have completed your 50 recordings for today. Come back at 5:00 p.m. for the next recording day."
-              : currentSentenceIndex >= Math.min(50, sentences.length)
+              ? "You have completed your 30 recordings for today. Come back at 5:00 p.m. for the next recording day."
+              : currentSentenceIndex >= Math.min(30, sentences.length)
               ? "You have completed all unique sentences available in this language today."
               : sentences[currentSentenceIndex]}
           </p></div>
@@ -539,7 +533,7 @@ export default function WorkersPage() {
             <div style={{ flex: 1.6 }}>
               {audioURL && isTooShort && (<div style={{ background: "#FF0000", color: "white", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>❌ FAIL! {timer}s - RED - Too short! Must reach 11!</div>)}
               {audioURL && isPass && (<div style={{ background: "#00E676", color: "black", padding: "8px", borderRadius: "10px", fontSize: "12px", fontWeight: "900", textAlign: "center", marginBottom: "6px" }}>{isPerfect ? `⭐ PERFECT! ${timer}s - GREEN - You don pass!` : `✅ PASS! ${timer}s - GREEN - You don pass!`}</div>)}
-              <button onClick={() => { if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; } saveAndNext(); }} disabled={isIjawDraft || !audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(50, sentences.length)} style={{ width: "100%", background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A", color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: timer < 11 && audioURL ? "2px solid #FF0000" : "none", fontWeight: "900", cursor: timer < 11 ? "not-allowed" : "pointer" }}>
+              <button onClick={() => { if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; } saveAndNext(); }} disabled={isIjawDraft || !audioURL || savingRecording || timer < 11 || taskProgress.today >= DAILY_RECORDING_LIMIT || currentSentenceIndex >= Math.min(30, sentences.length)} style={{ width: "100%", background: savingRecording ? "#1A3A1A" : !audioURL ? "#1A3A1A" : timer < 11 ? "#FF0000" : timer >= 11 ? "#00E676" : "#1A3A1A", color: timer < 11 && audioURL ? "white" : audioURL && !savingRecording ? "black" : "#666", padding: "14px", borderRadius: "12px", border: timer < 11 && audioURL ? "2px solid #FF0000" : "none", fontWeight: "900", cursor: timer < 11 ? "not-allowed" : "pointer" }}>
                 {savingRecording ? "⏳ SUBMITTING..." : !audioURL ? "Save & Next →" : timer < 11 ? `🔒 LOCKED - ${timer}s ❌ FAIL - Must reach 11` : isPerfect ? `💾 SUBMIT TO CHAIRMAN → ⭐ ${timer}s PERFECT!` : `💾 SUBMIT TO CHAIRMAN → ✅ ${timer}s PASS!`}
               </button>
               {audioURL && (<div style={{ display: "flex", gap: "4px", marginTop: "6px", justifyContent: "center" }}><span style={{ background: timer === 9 || timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>9 ❌ RED</span><span style={{ background: timer === 10 ? "#FF0000" : "#333", color: "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>10 ❌ RED</span><span style={{ background: timer === 11 ? "#00E676" : "#333", color: timer === 11 ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>11 ✅ GREEN</span><span style={{ background: isPerfect ? "#00E676" : "#333", color: isPerfect ? "black" : "white", padding: "3px 6px", borderRadius: "6px", fontSize: "10px", fontWeight: "900" }}>12 ⭐ GREEN</span></div>)}
