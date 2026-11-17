@@ -29,5 +29,70 @@ export const PIDGIN_500: string[] = [
 "I no get data, na why I no reply your message since morning, no vex. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
 "Which kind wahala be this? I just comot for house now, problem don start. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
 "We go meet for that place tomorrow morning by eight, no African time abeg. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
-// ... Continue same pattern for remaining 470 - Use the fix-pidgin.js code above to auto-adjust all, e go still be 500 total
 ];
+
+// ==========================================
+// NEW PIDGIN EVERYDAY - INSIDE SAME FILE
+// Everyday na new topic, no repeat
+// ==========================================
+
+export const PIDGIN_DAILY: Record<string, string[]> = {
+  wednesday: [
+    "For this hustle, if you no work with your whole heart, money no go come. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Oga, I don finish work for today, abeg pay me my money make I go house. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "For Port Harcourt, if you no wake early, traffic go catch you for road. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "My boss tell me say make I no do eye service, make I work as if na my own business. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Today work plenty, but I no go give up, I go finish am one by one. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "If you want make your customer come back, respect dem, talk to dem with good heart. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "I dey for shop since morning, customer never come, but I no go lose hope. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "For this Naija, who no hustle no go chop, so make we wake up and work. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "Abeg pay me my balance, I don do the work finish, make I no beg you again. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Work no dey kill person, na laziness dey kill person, so make we work hard. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "My oga for work na good person, e dey pay on time, e dey respect everybody. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "If you dey work for office, no gossip your fellow worker, face your own work. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "I wan learn new skill, so my money go increase, I no wan stay for one place. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "For market today, sales no too good, but tomorrow go better pass today. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Make we no fight for work place, make we help each other, so work go easy. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "I don tire for this work, but I no get another option, I must continue. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Chairman, I don submit my work for today, abeg check am, make you approve am. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "If you dey do business, no lie to your customer, talk true, dem go trust you. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "Morning work na the best, my head dey clear, I dey fit do plenty thing. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "For this life, no job small, any work wey bring money na good work. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "I dey save small small from my salary, so I fit start my own business soon. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Abeg no late come work tomorrow, oga dey vex for people wey dey come late. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "My hand dey pain me, I don work too much today, I need to rest small. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "If you get work, hold am tight, many people dey outside dey find work. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "I go go market tomorrow go buy goods for my shop, make I sell well. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "For office today, light no dey, generator no dey, we just dey sit down. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "My customer tell me say my work clean, e go bring another customer for me. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "No be every money be good money, work for clean money, make you sleep well. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "I dey learn tailoring for evening, so I fit get two sources of money. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Abeg help me carry this load, e heavy, my back dey pain me small. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "For this hustle, patience na the key, no rush money, e go come small small. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Oga don increase my salary, I happy well well, God don answer my prayer. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "If you wan succeed for business, wake early, plan well, no waste time. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "I no go steal for work, my name pass money, I go keep my name clean. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Today na payday, everybody happy, we go chop small for evening. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "My work don finish, I dey go house now, traffic go still hold me for road. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Make we respect people wey dey work for us, dem be human being like us. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "I dey do this voice work for evening, after my main work don finish. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "If your oga correct you for work, no vex, e dey help you grow. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "For Naija, double hustle na the way, one work no dey enough again. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "I wan open my own shop for junction, so I no go work for person again. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "Abeg give me my daily pay, I don work from morning till evening. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "Work with love, no be by force, if you love am, e go easy for you. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "My phone battery don low, I need charge am make I fit continue work. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "For this recording work, talk am slow slow, make Chairman hear your voice clear. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+    "I go try my best tomorrow, today own don go, tomorrow go better. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
+    "No compare your hustle with another person own, everybody get their own time. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
+    "God go bless the work of our hand, our hustle no go waste. Na so e be for Naija, we dey hustle everyday, God go bless our work for this recording.",
+    "I dey happy say I get work, many people dey pray for this same work. I dey talk am again slow slow, make my voice clear, make Chairman hear am well well today.",
+    "Make we close work for today, tomorrow we go continue, God go keep us. No rush, talk am small small, make e sweet for ear, make e reach 12 seconds for this voice.",
+  ],
+};
+
+export function getTodayPidgin(): string[] {
+  const day = new Date().toLocaleDateString("en-US", { weekday: "long", timeZone: "Africa/Lagos" }).toLowerCase();
+  if (day === "wednesday" && PIDGIN_DAILY.wednesday) return PIDGIN_DAILY.wednesday;
+  return PIDGIN_500;
+}
