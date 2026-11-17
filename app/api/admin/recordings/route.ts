@@ -10,10 +10,13 @@ const SIGNED_URL_EXPIRY = 600;
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
-    throw new Error("Supabase server configuration is missing.");
+    throw new Error(
+      "Supabase server configuration is missing."
+    );
   }
 
   return createClient(url, serviceKey, {
@@ -24,8 +27,11 @@ function getAdminClient() {
   });
 }
 
-async function verifyChairman(request: NextRequest) {
-  const authorization = request.headers.get("authorization");
+async function verifyChairman(
+  request: NextRequest
+) {
+  const authorization =
+    request.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
     return null;
@@ -33,31 +39,43 @@ async function verifyChairman(request: NextRequest) {
 
   const token = authorization.slice(7);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  const anonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     return null;
   }
 
-  const authClient = createClient(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
+  const authClient = createClient(
+    url,
+    anonKey,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    },
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
 
   const {
     data: { user },
     error,
-  } = await authClient.auth.getUser(token);
+  } =
+    await authClient.auth.getUser(token);
 
-  if (error || !user || user.email !== CHAIRMAN_EMAIL) {
+  if (
+    error ||
+    !user ||
+    user.email !== CHAIRMAN_EMAIL
+  ) {
     return null;
   }
 
@@ -72,7 +90,10 @@ async function verifyChairman(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profileError || profile?.is_chairman !== true) {
+  if (
+    profileError ||
+    profile?.is_chairman !== true
+  ) {
     return null;
   }
 
@@ -85,28 +106,43 @@ function getStorageFile(
 ) {
   try {
     const fileUrl = new URL(audioUrl);
-    const configuredUrl = new URL(supabaseUrl);
+    const configuredUrl =
+      new URL(supabaseUrl);
 
-    if (fileUrl.origin !== configuredUrl.origin) {
+    if (
+      fileUrl.origin !==
+      configuredUrl.origin
+    ) {
       return null;
     }
 
-    const match = fileUrl.pathname.match(
-      /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
-    );
+    const match =
+      fileUrl.pathname.match(
+        /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
+      );
 
     if (!match) {
       return null;
     }
 
-    const bucket = decodeURIComponent(match[1]);
-    const path = decodeURIComponent(match[2]);
+    const bucket =
+      decodeURIComponent(match[1]);
 
-    if (!["voice-clips", "voices"].includes(bucket)) {
+    const path =
+      decodeURIComponent(match[2]);
+
+    if (
+      !["voice-clips", "voices"].includes(
+        bucket
+      )
+    ) {
       return null;
     }
 
-    if (!path || path.includes("..")) {
+    if (
+      !path ||
+      path.includes("..")
+    ) {
       return null;
     }
 
@@ -123,12 +159,14 @@ async function getRecordingAudioUrl(
   admin: ReturnType<typeof getAdminClient>,
   recording: any
 ) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   if (!supabaseUrl) {
     return {
       signedUrl: null,
-      audioError: "Supabase URL is missing.",
+      audioError:
+        "Supabase URL is missing.",
     };
   }
 
@@ -136,18 +174,24 @@ async function getRecordingAudioUrl(
   let path: string | null = null;
 
   if (recording.audio_url) {
-    const storageFile = getStorageFile(
-      recording.audio_url,
-      supabaseUrl
-    );
+    const storageFile =
+      getStorageFile(
+        recording.audio_url,
+        supabaseUrl
+      );
 
     if (storageFile) {
-      bucket = storageFile.bucket;
-      path = storageFile.path;
+      bucket =
+        storageFile.bucket;
+      path =
+        storageFile.path;
     }
   }
 
-  if (!path && recording.audio_path) {
+  if (
+    !path &&
+    recording.audio_path
+  ) {
     bucket = "voices";
     path = recording.audio_path;
   }
@@ -163,11 +207,18 @@ async function getRecordingAudioUrl(
   const {
     data,
     error,
-  } = await admin.storage
-    .from(bucket)
-    .createSignedUrl(path, SIGNED_URL_EXPIRY);
+  } =
+    await admin.storage
+      .from(bucket)
+      .createSignedUrl(
+        path,
+        SIGNED_URL_EXPIRY
+      );
 
-  if (error || !data?.signedUrl) {
+  if (
+    error ||
+    !data?.signedUrl
+  ) {
     return {
       signedUrl: null,
       audioError:
@@ -181,25 +232,50 @@ async function getRecordingAudioUrl(
   };
 }
 
-export async function GET(request: NextRequest) {
+/* =========================================================
+   GET
+   ========================================================= */
+
+export async function GET(
+  request: NextRequest
+) {
   try {
-    const admin = await verifyChairman(request);
+    const admin =
+      await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
-        { error: "Chairman access required." },
+        {
+          error:
+            "Chairman access required.",
+        },
         { status: 403 }
       );
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } =
+      new URL(request.url);
 
-    const workerId = searchParams.get("worker_id");
-    const status = searchParams.get("status");
+    const workerId =
+      searchParams.get(
+        "worker_id"
+      );
+
+    const status =
+      searchParams.get("status");
+
+    const qualityStatus =
+      searchParams.get(
+        "quality_status"
+      );
 
     const limit = Math.min(
       Math.max(
-        Number(searchParams.get("limit") || 100),
+        Number(
+          searchParams.get(
+            "limit"
+          ) || 100
+        ),
         1
       ),
       100
@@ -208,18 +284,34 @@ export async function GET(request: NextRequest) {
     let query = admin
       .from("recordings")
       .select("*")
-      .eq("hidden_from_review", false)
+      .eq(
+        "hidden_from_review",
+        false
+      )
       .order("created_at", {
         ascending: false,
       })
       .limit(limit);
 
     if (workerId) {
-      query = query.eq("worker_id", workerId);
+      query = query.eq(
+        "worker_id",
+        workerId
+      );
     }
 
     if (status) {
-      query = query.eq("status", status);
+      query = query.eq(
+        "status",
+        status
+      );
+    }
+
+    if (qualityStatus) {
+      query = query.eq(
+        "quality_status",
+        qualityStatus
+      );
     }
 
     const {
@@ -231,21 +323,26 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    const recordings = await Promise.all(
-      (data || []).map(async (recording) => {
-        const audio =
-          await getRecordingAudioUrl(
-            admin,
-            recording
-          );
+    const recordings =
+      await Promise.all(
+        (data || []).map(
+          async (recording) => {
+            const audio =
+              await getRecordingAudioUrl(
+                admin,
+                recording
+              );
 
-        return {
-          ...recording,
-          signedUrl: audio.signedUrl,
-          audioError: audio.audioError,
-        };
-      })
-    );
+            return {
+              ...recording,
+              signedUrl:
+                audio.signedUrl,
+              audioError:
+                audio.audioError,
+            };
+          }
+        )
+      );
 
     return NextResponse.json(
       {
@@ -255,11 +352,17 @@ export async function GET(request: NextRequest) {
         headers: {
           "Cache-Control":
             "no-store, no-cache, must-revalidate",
-          Pragma: "no-cache",
+          Pragma:
+            "no-cache",
         },
       }
     );
   } catch (error: any) {
+    console.error(
+      "Could not load recordings:",
+      error
+    );
+
     return NextResponse.json(
       {
         error:
@@ -273,14 +376,22 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+/* =========================================================
+   POST
+   ========================================================= */
+
+export async function POST(
+  request: NextRequest
+) {
   try {
-    const admin = await verifyChairman(request);
+    const admin =
+      await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
         {
-          error: "Chairman access required.",
+          error:
+            "Chairman access required.",
         },
         {
           status: 403,
@@ -288,14 +399,136 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const id = body.id;
-    const newStatus = body.status;
+
+    /*
+     * -------------------------------------------------------
+     * QUALITY UPDATE
+     * -------------------------------------------------------
+     *
+     * CLEAN / NOISY is independent of the
+     * final APPROVED / REJECTED decision.
+     *
+     * It does NOT:
+     * - pay the worker
+     * - change earnings
+     * - approve the recording
+     * - reject the recording
+     * - delete the recording
+     * - delete the audio
+     */
+
+    const qualityStatus =
+      body.quality_status;
+
+    if (
+      qualityStatus !==
+        undefined
+    ) {
+      if (
+        !id ||
+        ![
+          "clean",
+          "noisy",
+        ].includes(
+          qualityStatus
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "A valid recording ID and quality status are required.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (
+        !/^[0-9a-fA-F-]{36}$/.test(
+          id
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid recording ID.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      const {
+        data:
+          updatedRecording,
+        error:
+          updateError,
+      } = await admin
+        .from("recordings")
+        .update({
+          quality_status:
+            qualityStatus,
+        })
+        .eq("id", id)
+        .select(
+          "id, worker_id, status, is_approved, quality_status, earnings, earnings_paid"
+        )
+        .single();
+
+      if (updateError) {
+        console.error(
+          "Quality status update error:",
+          updateError
+        );
+
+        return NextResponse.json(
+          {
+            error:
+              "Could not save recording quality: " +
+              updateError.message,
+          },
+          {
+            status: 500,
+          }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message:
+          qualityStatus ===
+          "clean"
+            ? "Recording marked CLEAN."
+            : "Recording marked NOISY.",
+        recording:
+          updatedRecording,
+      });
+    }
+
+    /*
+     * -------------------------------------------------------
+     * FINAL APPROVAL / REJECTION
+     * -------------------------------------------------------
+     *
+     * Existing approval RPC remains untouched.
+     * This protects your current earnings/payment logic.
+     */
+
+    const newStatus =
+      body.status;
 
     if (
       !id ||
-      !["approved", "rejected"].includes(
+      ![
+        "approved",
+        "rejected",
+      ].includes(
         newStatus
       )
     ) {
@@ -310,10 +543,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+    if (
+      !/^[0-9a-fA-F-]{36}$/.test(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Invalid recording ID.",
+          error:
+            "Invalid recording ID.",
         },
         {
           status: 400,
@@ -326,14 +564,18 @@ export async function POST(request: NextRequest) {
     const {
       data: rpcResult,
       error: rpcError,
-    } = await admin.rpc(
-      "approve_recording_atomic",
-      {
-        p_recording_id: id,
-        p_new_status: newStatus,
-        p_earnings_amount: amount,
-      }
-    );
+    } =
+      await admin.rpc(
+        "approve_recording_atomic",
+        {
+          p_recording_id:
+            id,
+          p_new_status:
+            newStatus,
+          p_earnings_amount:
+            amount,
+        }
+      );
 
     if (rpcError) {
       console.error(
@@ -367,21 +609,24 @@ export async function POST(request: NextRequest) {
     }
 
     const {
-      data: updatedRecording,
+      data:
+        updatedRecording,
     } = await admin
       .from("recordings")
       .select(
-        "id, worker_id, status, is_approved, earnings, earnings_paid"
+        "id, worker_id, status, is_approved, quality_status, earnings, earnings_paid"
       )
       .eq("id", id)
       .single();
 
     return NextResponse.json({
       success: true,
-      message: rpcResult.message,
+      message:
+        rpcResult.message,
       earnings_added:
         rpcResult.earnings_added,
-      recording: updatedRecording,
+      recording:
+        updatedRecording,
     });
   } catch (error: any) {
     console.error(
@@ -402,26 +647,33 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/*
- * DELETE = hide from Chairman Review only.
+/* =========================================================
+   DELETE
+   =========================================================
  *
- * IMPORTANT:
- * - Does NOT delete the recording row.
- * - Does NOT delete the audio file.
- * - Does NOT touch Supabase Storage.
- * - Does NOT affect worker earnings.
- * - Does NOT affect approval history.
+ * DELETE only hides the recording from
+ * the Chairman review screen.
+ *
+ * It does NOT:
+ * - delete the database row
+ * - delete the audio
+ * - change earnings
+ * - change approval history
+ * - remove worker payment history
  */
+
 export async function DELETE(
   request: NextRequest
 ) {
   try {
-    const admin = await verifyChairman(request);
+    const admin =
+      await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
         {
-          error: "Chairman access required.",
+          error:
+            "Chairman access required.",
         },
         {
           status: 403,
@@ -429,7 +681,8 @@ export async function DELETE(
       );
     }
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const id = body.id;
 
@@ -445,10 +698,15 @@ export async function DELETE(
       );
     }
 
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+    if (
+      !/^[0-9a-fA-F-]{36}$/.test(
+        id
+      )
+    ) {
       return NextResponse.json(
         {
-          error: "Invalid recording ID.",
+          error:
+            "Invalid recording ID.",
         },
         {
           status: 400,
@@ -459,11 +717,14 @@ export async function DELETE(
     const {
       data: recording,
       error: findError,
-    } = await admin
-      .from("recordings")
-      .select("id, hidden_from_review")
-      .eq("id", id)
-      .maybeSingle();
+    } =
+      await admin
+        .from("recordings")
+        .select(
+          "id, hidden_from_review"
+        )
+        .eq("id", id)
+        .maybeSingle();
 
     if (findError) {
       throw findError;
@@ -472,7 +733,8 @@ export async function DELETE(
     if (!recording) {
       return NextResponse.json(
         {
-          error: "Recording not found.",
+          error:
+            "Recording not found.",
         },
         {
           status: 404,
@@ -485,7 +747,8 @@ export async function DELETE(
     } = await admin
       .from("recordings")
       .update({
-        hidden_from_review: true,
+        hidden_from_review:
+          true,
       })
       .eq("id", id);
 
