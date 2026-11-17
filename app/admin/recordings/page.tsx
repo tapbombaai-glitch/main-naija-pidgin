@@ -9,34 +9,102 @@ const supabase = createClient();
 type RecordingStatus =
   | "pending"
   | "approved"
+  | "rejected"
+  | "clean"
+  | "noisy";
+
+type Filter =
+  | "all"
+  | "pending"
+  | "clean"
+  | "noisy"
+  | "approved"
   | "rejected";
 
 function getRecordingStatus(
   recording: any
 ): RecordingStatus {
-  if (recording.status === "rejected") {
-    return "rejected";
+  const qualityStatus = String(
+    recording.quality_status || ""
+  ).toLowerCase();
+
+  const status = String(
+    recording.status || ""
+  ).toLowerCase();
+
+  /*
+   * Quality status takes priority.
+   * This allows CLEAN / NOISY to exist separately
+   * from the final APPROVED / REJECTED decision.
+   */
+  if (qualityStatus === "noisy") {
+    return "noisy";
+  }
+
+  if (qualityStatus === "clean") {
+    return "clean";
   }
 
   if (
-    recording.status === "approved" &&
+    status === "approved" &&
     recording.is_approved === true
   ) {
     return "approved";
   }
 
+  if (status === "rejected") {
+    return "rejected";
+  }
+
   return "pending";
+}
+
+function getStatusStyle(
+  status: RecordingStatus
+) {
+  switch (status) {
+    case "clean":
+      return {
+        background: "#052e16",
+        color: "#4ade80",
+      };
+
+    case "noisy":
+      return {
+        background: "#431407",
+        color: "#fb923c",
+      };
+
+    case "approved":
+      return {
+        background: "#064e3b",
+        color: "#6ee7b7",
+      };
+
+    case "rejected":
+      return {
+        background: "#450a0a",
+        color: "#f87171",
+      };
+
+    default:
+      return {
+        background: "#422006",
+        color: "#fbbf24",
+      };
+  }
 }
 
 export default function RecordingsPage() {
   const [recordings, setRecordings] =
     useState<any[]>([]);
 
-  const [filter, setFilter] = useState<
-    "all" | "pending" | "approved" | "rejected"
-  >("all");
+  const [filter, setFilter] =
+    useState<Filter>("all");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
+
   const [busyId, setBusyId] =
     useState<string | null>(null);
 
@@ -54,17 +122,32 @@ export default function RecordingsPage() {
 
     pending: recordings.filter(
       (r) =>
-        getRecordingStatus(r) === "pending"
+        getRecordingStatus(r) ===
+        "pending"
+    ).length,
+
+    clean: recordings.filter(
+      (r) =>
+        getRecordingStatus(r) ===
+        "clean"
+    ).length,
+
+    noisy: recordings.filter(
+      (r) =>
+        getRecordingStatus(r) ===
+        "noisy"
     ).length,
 
     approved: recordings.filter(
       (r) =>
-        getRecordingStatus(r) === "approved"
+        getRecordingStatus(r) ===
+        "approved"
     ).length,
 
     rejected: recordings.filter(
       (r) =>
-        getRecordingStatus(r) === "rejected"
+        getRecordingStatus(r) ===
+        "rejected"
     ).length,
   };
 
@@ -104,13 +187,15 @@ export default function RecordingsPage() {
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization:
+              `Bearer ${token}`,
           },
           cache: "no-store",
         }
       );
 
-      const result = await response.json();
+      const result =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -136,6 +221,93 @@ export default function RecordingsPage() {
       setMessageType("error");
     } finally {
       setLoading(false);
+    }
+  }
+
+  /*
+   * Set recording quality:
+   *
+   * CLEAN = audio quality is good enough
+   * NOISY = audio has unacceptable noise/problem
+   *
+   * This does NOT delete the recording.
+   */
+  async function handleQuality(
+    id: string,
+    quality:
+      | "clean"
+      | "noisy"
+  ) {
+    if (busyId) return;
+
+    const confirmed =
+      window.confirm(
+        quality === "clean"
+          ? "Mark this recording as CLEAN?"
+          : "Mark this recording as NOISY?\n\nThe recording will NOT be deleted."
+      );
+
+    if (!confirmed) return;
+
+    setBusyId(id);
+    setMessage("");
+    setMessageType("");
+
+    try {
+      const token =
+        await getToken();
+
+      const response =
+        await fetch(
+          "/api/admin/recordings",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization:
+                `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              id,
+              quality_status:
+                quality,
+            }),
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+            "Could not update recording quality."
+        );
+      }
+
+      setMessage(
+        result.message ||
+          `Recording marked ${quality.toUpperCase()}.`
+      );
+
+      setMessageType("success");
+
+      await loadAllRecordings();
+    } catch (error: any) {
+      console.error(
+        "Recording quality update failed:",
+        error
+      );
+
+      setMessage(
+        error.message ||
+          "Could not update recording quality."
+      );
+
+      setMessageType("error");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -310,6 +482,43 @@ export default function RecordingsPage() {
       }
     );
 
+  const filters: {
+    key: Filter;
+    label: string;
+    count: number;
+  }[] = [
+    {
+      key: "all",
+      label: "ALL",
+      count: counts.total,
+    },
+    {
+      key: "pending",
+      label: "PENDING",
+      count: counts.pending,
+    },
+    {
+      key: "clean",
+      label: "CLEAN",
+      count: counts.clean,
+    },
+    {
+      key: "noisy",
+      label: "NOISY",
+      count: counts.noisy,
+    },
+    {
+      key: "approved",
+      label: "APPROVED",
+      count: counts.approved,
+    },
+    {
+      key: "rejected",
+      label: "REJECTED",
+      count: counts.rejected,
+    },
+  ];
+
   return (
     <main
       style={{
@@ -348,10 +557,35 @@ export default function RecordingsPage() {
           lineHeight: 1.7,
         }}
       >
-        Review worker recordings and
-        approve or reject submissions.
+        Listen to worker recordings,
+        check audio quality, then approve
+        or reject submissions.
       </p>
 
+      {/* QUALITY WARNING */}
+      <div
+        style={{
+          marginTop: "14px",
+          padding: "12px",
+          borderRadius: "10px",
+          background: "#1c1208",
+          border: "1px solid #7c2d12",
+          color: "#fdba74",
+          fontSize: "11px",
+          lineHeight: 1.6,
+        }}
+      >
+        <strong>
+          🔊 QUALITY CHECK:
+        </strong>{" "}
+        Listen before approval. Mark
+        recordings with unacceptable noise
+        as <strong>NOISY</strong>. Good
+        recordings can be marked{" "}
+        <strong>CLEAN</strong>.
+      </div>
+
+      {/* COUNTS */}
       <div
         style={{
           display: "grid",
@@ -373,9 +607,19 @@ export default function RecordingsPage() {
             "#fbbf24",
           ],
           [
+            "CLEAN",
+            counts.clean,
+            "#4ade80",
+          ],
+          [
+            "NOISY",
+            counts.noisy,
+            "#fb923c",
+          ],
+          [
             "APPROVED",
             counts.approved,
-            "#4ade80",
+            "#6ee7b7",
           ],
           [
             "REJECTED",
@@ -387,10 +631,12 @@ export default function RecordingsPage() {
             <div
               key={String(label)}
               style={{
-                background: "#111a15",
+                background:
+                  "#111a15",
                 border:
                   "1px solid #243329",
-                borderRadius: "12px",
+                borderRadius:
+                  "12px",
                 padding: "14px",
               }}
             >
@@ -408,7 +654,8 @@ export default function RecordingsPage() {
                 style={{
                   fontSize: "24px",
                   fontWeight: 900,
-                  color: String(color),
+                  color:
+                    String(color),
                   marginTop: "5px",
                 }}
               >
@@ -419,6 +666,7 @@ export default function RecordingsPage() {
         )}
       </div>
 
+      {/* MESSAGE */}
       {message && (
         <div
           role="status"
@@ -427,15 +675,18 @@ export default function RecordingsPage() {
             padding: "12px",
             borderRadius: "9px",
             background:
-              messageType === "success"
+              messageType ===
+              "success"
                 ? "#052e16"
                 : "#450a0a",
             border:
-              messageType === "success"
+              messageType ===
+              "success"
                 ? "1px solid #166534"
                 : "1px solid #991b1b",
             color:
-              messageType === "success"
+              messageType ===
+              "success"
                 ? "#86efac"
                 : "#fecaca",
             fontSize: "12px",
@@ -447,6 +698,7 @@ export default function RecordingsPage() {
         </div>
       )}
 
+      {/* REFRESH */}
       <button
         onClick={
           loadAllRecordings
@@ -471,62 +723,58 @@ export default function RecordingsPage() {
           : "↻ Refresh Recordings"}
       </button>
 
+      {/* FILTERS */}
       <div
         style={{
           display: "flex",
           gap: "7px",
           marginTop: "16px",
           overflowX: "auto",
-          paddingBottom: "5px",
+          paddingBottom: "7px",
         }}
       >
-        {(
-          [
-            "all",
-            "pending",
-            "approved",
-            "rejected",
-          ] as const
-        ).map((f) => (
-          <button
-            key={f}
-            onClick={() =>
-              setFilter(f)
-            }
-            style={{
-              background:
-                filter === f
-                  ? "#22c55e"
-                  : "#17231b",
-              color:
-                filter === f
-                  ? "#041008"
-                  : "#cbd5e1",
-              border:
-                "1px solid #26372c",
-              padding:
-                "9px 13px",
-              borderRadius:
-                "20px",
-              fontSize: "10px",
-              fontWeight: 900,
-              whiteSpace:
-                "nowrap",
-            }}
-          >
-            {f.toUpperCase()} (
-            {f === "all"
-              ? counts.total
-              : f === "pending"
-              ? counts.pending
-              : f === "approved"
-              ? counts.approved
-              : counts.rejected}
-            )
-          </button>
-        ))}
+        {filters.map(
+          ({
+            key,
+            label,
+            count,
+          }) => (
+            <button
+              key={key}
+              onClick={() =>
+                setFilter(key)
+              }
+              style={{
+                background:
+                  filter === key
+                    ? key ===
+                      "noisy"
+                      ? "#ea580c"
+                      : "#22c55e"
+                    : "#17231b",
+                color:
+                  filter === key
+                    ? "#041008"
+                    : "#cbd5e1",
+                border:
+                  "1px solid #26372c",
+                padding:
+                  "9px 13px",
+                borderRadius:
+                  "20px",
+                fontSize: "10px",
+                fontWeight: 900,
+                whiteSpace:
+                  "nowrap",
+              }}
+            >
+              {label} ({count})
+            </button>
+          )
+        )}
       </div>
 
+      {/* RECORDINGS */}
       <div
         style={{
           display: "grid",
@@ -539,6 +787,11 @@ export default function RecordingsPage() {
             const status =
               getRecordingStatus(
                 recording
+              );
+
+            const statusStyle =
+              getStatusStyle(
+                status
               );
 
             const isBusy =
@@ -558,6 +811,7 @@ export default function RecordingsPage() {
                   padding: "13px",
                 }}
               >
+                {/* HEADER */}
                 <div
                   style={{
                     display:
@@ -584,21 +838,9 @@ export default function RecordingsPage() {
                   <span
                     style={{
                       background:
-                        status ===
-                        "pending"
-                          ? "#422006"
-                          : status ===
-                            "approved"
-                          ? "#052e16"
-                          : "#450a0a",
+                        statusStyle.background,
                       color:
-                        status ===
-                        "pending"
-                          ? "#fbbf24"
-                          : status ===
-                            "approved"
-                          ? "#4ade80"
-                          : "#f87171",
+                        statusStyle.color,
                       padding:
                         "5px 9px",
                       borderRadius:
@@ -613,6 +855,7 @@ export default function RecordingsPage() {
                   </span>
                 </div>
 
+                {/* RECORDING INFO */}
                 <p
                   style={{
                     color:
@@ -660,6 +903,7 @@ export default function RecordingsPage() {
                   ).toLocaleString()}
                 </p>
 
+                {/* AUDIO PLAYER */}
                 <div
                   style={{
                     background:
@@ -717,9 +961,11 @@ export default function RecordingsPage() {
                             recording.id
                           ) {
                             audio.pause();
+
                             setPlayingId(
                               null
                             );
+
                             return;
                           }
 
@@ -798,6 +1044,128 @@ export default function RecordingsPage() {
                   )}
                 </div>
 
+                {/* QUALITY CONTROLS */}
+                <div
+                  style={{
+                    marginTop:
+                      "12px",
+                    padding:
+                      "10px",
+                    background:
+                      "#0b120e",
+                    border:
+                      "1px solid #26372c",
+                    borderRadius:
+                      "10px",
+                  }}
+                >
+                  <div
+                    style={{
+                      color:
+                        "#94a3b8",
+                      fontSize:
+                        "9px",
+                      fontWeight:
+                        900,
+                      marginBottom:
+                        "8px",
+                      letterSpacing:
+                        "0.5px",
+                    }}
+                  >
+                    AUDIO QUALITY
+                  </div>
+
+                  <div
+                    style={{
+                      display:
+                        "flex",
+                      gap: "8px",
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        handleQuality(
+                          recording.id,
+                          "clean"
+                        )
+                      }
+                      disabled={
+                        busyId !==
+                        null
+                      }
+                      style={{
+                        flex: 1,
+                        background:
+                          status ===
+                          "clean"
+                            ? "#166534"
+                            : "#052e16",
+                        border:
+                          "1px solid #22c55e",
+                        color:
+                          "#86efac",
+                        padding:
+                          "10px 5px",
+                        borderRadius:
+                          "8px",
+                        fontSize:
+                          "10px",
+                        fontWeight:
+                          900,
+                        opacity:
+                          busyId !==
+                          null
+                            ? 0.55
+                            : 1,
+                      }}
+                    >
+                      ✓ CLEAN
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleQuality(
+                          recording.id,
+                          "noisy"
+                        )
+                      }
+                      disabled={
+                        busyId !==
+                        null
+                      }
+                      style={{
+                        flex: 1,
+                        background:
+                          status ===
+                          "noisy"
+                            ? "#c2410c"
+                            : "#431407",
+                        border:
+                          "1px solid #f97316",
+                        color:
+                          "#fdba74",
+                        padding:
+                          "10px 5px",
+                        borderRadius:
+                          "8px",
+                        fontSize:
+                          "10px",
+                        fontWeight:
+                          900,
+                        opacity:
+                          busyId !==
+                          null
+                            ? 0.55
+                            : 1,
+                      }}
+                    >
+                      ⚠ NOISY
+                    </button>
+                  </div>
+                </div>
+
+                {/* FINAL APPROVAL */}
                 <div
                   style={{
                     display:
@@ -902,7 +1270,7 @@ export default function RecordingsPage() {
                   </button>
                 </div>
 
-                {/* DELETE / REMOVE FROM REVIEW */}
+                {/* DELETE / REMOVE */}
                 <button
                   onClick={() =>
                     handleDelete(
