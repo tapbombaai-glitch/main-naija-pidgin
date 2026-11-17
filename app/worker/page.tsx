@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { PIDGIN_500 } from "@/app/data/pidgin-500";
+import { PIDGIN_500, getTodayPidgin } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 50;
 
@@ -115,7 +115,7 @@ const YORUBA_15: string[] = [
 ];
 
 // IJAW / IZON - SENTENCES REQUIRE NATIVE SPEAKER VALIDATION
-// ⚠️ WARNING: THESE ARE DRAFT EXAMPLES ONLY - NOT VERIFIED CENTRAL IZON
+// WARNING: THESE ARE DRAFT EXAMPLES ONLY - NOT VERIFIED CENTRAL IZON
 // WRITTEN AS EXAMPLES BY AI, NOT SUPPLIED BY AN IJAW SPEAKER
 // DO NOT CLASSIFY THESE RECORDINGS AS GENUINE IZON UNTIL A NATIVE SPEAKER CONFIRMS THEM
 // PROTECTED: Recording + Submission are BLOCKED in UI until validation is complete
@@ -137,10 +137,27 @@ const IJAW_15: string[] = [
 "[DRAFT - NEEDS VALIDATION] Tobou, make we start work today, I want everything go well, I dey talk am slow slow, no rush, make e reach 11 seconds for this recording.",
 ];
 
-function shuffleArray<T>(arr: T[]): T[] {
+// FIXED: STABLE SHUFFLE - Same order for same day + language, no change on refresh
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+function hashString(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+function shuffleArray<T>(arr: T[], seedKey = "default"): T[] {
   const a = [...arr];
+  const rand = seededRandom(hashString(seedKey) || 12345);
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -181,7 +198,6 @@ export default function WorkersPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
-  // ✅ FIX ONLY: auto-stop timer for 15 sec
   const stopTimeoutRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const TOTAL_RECORDING_TARGET = 500;
@@ -192,17 +208,19 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  const allSentences: Record<string, string[]> = useMemo(() => ({
-    Pidgin: shuffleArray([...new Set(PIDGIN_500)].slice(0, 30)),
-    Hausa: shuffleArray(HAUSA_15),
-    Igbo: shuffleArray(IGBO_15),
-    Yoruba: shuffleArray(YORUBA_15),
-    "Akwa Ibom": shuffleArray([...new Set(AKWAIBOM_500)]),
-    "Ijaw / Izon": shuffleArray(IJAW_15),
-  }), []);
+  // FIXED: Pidgin now uses getTodayPidgin() = 50 NEW sentences, stable order per day
+  const allSentences: Record<string, string[]> = useMemo(() => {
+    return {
+      Pidgin: shuffleArray([...new Set(getTodayPidgin())].slice(0, 50), `Pidgin-${recordingDayKey}`),
+      Hausa: shuffleArray(HAUSA_15, `Hausa-${recordingDayKey}`),
+      Igbo: shuffleArray(IGBO_15, `Igbo-${recordingDayKey}`),
+      Yoruba: shuffleArray(YORUBA_15, `Yoruba-${recordingDayKey}`),
+      "Akwa Ibom": shuffleArray([...new Set(AKWAIBOM_500)], `AkwaIbom-${recordingDayKey}`),
+      "Ijaw / Izon": shuffleArray(IJAW_15, `Ijaw-${recordingDayKey}`),
+    };
+  }, [recordingDayKey]);
 
   const sentences = allSentences[selectedLang] || allSentences["Pidgin"];
-  // 1. IJAW PROTECTION FLAG
   const isIjawDraft = selectedLang === "Ijaw / Izon";
 
   useEffect(() => {
@@ -337,7 +355,6 @@ export default function WorkersPage() {
   }
 
   const toggleRecording = async () => {
-    // 2. BLOCK STARTING AN IJAW RECORDING
     if (isIjawDraft) {
       alert("Ijaw / Izon recording is temporarily unavailable. The sentences must first be checked and approved by a native Ijaw speaker.");
       return;
@@ -346,7 +363,6 @@ export default function WorkersPage() {
       if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
     }
-    // ✅ FIX ONLY: manual stop - clear auto-stop + timer
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
@@ -355,14 +371,12 @@ export default function WorkersPage() {
       mediaRecorderRef.current = mr; audioChunksRef.current = [];
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       mr.onstop = () => {
-        // ✅ FIX ONLY: stop timer + auto-stop when recording ends
         if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
         if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
         const blob = new Blob(audioChunksRef.current, { type: "audio/webm" }); setAudioURL(URL.createObjectURL(blob)); stream.getTracks().forEach((t) => t.stop());
       };
       mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
-      // ✅ FIX ONLY: AUTO-STOP at exactly 15 seconds
       if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
       stopTimeoutRef.current = setTimeout(() => {
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
@@ -378,7 +392,6 @@ export default function WorkersPage() {
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
-    // 3. BLOCK SUBMISSION OF IJAW RECORDINGS - SECOND CHECK
     if (isIjawDraft) {
       alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete.");
       return;
@@ -489,28 +502,14 @@ export default function WorkersPage() {
           ))}
         </div>
         {isIjawDraft && (
-          <div style={{
-            background: "#2A1A00",
-            border: "1px solid #FFA500",
-            borderRadius: "10px",
-            padding: "14px",
-            marginTop: "10px",
-            fontSize: "12px",
-            color: "#FFD580",
-            lineHeight: 1.7,
-            fontWeight: "700"
-          }}>
+          <div style={{ background: "#2A1A00", border: "1px solid #FFA500", borderRadius: "10px", padding: "14px", marginTop: "10px", fontSize: "12px", color: "#FFD580", lineHeight: 1.7, fontWeight: "700" }}>
             🌊 IJAW / IZON — VALIDATION IN PROGRESS
             <br /><br />
-            Recording is temporarily disabled because the current sentences
-            are AI-generated drafts and have not been verified by native
-            Ijaw / Izon speakers.
+            Recording is temporarily disabled because the current sentences are AI-generated drafts and have not been verified by native Ijaw / Izon speakers.
             <br /><br />
-            We want genuine Ijaw voices and correct native-language sentences
-            in our Nigerian voice dataset.
+            We want genuine Ijaw voices and correct native-language sentences in our Nigerian voice dataset.
             <br /><br />
-            Native Ijaw speakers can contact the Chairman to help validate
-            the sentences.
+            Native Ijaw speakers can contact the Chairman to help validate the sentences.
           </div>
         )}
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
