@@ -36,6 +36,8 @@ const supabaseAdmin = createClient(
 
 // =====================================================
 // MAIN NAIJA PIDGIN CUSTOMER V1 VOICES
+// FIX 1: Chairman back to YOUR ORIGINAL VOICE - trUA...
+// GVstk... na Arab man, we don remove am
 // =====================================================
 
 const CUSTOMER_VOICES: Record<
@@ -52,17 +54,26 @@ const CUSTOMER_VOICES: Record<
 
   "chairman-voice": {
     name: "Chairman Voice",
-    elevenlabsVoiceId: "GVstkJ8LC6TRgAgOZ5IA",
+    elevenlabsVoiceId: "trUA3YUtv2X5gHxPt97C",
   },
 };
 
 // =====================================================
-// PROFESSIONAL NAIJA TEXT FIX
-// Fixes "Pidgin" -> "Pijin" so ElevenLabs no go talk "Pigeon"
+// FIX 2: STRONG NAIJA TEXT FIX
+// Fixes Pidgin, Naija, Main, Chairman so ElevenLabs no go
+// talk "Pigeon" or "night night agent"
 // =====================================================
 
 function normalizeNaijaText(text: string): string {
-  return text.replace(/\bPidgin\b/gi, "Pijin");
+  let t = text;
+  t = t.replace(/\bPidgin\b/gi, "Pee-jin");
+  t = t.replace(/\bPijin\b/gi, "Pee-jin");
+  t = t.replace(/\bNaija\b/gi, "Nai-ja");
+  t = t.replace(/\bMain\b/gi, "Mayn");
+  t = t.replace(/\bChairman\b/gi, "Chair-man");
+  t = t.replace(/\bWetin\b/gi, "We-tin");
+  t = t.replace(/\bUna\b/gi, "U-na");
+  return t;
 }
 
 function getHeaders() {
@@ -105,11 +116,6 @@ export async function POST(req: NextRequest) {
         401
       );
     }
-
-    /*
-     * Do NOT assume the customer's key format here.
-     * The database hash is the source of truth.
-     */
 
     const keyHash = createHash("sha256")
       .update(apiKey)
@@ -240,11 +246,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Normalize Pidgin -> Pijin before ElevenLabs
     const text = normalizeNaijaText(rawText);
 
     // =================================================
     // 3. RESOLVE CUSTOMER VOICE
+    // PRIORITY: voice FIRST, voiceId ONLY IF voice FAILS
+    // This is correct - voice wins over voiceId
     // =================================================
 
     let voiceConfig:
@@ -254,28 +261,25 @@ export async function POST(req: NextRequest) {
         }
       | undefined;
 
-    /*
-     * The customer console can send either:
-     *
-     * voice: "warri-babe"
-     * voice: "chairman-voice"
-     *
-     * OR:
-     *
-     * voiceId: "w5p3k3PueAgQOT4lq0SF"
-     * voiceId: "GVstkJ8LC6TRgAgOZ5IA"
-     */
+    let resolvedVoiceKey = "";
 
     if (requestedVoice) {
       voiceConfig =
         CUSTOMER_VOICES[requestedVoice.toLowerCase()];
+      if (voiceConfig) {
+        resolvedVoiceKey = requestedVoice.toLowerCase();
+      }
     }
 
     if (!voiceConfig && requestedVoiceId) {
-      voiceConfig = Object.values(CUSTOMER_VOICES).find(
-        (voice) =>
+      const foundEntry = Object.entries(CUSTOMER_VOICES).find(
+        ([, voice]) =>
           voice.elevenlabsVoiceId === requestedVoiceId
       );
+      if (foundEntry) {
+        resolvedVoiceKey = foundEntry[0];
+        voiceConfig = foundEntry[1];
+      }
     }
 
     if (!voiceConfig) {
@@ -295,7 +299,7 @@ export async function POST(req: NextRequest) {
               id: "chairman-voice",
               name: "Chairman Voice",
               voice_id:
-                "GVstkJ8LC6TRgAgOZ5IA",
+                "trUA3YUtv2X5gHxPt97C",
             },
           ],
         },
@@ -305,7 +309,8 @@ export async function POST(req: NextRequest) {
 
     // =================================================
     // 4. GENERATE AUDIO
-    // MODEL AND SETTINGS LEFT UNCHANGED
+    // FIX 3: multilingual_v2 + stable settings
+    // No flash rush, no style push, speaker boost ON
     // =================================================
 
     const elevenLabsResponse = await fetch(
@@ -324,14 +329,13 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           text,
 
-          model_id: "eleven_flash_v2_5",
-          language_code: "en",
+          model_id: "eleven_multilingual_v2",
 
           voice_settings: {
-            stability: 0.55,
-            similarity_boost: 0.85,
-            style: 0.20,
-            use_speaker_boost: false,
+            stability: 0.6,
+            similarity_boost: 0.8,
+            style: 0.0,
+            use_speaker_boost: true,
             speed: 1.0,
           },
         }),
@@ -398,11 +402,6 @@ export async function POST(req: NextRequest) {
         deductionError.message
       );
 
-      /*
-       * Audio is intentionally NOT returned
-       * when billing cannot be confirmed.
-       */
-
       return jsonResponse(
         {
           success: false,
@@ -448,9 +447,7 @@ export async function POST(req: NextRequest) {
         "Main Naija Pidgin voice generated successfully.",
 
       voice: {
-        id:
-          requestedVoice ||
-          requestedVoiceId,
+        id: resolvedVoiceKey,
         name: voiceConfig.name,
         elevenlabs_voice_id:
           voiceConfig.elevenlabsVoiceId,
