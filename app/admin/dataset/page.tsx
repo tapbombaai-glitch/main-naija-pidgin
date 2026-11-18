@@ -50,6 +50,7 @@ export default function AdminDatasetPage() {
 
   const [audioUrls, setAudioUrls] = useState<Record<string, string>>({});
   const [loadingAudio, setLoadingAudio] = useState<string | null>(null);
+  const [audioErrors, setAudioErrors] = useState<Record<string, string>>({});
 
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
@@ -188,23 +189,43 @@ export default function AdminDatasetPage() {
     setRefreshing(false);
   }
 
-  async function getAudioUrl(item: DatasetRecording) {
-    if (audioUrls[item.id]) {
-      return audioUrls[item.id];
+  async function getAudioUrl(
+    item: DatasetRecording,
+    forceRefresh = false
+  ) {
+    if (loadingAudio) return;
+
+    if (!forceRefresh && audioUrls[item.id]) {
+      return;
     }
 
     setLoadingAudio(item.id);
     setError("");
 
+    setAudioErrors((previous) => ({
+      ...previous,
+      [item.id]: "",
+    }));
+
+    if (forceRefresh) {
+      setAudioUrls((previous) => {
+        const updated = { ...previous };
+        delete updated[item.id];
+        return updated;
+      });
+    }
+
     try {
       const { data, error: signedError } = await supabase.storage
         .from(DATASET_BUCKET)
-        .createSignedUrl(item.storage_path, 60);
+        .createSignedUrl(item.storage_path, 300);
 
-      if (signedError || !data?.signedUrl) {
-        throw new Error(
-          signedError?.message || "Could not create secure audio URL."
-        );
+      if (signedError) {
+        throw new Error(signedError.message);
+      }
+
+      if (!data?.signedUrl) {
+        throw new Error("Secure audio URL was not returned.");
       }
 
       setAudioUrls((previous) => ({
@@ -212,11 +233,15 @@ export default function AdminDatasetPage() {
         [item.id]: data.signedUrl,
       }));
     } catch (err) {
-      setError(
+      const message =
         err instanceof Error
           ? err.message
-          : "Could not load audio."
-      );
+          : "Could not prepare secure audio.";
+
+      setAudioErrors((previous) => ({
+        ...previous,
+        [item.id]: message,
+      }));
     } finally {
       setLoadingAudio(null);
     }
@@ -627,37 +652,67 @@ export default function AdminDatasetPage() {
 
                     <div className="audio-section">
                       <div className="box-label">
-                        PRIVATE AUDIO
+                        🎧 PRIVATE AUDIO PLAYBACK
                       </div>
+
+                      {audioErrors[item.id] && (
+                        <div className="audio-error">
+                          ⚠️ {audioErrors[item.id]}
+                        </div>
+                      )}
 
                       {!audioUrl ? (
                         <button
                           type="button"
                           className="audio-load-button"
-                          onClick={() =>
-                            getAudioUrl(item)
-                          }
-                          disabled={
-                            loadingAudio === item.id
-                          }
+                          onClick={() => getAudioUrl(item)}
+                          disabled={loadingAudio !== null}
                         >
                           {loadingAudio === item.id
                             ? "Preparing secure audio..."
-                            : "▶ Load Secure Audio"}
+                            : "▶ LOAD AUDIO PLAYER"}
                         </button>
                       ) : (
-                        <>
+                        <div className="audio-player-box">
+                          <div className="audio-player-title">
+                            🎙️ Recording ready
+                          </div>
+
                           <audio
+                            key={audioUrl}
                             controls
-                            preload="none"
+                            preload="metadata"
                             src={audioUrl}
+                            onError={() => {
+                              setAudioErrors((previous) => ({
+                                ...previous,
+                                [item.id]:
+                                  "Audio could not play. The secure link may have expired. Please refresh it.",
+                              }));
+
+                              setAudioUrls((previous) => {
+                                const updated = { ...previous };
+                                delete updated[item.id];
+                                return updated;
+                              });
+                            }}
                           />
 
+                          <button
+                            type="button"
+                            className="audio-refresh-button"
+                            onClick={() => getAudioUrl(item, true)}
+                            disabled={loadingAudio !== null}
+                          >
+                            {loadingAudio === item.id
+                              ? "Refreshing..."
+                              : "↻ Refresh Audio"}
+                          </button>
+
                           <div className="audio-note">
-                            Secure audio URL expires after
-                            60 seconds.
+                            Private recording · Secure link expires after 5 minutes.
                           </div>
-                        </>
+                        </div>
                       )}
                     </div>
 
@@ -1119,6 +1174,50 @@ function DatasetAdminStyles() {
         padding: 11px;
         font-weight: 800;
         cursor: pointer;
+      }
+
+      .audio-player-box {
+        background: #151d17;
+        border: 1px solid #287a39;
+        border-radius: 10px;
+        padding: 12px;
+        margin-top: 8px;
+      }
+
+      .audio-player-title {
+        color: #a5e6b7;
+        font-size: 12px;
+        font-weight: 900;
+        margin-bottom: 10px;
+      }
+
+      .audio-player-box audio {
+        display: block;
+        width: 100%;
+        height: 45px;
+        margin: 8px 0;
+      }
+
+      .audio-refresh-button {
+        width: 100%;
+        background: #252525;
+        color: #a5e6b7;
+        border: 1px solid #3d694b;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 8px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .audio-error {
+        background: #3b2020;
+        color: #ffbaba;
+        border: 1px solid #7a3030;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 11px;
+        margin: 8px 0;
       }
 
       .audio-note {
