@@ -57,6 +57,8 @@ const PACKAGES = [
 export default function Marketplace() {
   const router = useRouter();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // FIX: One ref for test audio element - no more new Audio() + <audio> double play
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [user, setUser] = useState<any>(null);
 
@@ -67,13 +69,11 @@ export default function Marketplace() {
   const [paidLeft, setPaidLeft] = useState(0);
   const [creditsLeft, setCreditsLeft] = useState(0);
 
-  // FIXED: Split loading - Free and Buy no longer block each other
   const [claimLoading, setClaimLoading] = useState(false);
   const [buyingId, setBuyingId] = useState<string | null>(null);
 
   const [voices, setVoices] = useState<Voice[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  // API V1 TEST CONSOLE
   const [testApiKey, setTestApiKey] = useState("");
   const [testVoice, setTestVoice] = useState("warri-babe");
   const [testText, setTestText] = useState(
@@ -88,7 +88,6 @@ export default function Marketplace() {
   const [toast, setToast] = useState("");
   const [toastType, setToastType] = useState<"success" | "error">("success");
 
-  // LOGIN POPUP
   const [showLogin, setShowLogin] = useState(false);
   const [loginMode, setLoginMode] = useState<LoginMode>("login");
 
@@ -100,11 +99,27 @@ export default function Marketplace() {
   const [authMessage, setAuthMessage] = useState("");
   const [authError, setAuthError] = useState("");
 
+  // ===== FIX: STOP ALL AUDIO - ECHO KILLER =====
+  function stopAllAudio() {
+    // Stop every <audio> tag for page
+    document.querySelectorAll("audio").forEach((a) => {
+      a.pause();
+      a.currentTime = 0;
+    });
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (testAudioRef.current) {
+      testAudioRef.current.pause();
+      testAudioRef.current.currentTime = 0;
+    }
+    setPlayingId(null);
+  }
+
   useEffect(() => {
     loadData();
-
     trackMarketplaceEvent("page_view");
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -118,13 +133,10 @@ export default function Marketplace() {
         setCreditsLeft(0);
       }
     });
-
     return () => {
       subscription.unsubscribe();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopAllAudio();
+      if (testAudio) URL.revokeObjectURL(testAudio);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -139,13 +151,11 @@ export default function Marketplace() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser || null);
-
       const { data: voiceData } = await supabase
         .from("voices")
         .select("id,name,accent,sample_url")
         .eq("active", true)
         .limit(10);
-
       if (voiceData && voiceData.length > 0) {
         setVoices(voiceData as Voice[]);
       } else {
@@ -157,7 +167,6 @@ export default function Marketplace() {
           { id: "yoruba-mix", name: "Yoruba Mix", accent: "Hybrid - Bilingual", sample_url: "/samples/yoruba-mix.mp3" },
         ]);
       }
-
       if (currentUser) {
         await loadCustomerKey(currentUser.id);
       }
@@ -170,20 +179,16 @@ export default function Marketplace() {
     try {
       const { data: keyData, error } = await supabase
         .from("api_keys")
-        .select(
-          "id,key_prefix,free_requests_remaining,paid_requests_remaining,credits_remaining,credits_used,total_credits,is_active,created_at"
-        )
+        .select("id,key_prefix,free_requests_remaining,paid_requests_remaining,credits_remaining,credits_used,total_credits,is_active,created_at")
         .eq("user_id", userId)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-
       if (error) {
         console.error("API key lookup error:", error.message);
         return;
       }
-
       if (!keyData) {
         setApiKey("");
         setFreeLeft(0);
@@ -191,7 +196,6 @@ export default function Marketplace() {
         setCreditsLeft(0);
         return;
       }
-
       setApiKey(keyData.key_prefix || "");
       setFreeLeft(Number(keyData.free_requests_remaining || 0));
       setPaidLeft(Number(keyData.paid_requests_remaining || 0));
@@ -221,7 +225,6 @@ export default function Marketplace() {
     setAuthError("");
     setAuthMessage("");
     const cleanEmail = email.trim().toLowerCase();
-
     if (!cleanEmail) { setAuthError("Enter your email address."); return; }
     if (cleanEmail === CHAIRMAN_EMAIL) {
       setAuthError("Chairman email must use the Chairman Login, not customer login.");
@@ -232,7 +235,6 @@ export default function Marketplace() {
     if (loginMode === "signup" && password !== confirmPassword) {
       setAuthError("Passwords no match."); return;
     }
-
     setAuthLoading(true);
     try {
       if (loginMode === "login") {
@@ -245,7 +247,6 @@ export default function Marketplace() {
         router.push("/api-dashboard"); router.refresh();
         return;
       }
-
       const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password });
       if (error) { setAuthError(error.message); return; }
       if (data.session && data.user) {
@@ -282,7 +283,6 @@ export default function Marketplace() {
         showToast("Your login session expired. Please login again.", "error");
         return;
       }
-
       const res = await fetch("/api/keys/create-free", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
@@ -290,7 +290,6 @@ export default function Marketplace() {
       });
       const data = await res.json();
       if (!res.ok) { showToast(data.error || "Free credits already claimed.", "error"); return; }
-
       if (data.api_key) {
         setRealKey(data.api_key);
         setTestApiKey(data.api_key);
@@ -298,7 +297,6 @@ export default function Marketplace() {
         setFreeLeft(Number(data.free_requests_remaining ?? data.free_credits ?? 1000));
         setPaidLeft(Number(data.paid_requests_remaining || 0));
         setCreditsLeft(Number(data.credits_remaining ?? data.total_credits ?? 1000));
-
         try {
           await navigator.clipboard.writeText(data.api_key);
           showToast("✅ 1,000 FREE credits claimed! API key copied.", "success");
@@ -319,7 +317,6 @@ export default function Marketplace() {
 
   async function buy(packageId: string) {
     trackMarketplaceEvent("buy_click", packageId);
-
     if (!user) {
       openLogin("login");
       showToast("🔐 Login first before buying API credits.", "error");
@@ -333,7 +330,6 @@ export default function Marketplace() {
       showToast("Claim your 1,000 Free Credits first to activate your account, then Buy.", "error");
       return;
     }
-
     setBuyingId(packageId);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -359,116 +355,71 @@ export default function Marketplace() {
     }
   }
 
+  // ===== FIXED TEST - NO DOUBLE AUDIO =====
   async function testCustomerV1() {
+    if (testLoading) return; // FIX: No double click = No double call
     setTestError("");
     setTestMessage("");
-    setTestAudio("");
-
     const cleanKey = testApiKey.trim();
     const cleanText = testText.trim();
+    if (!cleanKey) { setTestError("Paste your API key first."); return; }
+    if (cleanText.length < 3) { setTestError("Enter at least 3 characters to test."); return; }
+    if (cleanText.length > 5000) { setTestError("Text cannot exceed 5,000 characters."); return; }
 
-    if (!cleanKey) {
-      setTestError("Paste your API key first.");
-      return;
-    }
-
-    if (cleanText.length < 3) {
-      setTestError("Enter at least 3 characters to test.");
-      return;
-    }
-
-    if (cleanText.length > 5000) {
-      setTestError("Text cannot exceed 5,000 characters.");
-      return;
-    }
-
+    // FIX: Stop preview audio before test starts
+    stopAllAudio();
+    if (testAudio) URL.revokeObjectURL(testAudio);
+    setTestAudio("");
     setTestLoading(true);
 
     try {
       const res = await fetch("/api/v1/speak", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": cleanKey,
-        },
-        body: JSON.stringify({
-          text: cleanText,
-          voice: testVoice,
-        }),
+        headers: { "Content-Type": "application/json", "x-api-key": cleanKey },
+        body: JSON.stringify({ text: cleanText, voice: testVoice }),
       });
-
       const data = await res.json();
-
       if (!res.ok || !data.success) {
-        setTestError(
-          data.error || "API test failed. Please try again."
-        );
+        setTestError(data.error || "API test failed. Please try again.");
         return;
       }
-
-      if (!data.audio_base64) {
-        setTestError("API returned no audio.");
-        return;
-      }
-
+      if (!data.audio_base64) { setTestError("API returned no audio."); return; }
       const byteCharacters = atob(data.audio_base64);
       const byteNumbers = new Array(byteCharacters.length);
-
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
-
       const byteArray = new Uint8Array(byteNumbers);
-
-      const blob = new Blob([byteArray], {
-        type: data.audio_mime || "audio/mpeg",
-      });
-
+      const blob = new Blob([byteArray], { type: data.audio_mime || "audio/mpeg" });
       const audioUrl = URL.createObjectURL(blob);
-
       setTestAudio(audioUrl);
-
-      if (
-        data.credits &&
-        typeof data.credits.remaining !== "undefined"
-      ) {
+      if (data.credits && typeof data.credits.remaining !== "undefined") {
         setTestRemaining(Number(data.credits.remaining));
         setCreditsLeft(Number(data.credits.remaining));
-
         if (testVoice === "warri-babe") {
-          setFreeLeft((current) =>
-            current > 0 ? current - 1 : current
-          );
+          setFreeLeft((current) => current > 0 ? current - 1 : current);
         }
-
-        setTestMessage(
-          `✅ ${data.voice?.name || "Voice"} generated successfully. 1 credit deducted.`
-        );
+        setTestMessage(`✅ ${data.voice?.name || "Voice"} generated successfully. 1 credit deducted.`);
       } else {
-        setTestMessage(
-          `✅ ${data.voice?.name || "Voice"} generated successfully.`
-        );
+        setTestMessage(`✅ ${data.voice?.name || "Voice"} generated successfully.`);
       }
-
-      const audio = new Audio(audioUrl);
-
-      audio.onended = () => {
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      await audio.play();
+      // FIX: DO NOT do new Audio().play() here - the <audio> below will play it once
+      // Play via the single audio element after render
+      setTimeout(() => {
+        if (testAudioRef.current) {
+          testAudioRef.current.play().catch(() => {});
+        }
+      }, 100);
     } catch (error) {
       console.error("Customer V1 test error:", error);
-
-      setTestError(
-        "Connection failed. Make sure the API is deployed and try again."
-      );
+      setTestError("Connection failed. Make sure the API is deployed and try again.");
     } finally {
       setTestLoading(false);
     }
   }
 
   async function signOut() {
+    stopAllAudio();
     await supabase.auth.signOut();
     setUser(null);
     setApiKey(""); setRealKey("");
@@ -476,8 +427,14 @@ export default function Marketplace() {
     showToast("Signed out successfully.");
   }
 
+  // ===== FIXED PREVIEW - STOP TEST AUDIO FIRST =====
   const playSample = async (voice: Voice) => {
     try {
+      // FIX: Stop test audio before preview
+      if (testAudioRef.current) {
+        testAudioRef.current.pause();
+        testAudioRef.current.currentTime = 0;
+      }
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
@@ -485,7 +442,6 @@ export default function Marketplace() {
       }
       if (playingId === voice.id) { setPlayingId(null); return; }
       if (!voice.sample_url) { showToast("Voice file never dey yet.", "error"); return; }
-
       const audio = new Audio(voice.sample_url);
       audioRef.current = audio;
       setPlayingId(voice.id);
@@ -532,39 +488,8 @@ export default function Marketplace() {
 
           {!user ? (
             <div style={{ marginTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "7px" }}>
-              <button
-                type="button"
-                onClick={() => openLogin("login")}
-                style={{
-                  border: "1px solid #00E676",
-                  background: "#00C853",
-                  color: "white",
-                  padding: "11px 8px",
-                  borderRadius: "9px",
-                  fontSize: "10px",
-                  fontWeight: "900",
-                  cursor: "pointer",
-                }}
-              >
-                🔐 FREE API LOGIN
-              </button>
-
-              <button
-                type="button"
-                onClick={() => openLogin("signup")}
-                style={{
-                  border: "1px solid #2E7D32",
-                  background: "#0F1A0F",
-                  color: "#A5D6A7",
-                  padding: "11px 8px",
-                  borderRadius: "9px",
-                  fontSize: "10px",
-                  fontWeight: "900",
-                  cursor: "pointer",
-                }}
-              >
-                CREATE ACCOUNT
-              </button>
+              <button type="button" onClick={() => openLogin("login")} style={{ border: "1px solid #00E676", background: "#00C853", color: "white", padding: "11px 8px", borderRadius: "9px", fontSize: "10px", fontWeight: "900", cursor: "pointer" }}>🔐 FREE API LOGIN</button>
+              <button type="button" onClick={() => openLogin("signup")} style={{ border: "1px solid #2E7D32", background: "#0F1A0F", color: "#A5D6A7", padding: "11px 8px", borderRadius: "9px", fontSize: "10px", fontWeight: "900", cursor: "pointer" }}>CREATE ACCOUNT</button>
             </div>
           ) : (
             <div style={{ marginTop: "12px", background: "#0F1A0F", border: "1px solid #1E4D2B", borderRadius: "10px", padding: "9px" }}>
@@ -578,82 +503,20 @@ export default function Marketplace() {
           )}
         </div>
 
-        <a
-          href={WHATSAPP_COMMUNITY_LINK}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => {
-            trackMarketplaceEvent("community_click");
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "10px",
-            marginTop: "10px",
-            background: "#0B2A18",
-            border: "1.5px solid #00E676",
-            borderRadius: "12px",
-            padding: "13px",
-            textDecoration: "none",
-            color: "white",
-          }}
-        >
+        <a href={WHATSAPP_COMMUNITY_LINK} target="_blank" rel="noopener noreferrer" onClick={() => { trackMarketplaceEvent("community_click"); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", marginTop: "10px", background: "#0B2A18", border: "1.5px solid #00E676", borderRadius: "12px", padding: "13px", textDecoration: "none", color: "white" }}>
           <div style={{ minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: "12px",
-                fontWeight: "900",
-                color: "#00E676",
-              }}
-            >
-              🇳🇬 JOIN MAIN NAIJA PIDGIN COMMUNITY
-            </div>
-
-            <div
-              style={{
-                fontSize: "9px",
-                color: "#A5D6A7",
-                marginTop: "3px",
-              }}
-            >
-              Meet other users, get updates & follow the project
-            </div>
+            <div style={{ fontSize: "12px", fontWeight: "900", color: "#00E676" }}>🇳🇬 JOIN MAIN NAIJA PIDGIN COMMUNITY</div>
+            <div style={{ fontSize: "9px", color: "#A5D6A7", marginTop: "3px" }}>Meet other users, get updates & follow the project</div>
           </div>
-
-          <div
-            style={{
-              background: "#00C853",
-              color: "white",
-              padding: "8px 11px",
-              borderRadius: "8px",
-              fontSize: "9px",
-              fontWeight: "900",
-              flexShrink: 0,
-            }}
-          >
-            JOIN →
-          </div>
+          <div style={{ background: "#00C853", color: "white", padding: "8px 11px", borderRadius: "8px", fontSize: "9px", fontWeight: "900", flexShrink: 0 }}>JOIN →</div>
         </a>
 
         <div style={{ marginTop: "10px", background: "#0F1A0F", border: "1.5px solid #00E676", borderRadius: "12px", padding: "12px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: "700", color: "#A5D6A7" }}>🔑 Your Live API Key</div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "8px" }}>
-            <div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {apiKey ? apiKey : "sk_live_ •••••••••••"}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                if (realKey) {
-                  navigator.clipboard.writeText(realKey).then(() => showToast("Key copied!")).catch(() => showToast("Copy failed. Please copy it manually.", "error"));
-                } else if (!user) { openLogin("login"); }
-                else { showToast("Your full key is only shown when you create it.", "error"); }
-              }}
-              style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}
-            >⧉ Copy</button>
+            <div style={{ fontSize: "15px", fontWeight: "900", color: "#00E676", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{apiKey ? apiKey : "sk_live_ •••••••••••"}</div>
+            <button type="button" onClick={() => { if (realKey) { navigator.clipboard.writeText(realKey).then(() => showToast("Key copied!")).catch(() => showToast("Copy failed. Please copy it manually.", "error")); } else if (!user) { openLogin("login"); } else { showToast("Your full key is only shown when you create it.", "error"); } }} style={{ background: "#00C853", color: "white", border: "none", padding: "8px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: "800", flexShrink: 0 }}>⧉ Copy</button>
           </div>
-
           <div style={{ marginTop: "10px", borderTop: "1px solid #1E2F1E", paddingTop: "8px", display: "flex", gap: "12px", fontSize: "11px", color: "#BDBDBD", flexWrap: "wrap" }}>
             <span><b style={{ color: "white" }}>{creditsLeft}</b> Credits Left</span>
             <span><b style={{ color: "white" }}>{freeLeft}</b> Free Left</span>
@@ -666,7 +529,6 @@ export default function Marketplace() {
         <div style={{ marginTop: "14px" }}>
           <div style={{ fontSize: "16px", fontWeight: "900", color: "white" }}>Pricing Plans</div>
           <div style={{ fontSize: "11px", color: "#888", display: "flex", gap: "6px", marginTop: "2px" }}>🛡️ Paystack Secured • Instant activation</div>
-
           <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #00E676", borderRadius: "12px", padding: "11px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontSize: "11px", fontWeight: "800", color: "white" }}>🎁 FREE API</div>
@@ -674,11 +536,8 @@ export default function Marketplace() {
             </div>
             <div style={{ fontSize: "22px", fontWeight: "900", color: "#00E676", marginTop: "4px" }}>1,000 FREE</div>
             <div style={{ fontSize: "10px", color: "#9E9E9E" }}>No card needed</div>
-            <button type="button" onClick={claimFree} disabled={claimLoading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: claimLoading ? "wait" : "pointer" }}>
-              {claimLoading ? "..." : user ? "Get 1,000 Free Credits →" : "Login to Get Free Credits →"}
-            </button>
+            <button type="button" onClick={claimFree} disabled={claimLoading} style={{ width: "100%", marginTop: "10px", background: "#00C853", color: "white", border: "none", padding: "10px", borderRadius: "8px", fontSize: "11px", fontWeight: "800", cursor: claimLoading ? "wait" : "pointer" }}>{claimLoading ? "..." : user ? "Get 1,000 Free Credits →" : "Login to Get Free Credits →"}</button>
           </div>
-
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
             {PACKAGES.map((pkg, index) => (
               <div key={pkg.id} style={{ background: index === 4 ? "#1A150A" : "#121C12", border: index === 4 ? "1px solid #FFB300" : "1px solid #1E2F1E", borderRadius: "12px", padding: "10px" }}>
@@ -688,9 +547,7 @@ export default function Marketplace() {
                 </div>
                 <div style={{ fontSize: "16px", fontWeight: "900", color: "white", marginTop: "6px" }}>{pkg.credits.toLocaleString()} Credits</div>
                 <div style={{ fontSize: "16px", fontWeight: "900", color: "#00E676", marginTop: "2px" }}>₦{pkg.price.toLocaleString()}</div>
-                <button type="button" onClick={() => buy(pkg.id)} disabled={buyingId !== null} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800", cursor: buyingId !== null ? "wait" : "pointer" }}>
-                  {buyingId === pkg.id ? "..." : apiKey ? "Buy with Paystack" : "Claim Free First → Buy"}
-                </button>
+                <button type="button" onClick={() => buy(pkg.id)} disabled={buyingId !== null} style={{ width: "100%", marginTop: "8px", background: "transparent", border: "1px solid #FFB300", color: "white", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800", cursor: buyingId !== null ? "wait" : "pointer" }}>{buyingId === pkg.id ? "..." : apiKey ? "Buy with Paystack" : "Claim Free First → Buy"}</button>
               </div>
             ))}
           </div>
@@ -713,346 +570,61 @@ export default function Marketplace() {
           </div>
         </div>
 
-        <div
-          style={{
-            marginTop: "16px",
-            background: "#0B160B",
-            border: "1.5px solid #00E676",
-            borderRadius: "14px",
-            padding: "13px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
+        <div style={{ marginTop: "16px", background: "#0B160B", border: "1.5px solid #00E676", borderRadius: "14px", padding: "13px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
             <div>
-              <div
-                style={{
-                  fontSize: "15px",
-                  fontWeight: "900",
-                  color: "white",
-                }}
-              >
-                🧪 API V1 Test Console
-              </div>
-
-              <div
-                style={{
-                  fontSize: "9px",
-                  color: "#81C784",
-                  marginTop: "3px",
-                }}
-              >
-                Test your Main Naija Pidgin API key with real voices
-              </div>
+              <div style={{ fontSize: "15px", fontWeight: "900", color: "white" }}>🧪 API V1 Test Console</div>
+              <div style={{ fontSize: "9px", color: "#81C784", marginTop: "3px" }}>Test your Main Naija Pidgin API key with real voices</div>
             </div>
-
-            <div
-              style={{
-                background: "#14301A",
-                border: "1px solid #245C2D",
-                color: "#00E676",
-                borderRadius: "20px",
-                padding: "5px 8px",
-                fontSize: "8px",
-                fontWeight: "900",
-                flexShrink: 0,
-              }}
-            >
-              V1 LIVE
-            </div>
+            <div style={{ background: "#14301A", border: "1px solid #245C2D", color: "#00E676", borderRadius: "20px", padding: "5px 8px", fontSize: "8px", fontWeight: "900", flexShrink: 0 }}>V1 LIVE</div>
           </div>
 
           <div style={{ marginTop: "12px" }}>
-            <div
-              style={{
-                color: "#A5D6A7",
-                fontSize: "9px",
-                fontWeight: "900",
-                marginBottom: "5px",
-              }}
-            >
-              🔑 API KEY
-            </div>
-
-            <input
-              type="password"
-              value={testApiKey}
-              onChange={(event) =>
-                setTestApiKey(event.target.value)
-              }
-              placeholder="Paste your sk_live_... API key"
-              autoComplete="off"
-              style={{
-                width: "100%",
-                background: "#050A05",
-                border: "1px solid #294329",
-                color: "white",
-                padding: "11px",
-                borderRadius: "8px",
-                outline: "none",
-                fontSize: "11px",
-                fontFamily: "monospace",
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={() => {
-                if (realKey) {
-                  setTestApiKey(realKey);
-                  showToast("✅ Your key don enter Test Console.");
-                } else {
-                  showToast("Your full key only show once when you claim it. Claim Free again if you never copy am.", "error");
-                }
-              }}
-              style={{
-                marginTop: "6px",
-                width: "100%",
-                background: "#14301A",
-                color: "#00E676",
-                border: "1px solid #245C2D",
-                padding: "9px",
-                borderRadius: "8px",
-                fontSize: "10px",
-                fontWeight: "800",
-                cursor: "pointer",
-              }}
-            >
-              ↪ USE MY CLAIMED KEY FOR TEST
-            </button>
-
-            <div
-              style={{
-                fontSize: "8px",
-                color: "#666",
-                marginTop: "5px",
-              }}
-            >
-              Your secret key stays in this browser request and is
-              not displayed back by the API.
-            </div>
+            <div style={{ color: "#A5D6A7", fontSize: "9px", fontWeight: "900", marginBottom: "5px" }}>🔑 API KEY</div>
+            <input type="password" value={testApiKey} onChange={(event) => setTestApiKey(event.target.value)} placeholder="Paste your sk_live_... API key" autoComplete="off" style={{ width: "100%", background: "#050A05", border: "1px solid #294329", color: "white", padding: "11px", borderRadius: "8px", outline: "none", fontSize: "11px", fontFamily: "monospace" }} />
+            <button type="button" onClick={() => { if (realKey) { setTestApiKey(realKey); showToast("✅ Your key don enter Test Console."); } else { showToast("Your full key only show once when you claim it. Claim Free again if you never copy am.", "error"); } }} style={{ marginTop: "6px", width: "100%", background: "#14301A", color: "#00E676", border: "1px solid #245C2D", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}>↪ USE MY CLAIMED KEY FOR TEST</button>
+            <div style={{ fontSize: "8px", color: "#666", marginTop: "5px" }}>Your secret key stays in this browser request and is not displayed back by the API.</div>
           </div>
 
           <div style={{ marginTop: "10px" }}>
-            <div
-              style={{
-                color: "#A5D6A7",
-                fontSize: "9px",
-                fontWeight: "900",
-                marginBottom: "5px",
-              }}
-            >
-              🎙️ CHOOSE VOICE
-            </div>
-
-            <select
-              value={testVoice}
-              onChange={(event) =>
-                setTestVoice(event.target.value)
-              }
-              style={{
-                width: "100%",
-                background: "#050A05",
-                border: "1px solid #294329",
-                color: "white",
-                padding: "11px",
-                borderRadius: "8px",
-                outline: "none",
-                fontSize: "11px",
-              }}
-            >
-              <option value="warri-babe">
-                🇳🇬 Warri Babe
-              </option>
-
-              <option value="chairman-voice">
-                🇳🇬 Chairman Voice
-              </option>
+            <div style={{ color: "#A5D6A7", fontSize: "9px", fontWeight: "900", marginBottom: "5px" }}>🎙️ CHOOSE VOICE</div>
+            <select value={testVoice} onChange={(event) => { stopAllAudio(); setTestVoice(event.target.value); setTestAudio(""); }} style={{ width: "100%", background: "#050A05", border: "1px solid #294329", color: "white", padding: "11px", borderRadius: "8px", outline: "none", fontSize: "11px" }}>
+              <option value="warri-babe">🇳🇬 Warri Babe</option>
+              <option value="chairman-voice">🇳🇬 Chairman Voice</option>
             </select>
           </div>
 
           <div style={{ marginTop: "10px" }}>
-            <div
-              style={{
-                color: "#A5D6A7",
-                fontSize: "9px",
-                fontWeight: "900",
-                marginBottom: "5px",
-              }}
-            >
-              ✍️ TEXT TO SPEAK
-            </div>
-
-            <textarea
-              value={testText}
-              onChange={(event) =>
-                setTestText(event.target.value)
-              }
-              maxLength={5000}
-              rows={4}
-              placeholder="Enter Nigerian Pidgin text..."
-              style={{
-                width: "100%",
-                resize: "vertical",
-                background: "#050A05",
-                border: "1px solid #294329",
-                color: "white",
-                padding: "11px",
-                borderRadius: "8px",
-                outline: "none",
-                fontSize: "11px",
-                lineHeight: "1.5",
-                fontFamily: "inherit",
-              }}
-            />
-
-            <div
-              style={{
-                textAlign: "right",
-                fontSize: "8px",
-                color: "#666",
-                marginTop: "3px",
-              }}
-            >
-              {testText.length}/5000
-            </div>
+            <div style={{ color: "#A5D6A7", fontSize: "9px", fontWeight: "900", marginBottom: "5px" }}>✍️ TEXT TO SPEAK</div>
+            <textarea value={testText} onChange={(event) => setTestText(event.target.value)} maxLength={5000} rows={4} placeholder="Enter Nigerian Pidgin text..." style={{ width: "100%", resize: "vertical", background: "#050A05", border: "1px solid #294329", color: "white", padding: "11px", borderRadius: "8px", outline: "none", fontSize: "11px", lineHeight: "1.5", fontFamily: "inherit" }} />
+            <div style={{ textAlign: "right", fontSize: "8px", color: "#666", marginTop: "3px" }}>{testText.length}/5000</div>
           </div>
 
-          <button
-            type="button"
-            onClick={testCustomerV1}
-            disabled={testLoading}
-            style={{
-              width: "100%",
-              marginTop: "10px",
-              background: testLoading
-                ? "#245C2D"
-                : "#00C853",
-              color: "white",
-              border: "none",
-              padding: "13px",
-              borderRadius: "9px",
-              fontSize: "12px",
-              fontWeight: "900",
-              cursor: testLoading
-                ? "wait"
-                : "pointer",
-            }}
-          >
-            {testLoading
-              ? "🎙️ GENERATING VOICE..."
-              : "▶ TEST API & SPEAK"}
-          </button>
+          <button type="button" onClick={testCustomerV1} disabled={testLoading} style={{ width: "100%", marginTop: "10px", background: testLoading ? "#245C2D" : "#00C853", color: "white", border: "none", padding: "13px", borderRadius: "9px", fontSize: "12px", fontWeight: "900", cursor: testLoading ? "wait" : "pointer" }}>{testLoading ? "🎙️ GENERATING VOICE..." : "▶ TEST API & SPEAK"}</button>
 
           {testMessage && (
-            <div
-              style={{
-                marginTop: "9px",
-                background: "#102915",
-                border: "1px solid #245C2D",
-                color: "#A5D6A7",
-                padding: "9px",
-                borderRadius: "8px",
-                fontSize: "9px",
-                fontWeight: "800",
-                lineHeight: "1.4",
-              }}
-            >
+            <div style={{ marginTop: "9px", background: "#102915", border: "1px solid #245C2D", color: "#A5D6A7", padding: "9px", borderRadius: "8px", fontSize: "9px", fontWeight: "800", lineHeight: "1.4" }}>
               {testMessage}
-
-              {testRemaining !== null && (
-                <div
-                  style={{
-                    marginTop: "5px",
-                    color: "#00E676",
-                    fontSize: "11px",
-                    fontWeight: "900",
-                  }}
-                >
-                  💳 {testRemaining.toLocaleString()} credits remaining
-                </div>
-              )}
+              {testRemaining !== null && (<div style={{ marginTop: "5px", color: "#00E676", fontSize: "11px", fontWeight: "900" }}>💳 {testRemaining.toLocaleString()} credits remaining</div>)}
             </div>
           )}
 
           {testError && (
-            <div
-              style={{
-                marginTop: "9px",
-                background: "#351414",
-                border: "1px solid #6D2929",
-                color: "#FF8A80",
-                padding: "9px",
-                borderRadius: "8px",
-                fontSize: "9px",
-                fontWeight: "800",
-                lineHeight: "1.4",
-              }}
-            >
-              ❌ {testError}
-            </div>
+            <div style={{ marginTop: "9px", background: "#351414", border: "1px solid #6D2929", color: "#FF8A80", padding: "9px", borderRadius: "8px", fontSize: "9px", fontWeight: "800", lineHeight: "1.4" }}>❌ {testError}</div>
           )}
 
           {testAudio && (
-            <div
-              style={{
-                marginTop: "10px",
-                background: "#121C12",
-                border: "1px solid #1E4D2B",
-                borderRadius: "9px",
-                padding: "9px",
-              }}
-            >
-              <div
-                style={{
-                  color: "#00E676",
-                  fontSize: "9px",
-                  fontWeight: "900",
-                  marginBottom: "6px",
-                }}
-              >
-                🔊 GENERATED AUDIO
-              </div>
-
-              <audio
-                controls
-                autoPlay
-                src={testAudio}
-                style={{
-                  width: "100%",
-                  height: "38px",
-                }}
-              />
+            <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #1E4D2B", borderRadius: "9px", padding: "9px" }}>
+              <div style={{ color: "#00E676", fontSize: "9px", fontWeight: "900", marginBottom: "6px" }}>🔊 GENERATED AUDIO</div>
+              {/* FIX: NO autoPlay - we play once via testAudioRef, no double play */}
+              <audio ref={testAudioRef} controls src={testAudio} style={{ width: "100%", height: "38px" }} />
             </div>
           )}
 
-          <div
-            style={{
-              marginTop: "9px",
-              color: "#555",
-              fontSize: "8px",
-              lineHeight: "1.4",
-              textAlign: "center",
-            }}
-          >
-            Each successful API generation deducts 1 credit.
-            Preview voices above do not deduct credits.
-          </div>
+          <div style={{ marginTop: "9px", color: "#555", fontSize: "8px", lineHeight: "1.4", textAlign: "center" }}>Each successful API generation deducts 1 credit. Preview voices above do not deduct credits.</div>
         </div>
 
-        <Link
-          href={user ? "/api-dashboard" : "/user/login"}
-          onClick={(event) => { if (!user) { event.preventDefault(); openLogin("login"); } }}
-          style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}
-        >
-          {user ? "Go to API Dashboard" : "Login to API Dashboard"} <span>→</span>
-        </Link>
+        <Link href={user ? "/api-dashboard" : "/user/login"} onClick={(event) => { if (!user) { event.preventDefault(); openLogin("login"); } }} style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "8px", marginTop: "14px", background: "white", color: "#000", padding: "13px", borderRadius: "12px", fontSize: "13px", fontWeight: "900", textDecoration: "none" }}>{user ? "Go to API Dashboard" : "Login to API Dashboard"} <span>→</span></Link>
         <div style={{ textAlign: "center", fontSize: "8px", color: "#555", marginTop: "10px" }}>Paystack Secured • Supabase Powered • Preview free • Only real API deducts</div>
       </div>
 
@@ -1066,20 +638,14 @@ export default function Marketplace() {
               </div>
               <button type="button" onClick={closeLogin} disabled={authLoading} style={{ width: "34px", height: "34px", borderRadius: "50%", border: "1px solid #263A26", background: "#101A10", color: "white", fontSize: "18px" }}>×</button>
             </div>
-            <div style={{ fontSize: "10px", color: "#9E9E9E", marginTop: "8px", lineHeight: "1.5" }}>
-              {loginMode === "login" ? "Login to claim your 1,000 free API credits and access your API Dashboard." : "Create your customer account to claim your one-time 1,000 free API credits."}
-            </div>
+            <div style={{ fontSize: "10px", color: "#9E9E9E", marginTop: "8px", lineHeight: "1.5" }}>{loginMode === "login" ? "Login to claim your 1,000 free API credits and access your API Dashboard." : "Create your customer account to claim your one-time 1,000 free API credits."}</div>
             <input type="email" placeholder="Email address" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" style={{ width: "100%", marginTop: "14px", background: "#0E180E", border: "1px solid #294329", color: "white", padding: "12px", borderRadius: "9px", outline: "none", fontSize: "13px" }} />
             <input type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={loginMode === "login" ? "current-password" : "new-password"} style={{ width: "100%", marginTop: "8px", background: "#0E180E", border: "1px solid #294329", color: "white", padding: "12px", borderRadius: "9px", outline: "none", fontSize: "13px" }} />
             {loginMode === "signup" && (<input type="password" placeholder="Confirm password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" style={{ width: "100%", marginTop: "8px", background: "#0E180E", border: "1px solid #294329", color: "white", padding: "12px", borderRadius: "9px", outline: "none", fontSize: "13px" }} />)}
             {authError && (<div style={{ marginTop: "10px", background: "#351414", border: "1px solid #6D2929", color: "#FF8A80", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "700", lineHeight: "1.4" }}>{authError}</div>)}
             {authMessage && (<div style={{ marginTop: "10px", background: "#102915", border: "1px solid #245C2D", color: "#A5D6A7", padding: "9px", borderRadius: "8px", fontSize: "10px", fontWeight: "700", lineHeight: "1.4" }}>{authMessage}</div>)}
-            <button type="button" onClick={handleAuth} disabled={authLoading} style={{ width: "100%", marginTop: "12px", background: "#00C853", color: "white", border: "none", padding: "13px", borderRadius: "9px", fontSize: "12px", fontWeight: "900" }}>
-              {authLoading ? "PLEASE WAIT..." : loginMode === "login" ? "LOGIN TO CUSTOMER ACCOUNT" : "CREATE CUSTOMER ACCOUNT"}
-            </button>
-            <button type="button" onClick={() => { setLoginMode(loginMode === "login" ? "signup" : "login"); setAuthError(""); setAuthMessage(""); }} disabled={authLoading} style={{ width: "100%", marginTop: "8px", background: "transparent", color: "#A5D6A7", border: "1px solid #294329", padding: "11px", borderRadius: "9px", fontSize: "10px", fontWeight: "800" }}>
-              {loginMode === "login" ? "New customer? Create account" : "Already have an account? Login"}
-            </button>
+            <button type="button" onClick={handleAuth} disabled={authLoading} style={{ width: "100%", marginTop: "12px", background: "#00C853", color: "white", border: "none", padding: "13px", borderRadius: "9px", fontSize: "12px", fontWeight: "900" }}>{authLoading ? "PLEASE WAIT..." : loginMode === "login" ? "LOGIN TO CUSTOMER ACCOUNT" : "CREATE CUSTOMER ACCOUNT"}</button>
+            <button type="button" onClick={() => { setLoginMode(loginMode === "login" ? "signup" : "login"); setAuthError(""); setAuthMessage(""); }} disabled={authLoading} style={{ width: "100%", marginTop: "8px", background: "transparent", color: "#A5D6A7", border: "1px solid #294329", padding: "11px", borderRadius: "9px", fontSize: "10px", fontWeight: "800" }}>{loginMode === "login" ? "New customer? Create account" : "Already have an account? Login"}</button>
             <Link href="/user/login" onClick={() => { if (!authLoading) setShowLogin(false); }} style={{ display: "block", textAlign: "center", marginTop: "10px", color: "#777", fontSize: "9px", textDecoration: "none" }}>Open full customer login page</Link>
           </div>
         </div>
