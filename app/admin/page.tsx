@@ -165,12 +165,27 @@ export default function AdminPage() {
 
   const navCards = [
     { icon: "👥", title: "Workers", description: "Manage registered workers", href: "/admin/workers", color: "#00E676" },
+
     { icon: "🎙️", title: "Recordings", description: "Review voice submissions", href: "/admin/recordings", color: "#00E676" },
+
+    {
+      icon: "🇳🇬",
+      title: "Nigeria Pidgin Dataset",
+      description: "Review and manage Nigerian voice data",
+      href: "/admin/dataset",
+      color: "#00E676"
+    },
+
     { icon: "💰", title: "Payments", description: "Manage worker payments", href: "/admin/payments", color: "#FFC107" },
+
     { icon: "🎙️", title: "Voice Clone", description: "Create and manage Nigerian AI voices", href: "/clone", color: "#FFC107" },
+
     { icon: "🔑", title: "API Management", description: "Manage API keys and credits", href: "/admin/api", color: "#00E676" },
+
     { icon: "📢", title: "Announcements", description: "Publish platform updates", href: "/admin/announcements", color: "#FFC107" },
+
     { icon: "🛡️", title: "Security", description: "Access and security controls", href: "/admin/security", color: "#00E676" },
+
     { icon: "🛍️", title: "Marketplace", description: "Manage the separate marketplace", href: "/admin/marketplace", color: "#FFC107" },
   ];
 
