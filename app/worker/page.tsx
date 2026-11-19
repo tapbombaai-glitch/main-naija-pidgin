@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { PIDGIN_500, getTodayPidgin } from "@/app/data/pidgin-500";
+import { getTodayPidgin } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 30;
 
@@ -196,7 +196,6 @@ export default function WorkersPage() {
   const stopTimeoutRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const TOTAL_RECORDING_TARGET = 500;
-  const MIN_SAVE_SECONDS = 11;
   const isTooShort = timer > 0 && timer < 11;
   const isPass = timer >= 11;
   const isPerfect = timer >= 12 && timer <= 13;
@@ -349,6 +348,10 @@ export default function WorkersPage() {
   }
 
   const toggleRecording = async () => {
+    if (selectedLang !== "Pidgin") {
+      alert("Only Pidgin recording is currently available.");
+      return;
+    }
     if (isIjawDraft) {
       alert("Ijaw / Izon recording is temporarily unavailable. The sentences must first be checked and approved by a native Ijaw speaker.");
       return;
@@ -386,6 +389,10 @@ export default function WorkersPage() {
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
+    if (selectedLang !== "Pidgin") {
+      alert("Only Pidgin recordings can be submitted right now.");
+      return;
+    }
     if (isIjawDraft) {
       alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete.");
       return;
@@ -491,9 +498,44 @@ export default function WorkersPage() {
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
         <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
-          {["Pidgin", "Hausa", "Igbo", "Yoruba", "Akwa Ibom", "Ijaw / Izon"].map((lang) => (
-            <button key={lang} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording before changing language."); return; } setSelectedLang(lang); }} style={{ flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: selectedLang === lang ? "1.5px solid #00E676" : "1px solid #2A3A2A", background: selectedLang === lang ? "#00E676" : "#222", color: selectedLang === lang ? "black" : "#aaa" }}>{lang === "Akwa Ibom" ? "🌴 Akwa Ibom (Ibibio)" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang}</button>
-          ))}
+          {["Pidgin", "Hausa", "Igbo", "Yoruba", "Akwa Ibom", "Ijaw / Izon"].map((lang) => {
+            const isPidgin = lang === "Pidgin";
+            return (
+              <button
+                key={lang}
+                type="button"
+                disabled={!isPidgin}
+                onClick={() => {
+                  if (isRecording || audioURL || savingRecording) {
+                    alert("Please finish or discard your current recording first.");
+                    return;
+                  }
+                  setSelectedLang("Pidgin");
+                }}
+                style={{
+                  flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1",
+                  padding: "10px 0",
+                  borderRadius: "20px",
+                  fontSize: "11px",
+                  fontWeight: "900",
+                  border: isPidgin ? "1.5px solid #00E676" : "1px solid #444",
+                  background: isPidgin ? "#00E676" : "#171717",
+                  color: isPidgin ? "black" : "#777",
+                  cursor: isPidgin ? "pointer" : "not-allowed",
+                  opacity: isPidgin ? 1 : 0.65
+                }}
+              >
+                {lang === "Pidgin"
+                  ? "🇳🇬 PIDGIN ✓"
+                  : `${lang === "Akwa Ibom" ? "🌴 Akwa Ibom" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang} 🔒`}
+                {!isPidgin && (
+                  <span style={{ display: "block", fontSize: "8px", color: "#EAB308", marginTop: "3px" }}>
+                    COMING SOON
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
         {isIjawDraft && (
           <div style={{ background: "#2A1A00", border: "1px solid #FFA500", borderRadius: "10px", padding: "14px", marginTop: "10px", fontSize: "12px", color: "#FFD580", lineHeight: 1.7, fontWeight: "700" }}>
@@ -547,7 +589,7 @@ export default function WorkersPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: "390px", maxHeight: "90vh", overflowY: "auto", background: "#0D130D", border: "1px solid #EAB308", borderRadius: "20px", padding: "20px", boxSizing: "border-box" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}><div><h2 style={{ margin: 0, fontSize: "20px", fontWeight: "900", color: "#FACC15" }}>💳 Payment Details</h2><p style={{ margin: "5px 0 0", fontSize: "11px", color: "#888" }}>Add your bank details for payment.</p></div><button type="button" onClick={() => setShowModal(null)} style={{ width: "36px", height: "36px", borderRadius: "50%", border: "1px solid #333", background: "#171D17", color: "white", fontSize: "20px", cursor: "pointer" }}>×</button></div>
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NAME</label><input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Enter account name" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
-            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>BANK NAME</label><select value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }}><option value="">Select your bank</option><option value="Opay">Opay</option><option value="Moniepoint">Moniepoint</option><option value="PalmPay">PalmPay</option><option value="Kuda">Kuda</option><option value="First Bank">First Bank</option><option value="GTBank">GTBank</option><option value="Access Bank">Access Bank</option><option value="UBA">UBA</option><option value="Zenith Bank">Zenith Bank</option></select>
+            <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>BANK NAME</label><select value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }}><option value="">Select your bank</option><option value="Opay">Opay</option><option value="Moniepoint">Moniepoint</option><option value="PalmPay">PalmPay</option><option value="Kuda">Kuda</option><option value="First Bank">First Bank</option><option value="GTBank">GTBank</option><option value="UBA">UBA</option><option value="Zenith Bank">Zenith Bank</option></select>
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NUMBER</label><input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="Enter 10-digit account number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>PHONE NUMBER</label><input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 11))} inputMode="tel" placeholder="Enter phone number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "20px", fontSize: "14px" }} />
             <button type="button" onClick={saveBankDetails} style={{ width: "100%", padding: "15px", borderRadius: "12px", border: "none", background: "#00E676", color: "black", fontWeight: "900", fontSize: "14px", cursor: "pointer" }}>💾 SAVE BANK DETAILS</button>
