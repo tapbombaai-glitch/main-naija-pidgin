@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
+// Only Pidgin worker accounts are currently allowed to log in.
+const ACTIVE_WORKER_LANGUAGE = "pidgin";
+
 type SavedCookie = {
   name: string;
   value: string;
@@ -36,7 +39,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Keep the existing login fields.
+    // KEEP EXISTING LOGIN FIELDS
+
     const identifier =
       typeof body.identifier === "string"
         ? body.identifier.trim()
@@ -76,17 +80,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Normalize the identifier without changing the worker's login method.
+    // NORMALIZE LOGIN IDENTIFIER
+
     const isEmail = identifier.includes("@");
 
     const cleanIdentifier = isEmail
       ? identifier.toLowerCase()
       : identifier.toUpperCase();
 
-    // Find the registered worker using the server-side admin client.
+    // FIND REGISTERED WORKER
+    // Language comes from the database, never from the browser.
+
     let query = supabaseAdmin
       .from("workers")
-      .select("email, worker_id, auth_user_id");
+      .select(
+        "email, worker_id, auth_user_id, language"
+      );
 
     query = isEmail
       ? query.eq("email", cleanIdentifier)
@@ -124,7 +133,8 @@ export async function POST(req: NextRequest) {
       .trim()
       .toLowerCase();
 
-    // Chairman must use the separate Chairman Login.
+    // CHAIRMAN MUST USE SEPARATE LOGIN
+
     if (email === CHAIRMAN_EMAIL) {
       return sendResponse(
         {
@@ -134,7 +144,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create the existing Supabase cookie-based session.
+    // LANGUAGE LOCK
+    // Existing workers have pidgin as their database default.
+    // No other language is currently allowed.
+
+    const workerLanguage = String(
+      worker.language || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (workerLanguage !== ACTIVE_WORKER_LANGUAGE) {
+      return sendResponse(
+        {
+          error:
+            "Your registered language is not currently open for worker login. Please contact support.",
+        },
+        403
+      );
+    }
+
+    // CREATE EXISTING SUPABASE COOKIE SESSION
+
     const cookieStore = await cookies();
 
     const supabase = createServerClient(
@@ -153,7 +184,8 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    // Authenticate using the worker's existing email and password.
+    // AUTHENTICATE USING REGISTERED EMAIL AND PASSWORD
+
     const { data, error: loginError } =
       await supabase.auth.signInWithPassword({
         email,
@@ -177,7 +209,8 @@ export async function POST(req: NextRequest) {
     const authenticatedEmail =
       data.user.email?.trim().toLowerCase();
 
-    // Confirm the authenticated email belongs to this worker.
+    // VERIFY AUTHENTICATED EMAIL
+
     if (authenticatedEmail !== email) {
       await supabase.auth.signOut();
 
@@ -189,11 +222,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify or securely establish the worker's Supabase user mapping.
+    // VERIFY OR SECURELY ESTABLISH WORKER ACCOUNT MAPPING
+
     let verifiedAuthUserId = worker.auth_user_id;
 
     if (verifiedAuthUserId) {
-      // Existing mappings must match exactly.
       if (verifiedAuthUserId !== data.user.id) {
         await supabase.auth.signOut();
 
@@ -206,7 +239,8 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // First successful login: claim the mapping only if it is still empty.
+      // First successful login: claim mapping only if still empty.
+
       const { data: linkedWorker, error: linkError } =
         await supabaseAdmin
           .from("workers")
@@ -236,15 +270,19 @@ export async function POST(req: NextRequest) {
       }
 
       if (linkedWorker?.auth_user_id) {
-        verifiedAuthUserId = linkedWorker.auth_user_id;
+        verifiedAuthUserId =
+          linkedWorker.auth_user_id;
       } else {
         // Another request may have linked the account first.
-        const { data: existingWorker, error: verifyError } =
-          await supabaseAdmin
-            .from("workers")
-            .select("auth_user_id")
-            .eq("worker_id", worker.worker_id)
-            .maybeSingle();
+
+        const {
+          data: existingWorker,
+          error: verifyError,
+        } = await supabaseAdmin
+          .from("workers")
+          .select("auth_user_id")
+          .eq("worker_id", worker.worker_id)
+          .maybeSingle();
 
         if (verifyError) {
           console.error(
@@ -280,14 +318,67 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Successful login. Keep the response fields unchanged
-    // so the existing worker login page can continue working.
+    // VERIFY WORKER PROFILE LANGUAGE AND ID
+    // The workers table remains the primary language authority.
+    // If a profile exists, it must agree with that account.
+
+    const { data: profile, error: profileError } =
+      await supabaseAdmin
+        .from("worker_profiles")
+        .select("worker_id, language")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+
+    if (profileError) {
+      console.error(
+        "Worker profile verification error:",
+        profileError.message
+      );
+
+      await supabase.auth.signOut();
+
+      return sendResponse(
+        {
+          error:
+            "Unable to verify your worker profile. Please try again.",
+        },
+        500
+      );
+    }
+
+    if (profile) {
+      const profileLanguage = String(
+        profile.language || ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (
+        profile.worker_id !== worker.worker_id ||
+        profileLanguage !== ACTIVE_WORKER_LANGUAGE
+      ) {
+        await supabase.auth.signOut();
+
+        return sendResponse(
+          {
+            error:
+              "Your worker profile does not match your registered language or Worker ID. Please contact support.",
+          },
+          403
+        );
+      }
+    }
+
+    // SUCCESSFUL LOGIN
+    // Keep the existing response fields and add language.
+
     return sendResponse(
       {
         success: true,
         message: "Worker login successful!",
         workerId: worker.worker_id,
         email,
+        language: ACTIVE_WORKER_LANGUAGE,
       },
       200
     );
