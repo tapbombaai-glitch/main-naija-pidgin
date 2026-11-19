@@ -5,6 +5,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ONLY PIDGIN REGISTRATION IS OPEN RIGHT NOW.
+// Workers cannot choose or change their language through the browser.
+const WORKER_LANGUAGE = "pidgin" as const;
+
 const LOCATION_MAP: Record<
   string,
   { state: string; city: string }
@@ -33,8 +37,7 @@ function resolveLocation(body: any) {
   const suppliedState = String(body.state || "").trim();
   const suppliedCity = String(body.city || "").trim();
 
-  const mapped =
-    LOCATION_MAP[region.toLowerCase()];
+  const mapped = LOCATION_MAP[region.toLowerCase()];
 
   return {
     state: suppliedState || mapped?.state || "Not specified",
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
 
     const fullName = String(body.fullName || "").trim();
     const phone = String(body.phone || "").trim();
+
     const email = String(body.email || "")
       .trim()
       .toLowerCase();
@@ -81,6 +85,26 @@ export async function POST(request: NextRequest) {
     const region = String(body.region || "").trim();
 
     const { state, city } = resolveLocation(body);
+
+    // The server controls the language.
+    // Reject attempts to register for a language that is not open.
+    const requestedLanguage = String(body.language || "")
+      .trim()
+      .toLowerCase();
+
+    if (
+      requestedLanguage &&
+      requestedLanguage !== WORKER_LANGUAGE
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Only Nigerian Pidgin registration is currently open.",
+        },
+        { status: 403 }
+      );
+    }
 
     // Accent is classification metadata.
     // Never guess a worker's actual accent.
@@ -127,9 +151,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    ) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         {
           success: false,
@@ -210,10 +232,11 @@ export async function POST(request: NextRequest) {
 
           account_type: "worker",
 
+          // PERMANENT ACCOUNT LANGUAGE
+          language: WORKER_LANGUAGE,
+
           phone,
-
           region,
-
           state,
           city,
           accent,
@@ -239,16 +262,23 @@ export async function POST(request: NextRequest) {
 
     authUserId = authData.user.id;
 
-    // THE DATABASE TRIGGER SHOULD HAVE CREATED
-    // THE worker_profiles ROW AUTOMATICALLY.
-
-    // MAKE BOTH TABLES USE THE SAME WORKER ID.
+    // UPDATE THE AUTOMATICALLY CREATED WORKER PROFILE
 
     const { data: profile, error: profileError } =
       await supabaseAdmin
         .from("worker_profiles")
         .update({
           worker_id: workerId,
+
+          full_name: fullName,
+          email,
+          state,
+          city,
+          accent,
+
+          // SAME LANGUAGE AS AUTH ACCOUNT
+          language: WORKER_LANGUAGE,
+
           updated_at: new Date().toISOString(),
         })
         .eq("user_id", authUserId)
@@ -288,6 +318,9 @@ export async function POST(request: NextRequest) {
         phone,
 
         region,
+
+        // SAME LANGUAGE AS AUTH AND PROFILE
+        language: WORKER_LANGUAGE,
 
         voice_earnings: 0,
         total_voice_sales: 0,
@@ -330,6 +363,7 @@ export async function POST(request: NextRequest) {
           state,
           city,
           accent,
+          language: WORKER_LANGUAGE,
         },
       },
       { status: 201 }
@@ -352,7 +386,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        error: error?.message ||
+        error:
+          error?.message ||
           "Registration failed. Please try again.",
       },
       { status: 500 }
