@@ -1,17 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { parseBuffer } from "music-metadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
+
 const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
+const MIN_AUDIO_SIZE = 30 * 1024;
+const MIN_DURATION = 30;
+const MAX_DURATION = 180;
+
+const PROTECTED_NAMES = [
+  "main naija pidgin",
+  "main naija pidgin male",
+  "warri babe",
+  "warri boy",
+];
+
+const ALLOWED_EXTENSIONS = [
+  "wav",
+  "mp3",
+  "m4a",
+  "webm",
+  "ogg",
+  "flac",
+  "aac",
+];
 
 const supabaseUrl =
   process.env.SUPABASE_URL ||
   process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-const supabaseAnonKey =
+const anonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const serviceRoleKey =
@@ -20,42 +43,69 @@ const serviceRoleKey =
 const elevenLabsKey =
   process.env.ELEVENLABS_API_KEY;
 
+function response(
+  success: boolean,
+  message: string,
+  status = 200,
+  extra: Record<string, unknown> = {}
+) {
+  return NextResponse.json(
+    { success, message, ...extra },
+    { status }
+  );
+}
+
 export async function POST(req: NextRequest) {
+  let createdVoiceId: string | null = null;
+
   try {
-    // 1. CHECK SERVER CONFIGURATION
+    // 1. SERVER CONFIGURATION
+
     if (
       !supabaseUrl ||
-      !supabaseAnonKey ||
+      !anonKey ||
       !serviceRoleKey ||
       !elevenLabsKey
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Server configuration is incomplete.",
-        },
-        { status: 500 }
+      return response(
+        false,
+        "Server configuration is incomplete.",
+        500
       );
     }
 
-    // 2. VERIFY CHAIRMAN LOGIN
-    const authorization = req.headers.get("authorization");
+    // 2. REQUEST SIZE PROTECTION
+
+    const contentLength = Number(
+      req.headers.get("content-length") || 0
+    );
+
+    if (contentLength > MAX_AUDIO_SIZE + 500_000) {
+      return response(
+        false,
+        "Audio upload exceeds the allowed size.",
+        413
+      );
+    }
+
+    // 3. CHAIRMAN AUTHENTICATION
+
+    const authorization =
+      req.headers.get("authorization");
 
     if (!authorization?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Please log in as Chairman.",
-        },
-        { status: 401 }
+      return response(
+        false,
+        "Please log in as Chairman.",
+        401
       );
     }
 
-    const accessToken = authorization.slice(7);
+    const token = authorization.slice(7);
 
     const supabaseAuth = createClient(
       supabaseUrl,
-      supabaseAnonKey,
+      anonKey,
       {
         auth: {
           persistSession: false,
@@ -67,23 +117,22 @@ export async function POST(req: NextRequest) {
     const {
       data: { user },
       error: authError,
-    } = await supabaseAuth.auth.getUser(accessToken);
+    } = await supabaseAuth.auth.getUser(token);
 
     if (
       authError ||
       !user ||
       user.email?.toLowerCase() !== CHAIRMAN_EMAIL
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Chairman access only.",
-        },
-        { status: 403 }
+      return response(
+        false,
+        "Chairman access only.",
+        403
       );
     }
 
-    // 3. CHECK REQUEST DATA
+    // 4. READ UPLOAD
+
     const formData = await req.formData();
 
     const name = String(
@@ -95,109 +144,102 @@ export async function POST(req: NextRequest) {
       formData.get("file");
 
     if (!name || name.length > 100) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Enter a valid voice name.",
-        },
-        { status: 400 }
+      return response(
+        false,
+        "Enter a valid voice name.",
+        400
+      );
+    }
+
+    const normalizedName = name.toLowerCase();
+
+    if (PROTECTED_NAMES.includes(normalizedName)) {
+      return response(
+        false,
+        "This is a protected Main Naija Pidgin voice name.",
+        409
       );
     }
 
     if (
       !audio ||
       typeof audio === "string" ||
-      !("arrayBuffer" in audio)
+      typeof (audio as File).arrayBuffer !== "function"
     ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Please upload an audio recording.",
-        },
-        { status: 400 }
+      return response(
+        false,
+        "Please upload an audio recording.",
+        400
       );
     }
 
-    const audioFile = audio as File;
+    const file = audio as File;
 
-    if (audioFile.size === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "The audio file is empty.",
-        },
-        { status: 400 }
+    if (
+      file.size < MIN_AUDIO_SIZE ||
+      file.size > MAX_AUDIO_SIZE
+    ) {
+      return response(
+        false,
+        "Audio must be between 30KB and 15MB.",
+        400
       );
     }
 
-    if (audioFile.size > MAX_AUDIO_SIZE) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Audio file must not exceed 15MB.",
-        },
-        { status: 413 }
+    // 5. CHECK FILE FORMAT
+
+    const extension =
+      file.name.split(".").pop()?.toLowerCase() || "";
+
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      return response(
+        false,
+        "Unsupported audio format. Use WAV, MP3, M4A, WEBM, OGG, FLAC or AAC.",
+        400
       );
     }
 
-    // 4. SEND AUDIO TO ELEVENLABS
-    const elevenLabsForm = new FormData();
+    // 6. VALIDATE REAL AUDIO DURATION
 
-    elevenLabsForm.append("name", name);
-    elevenLabsForm.append(
-      "files",
-      audioFile,
-      audioFile.name || "voice-sample.webm"
+    const buffer = Buffer.from(
+      await file.arrayBuffer()
     );
 
-    const cloneResponse = await fetch(
-      "https://api.elevenlabs.io/v1/voices/add",
-      {
-        method: "POST",
-        headers: {
-          "xi-api-key": elevenLabsKey,
+    let duration: number;
+
+    try {
+      const metadata = await parseBuffer(
+        buffer,
+        {
+          mimeType: file.type || undefined,
+          size: buffer.length,
         },
-        body: elevenLabsForm,
-        cache: "no-store",
-      }
-    );
-
-    const cloneData = await cloneResponse.json();
-
-    if (!cloneResponse.ok) {
-      console.error(
-        "ElevenLabs cloning failed:",
-        cloneResponse.status
+        { duration: true }
       );
 
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            cloneData?.detail?.message ||
-            cloneData?.detail ||
-            "ElevenLabs could not clone this voice.",
-        },
-        { status: cloneResponse.status }
+      duration = metadata.format.duration || 0;
+    } catch {
+      return response(
+        false,
+        "Unable to read this audio file. Please upload a valid recording.",
+        400
       );
     }
 
-    // 5. VERIFY THE RETURNED VOICE ID
-    const voiceId = cloneData.voice_id;
-
-    if (!voiceId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "ElevenLabs did not return a voice ID.",
-        },
-        { status: 502 }
+    if (
+      !Number.isFinite(duration) ||
+      duration < MIN_DURATION ||
+      duration > MAX_DURATION
+    ) {
+      return response(
+        false,
+        "Audio must be between 30 and 180 seconds.",
+        400
       );
     }
 
-    console.log("ElevenLabs created voice:", voiceId);
+    // 7. SUPABASE ADMIN CLIENT
 
-    // 6. SAVE VOICE TO SUPABASE
     const supabaseAdmin = createClient(
       supabaseUrl,
       serviceRoleKey,
@@ -209,54 +251,222 @@ export async function POST(req: NextRequest) {
       }
     );
 
-    let savedToDatabase = false;
+    // 8. CHECK EXISTING VOICE NAME
 
-    try {
-      const { error } = await supabaseAdmin
+    const { data: existingVoice, error: lookupError } =
+      await supabaseAdmin
         .from("chairman_voices")
-        .insert({
-          name,
-          elevenlabs_voice_id: voiceId,
-        });
+        .select("id")
+        .ilike("name", name)
+        .limit(1)
+        .maybeSingle();
 
-      if (error) {
-        console.error(
-          "Voice database save failed:",
-          error.message
-        );
-      } else {
-        savedToDatabase = true;
-      }
-    } catch (databaseError) {
+    if (lookupError) {
       console.error(
-        "Voice database error:",
-        databaseError
+        "Voice lookup failed:",
+        lookupError.message
+      );
+
+      return response(
+        false,
+        "Could not verify existing voice names.",
+        500
       );
     }
 
-    // 7. RETURN REAL RESULT
-    return NextResponse.json(
-      {
-        success: true,
-        voice_id: voiceId,
-        elevenlabs_voice_id: voiceId,
-        name,
-        saved_to_database: savedToDatabase,
-        message: savedToDatabase
-          ? `Voice ${name} cloned and saved successfully!`
-          : `Voice ${name} cloned successfully, but database saving failed.`,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Voice clone route error:", error);
+    if (existingVoice) {
+      return response(
+        false,
+        "A voice with this name already exists.",
+        409
+      );
+    }
 
-    return NextResponse.json(
+    // 9. ATOMIC CHAIRMAN RATE LIMIT
+
+    const { error: rateError } =
+      await supabaseAdmin.rpc(
+        "claim_chairman_voice_creation",
+        {
+          p_chairman_email: CHAIRMAN_EMAIL,
+        }
+      );
+
+    if (rateError) {
+      const message = rateError.message || "";
+
+      if (
+        message.includes("RATE_LIMIT") ||
+        message.includes("rate")
+      ) {
+        return response(
+          false,
+          "Voice creation limit reached. Please wait before trying again.",
+          429
+        );
+      }
+
+      console.error(
+        "Rate limit error:",
+        message
+      );
+
+      return response(
+        false,
+        "Could not verify voice creation permission.",
+        500
+      );
+    }
+
+    // 10. SEND AUDIO TO ELEVENLABS
+
+    const elevenLabsForm = new FormData();
+
+    const audioBlob = new Blob(
+      [new Uint8Array(buffer)],
       {
-        success: false,
-        error: "Voice cloning failed. Please try again.",
-      },
-      { status: 500 }
+        type: file.type || "application/octet-stream",
+      }
+    );
+
+    elevenLabsForm.append("name", name);
+
+    elevenLabsForm.append(
+      "files",
+      audioBlob,
+      file.name || `voice-sample.${extension}`
+    );
+
+    const cloneResponse = await fetch(
+      "https://api.elevenlabs.io/v1/voices/add",
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": elevenLabsKey,
+        },
+        body: elevenLabsForm,
+        cache: "no-store",
+        signal: AbortSignal.timeout(90_000),
+      }
+    );
+
+    const cloneData = await cloneResponse.json();
+
+    if (!cloneResponse.ok) {
+      console.error(
+        "ElevenLabs cloning error:",
+        cloneResponse.status
+      );
+
+      return response(
+        false,
+        cloneData?.detail?.message ||
+          cloneData?.detail ||
+          "ElevenLabs could not clone this voice.",
+        cloneResponse.status
+      );
+    }
+
+    createdVoiceId = cloneData.voice_id;
+
+    if (!createdVoiceId) {
+      return response(
+        false,
+        "ElevenLabs did not return a voice ID.",
+        502
+      );
+    }
+
+    // 11. SAVE AS UNPUBLISHED
+
+    const { data: savedVoice, error: saveError } =
+      await supabaseAdmin
+        .from("chairman_voices")
+        .insert({
+          name,
+          elevenlabs_voice_id: createdVoiceId,
+          is_published: false,
+          requires_verification: true,
+        })
+        .select("id, name, elevenlabs_voice_id")
+        .single();
+
+    if (saveError) {
+      console.error(
+        "Main voice save failed:",
+        saveError.message
+      );
+
+      // 12. ATTEMPT RECOVERY
+
+      const { data: recovery, error: recoveryError } =
+        await supabaseAdmin
+          .from("chairman_voice_recovery")
+          .insert({
+            name,
+            elevenlabs_voice_id: createdVoiceId,
+            error_message: saveError.message,
+            status: "orphan_needs_save",
+          })
+          .select("id")
+          .single();
+
+      if (recoveryError) {
+        console.error(
+          "Voice recovery save failed:",
+          recoveryError.message
+        );
+      }
+
+      return response(
+        false,
+        recovery
+          ? "Voice was cloned, but needs database recovery. Do not clone it again."
+          : "Voice was cloned, but database saving and recovery both failed. Keep this voice ID safe.",
+        500,
+        {
+          voice_id: createdVoiceId,
+          recovery_saved: !!recovery,
+          recovery_id: recovery?.id || null,
+        }
+      );
+    }
+
+    // 13. SUCCESS
+
+    console.log(
+      "Chairman voice created:",
+      createdVoiceId
+    );
+
+    return response(
+      true,
+      `${name} cloned and saved successfully. It is waiting for Chairman approval.`,
+      200,
+      {
+        voice: savedVoice,
+        voice_id: createdVoiceId,
+        saved_to_database: true,
+        is_published: false,
+        duration_seconds: Math.round(duration),
+      }
+    );
+
+  } catch (error) {
+    console.error(
+      "Chairman voice creation error:",
+      error
+    );
+
+    return response(
+      false,
+      createdVoiceId
+        ? "ElevenLabs created a voice, but the request failed afterward. Check the recovery records before retrying."
+        : "Voice cloning failed. Please check the audio and try again.",
+      500,
+      {
+        voice_id: createdVoiceId,
+      }
     );
   }
 }
