@@ -1,8 +1,8 @@
 // app/api/chairman/voice/create/route.ts
 // MAIN NAIJA PIDGIN
-// V4.2 PRODUCTION
+// V4.3 PRODUCTION - CREATE ONLY
+// NO AUTO-PUBLISH
 // CHAIRMAN ONLY
-// CREATE ONLY - NO AUTO-PUBLISH
 // EXISTING VOICES ARE NEVER DELETED OR UPDATED
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,21 +11,14 @@ import { parseBuffer } from "music-metadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
-
-// ============================================
-// CONFIGURATION
-// ============================================
+export const maxDuration = 120;
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
 
-const MAX_AUDIO_SIZE = 25 * 1024 * 1024;
-const MAX_REQUEST_SIZE = MAX_AUDIO_SIZE + 1024 * 1024;
-const MIN_AUDIO_SIZE = 30_000;
-
-const MAX_FILES = 5;
-const MIN_DURATION_SEC = 30;
-const MAX_DURATION_SEC = 180;
+const MAX_AUDIO_SIZE = 15 * 1024 * 1024;
+const MIN_AUDIO_SIZE = 30 * 1024;
+const MIN_DURATION = 30;
+const MAX_DURATION = 180;
 
 const PROTECTED_NAMES = [
   "main naija pidgin",
@@ -34,536 +27,128 @@ const PROTECTED_NAMES = [
   "warri boy",
 ];
 
-const ALLOWED_EXTS = [
-  ".wav",
-  ".mp3",
-  ".m4a",
-  ".webm",
-  ".ogg",
-  ".flac",
-  ".aac",
+const ALLOWED_EXTENSIONS = [
+  "wav",
+  "mp3",
+  "m4a",
+  "webm",
+  "ogg",
+  "flac",
+  "aac",
 ];
 
-const ALLOWED_MIMES = [
-  "audio/wav",
-  "audio/x-wav",
-  "audio/wave",
-  "audio/vnd.wave",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/mp4",
-  "audio/x-m4a",
-  "audio/m4a",
-  "audio/webm",
-  "audio/ogg",
-  "audio/flac",
-  "audio/aac",
-  "audio/aacp",
-];
+const supabaseUrl =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-// ============================================
-// ERROR HANDLING
-// ============================================
+const anonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-class RouteError extends Error {
-  status: number;
+const serviceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "RouteError";
-    this.status = status;
-  }
-}
+const elevenLabsKey =
+  process.env.ELEVENLABS_API_KEY;
 
-function json(data: any, status = 200) {
-  return NextResponse.json(data, {
-    status,
-    headers: {
-      "Cache-Control": "no-store, max-age=0",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
-}
-
-function getEnv(name: string): string {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new RouteError(
-      `Server configuration missing: ${name}`,
-      500
-    );
-  }
-
-  return value;
-}
-
-function normalizeName(name: string): string {
-  return name
-    .normalize("NFKC")
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase();
-}
-
-function safeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message.slice(0, 500);
-  }
-
-  return "Unknown error";
-}
-
-// ============================================
-// SUPABASE ADMIN CLIENT
-// ============================================
-
-function getAdminClient() {
-  return createClient(
-    getEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    getEnv("SUPABASE_SERVICE_ROLE_KEY"),
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
-}
-
-// ============================================
-// CHAIRMAN AUTHENTICATION
-// ============================================
-
-async function authorize(req: NextRequest) {
-  const supabaseUrl = getEnv(
-    "NEXT_PUBLIC_SUPABASE_URL"
-  );
-
-  const anonKey = getEnv(
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-  );
-
-  const authorization = req.headers.get("authorization");
-
-  if (!authorization?.startsWith("Bearer ")) {
-    throw new RouteError(
-      "Please log in as Chairman.",
-      401
-    );
-  }
-
-  const token = authorization.slice(7).trim();
-
-  if (!token) {
-    throw new RouteError(
-      "Invalid session. Please log in again.",
-      401
-    );
-  }
-
-  const client = createClient(
-    supabaseUrl,
-    anonKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    }
-  );
-
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser(token);
-
-  if (error || !user) {
-    throw new RouteError(
-      "Invalid session. Please log in again.",
-      401
-    );
-  }
-
-  const email = user.email?.trim().toLowerCase();
-
-  if (email !== CHAIRMAN_EMAIL) {
-    throw new RouteError(
-      "Chairman only.",
-      403
-    );
-  }
-
-  return user;
-}
-
-// ============================================
-// AUDIO DURATION VALIDATION
-// ============================================
-
-async function getDurationSec(file: File): Promise<number> {
-  try {
-    const buffer = Buffer.from(
-      await file.arrayBuffer()
-    );
-
-    const metadata = await parseBuffer(
-      buffer,
-      {
-        mimeType: file.type || undefined,
-        size: file.size,
-        path: file.name,
-      },
-      {
-        duration: true,
-      }
-    );
-
-    const duration = metadata.format.duration;
-
-    if (
-      typeof duration !== "number" ||
-      !Number.isFinite(duration) ||
-      duration <= 0
-    ) {
-      throw new Error("Audio duration unavailable.");
-    }
-
-    return duration;
-  } catch {
-    throw new RouteError(
-      `Cannot verify "${file.name}". Please upload a supported audio recording.`,
-      400
-    );
-  }
-}
-
-// ============================================
-// FILE VALIDATION
-// ============================================
-
-function validateAudioFile(file: File) {
-  const fileName = file.name.trim().toLowerCase();
-
-  const dotIndex = fileName.lastIndexOf(".");
-
-  if (dotIndex < 0) {
-    throw new RouteError(
-      `File extension missing: ${file.name}`,
-      400
-    );
-  }
-
-  const extension = fileName.slice(dotIndex);
-
-  if (!ALLOWED_EXTS.includes(extension)) {
-    throw new RouteError(
-      `Unsupported audio format: ${file.name}`,
-      400
-    );
-  }
-
-  const mime = file.type.trim().toLowerCase();
-
-  if (mime.startsWith("video/")) {
-    throw new RouteError(
-      "Video files are not allowed.",
-      400
-    );
-  }
-
-  if (mime && !ALLOWED_MIMES.includes(mime)) {
-    throw new RouteError(
-      `Unsupported audio MIME type: ${mime}`,
-      400
-    );
-  }
-
-  if (file.size < MIN_AUDIO_SIZE) {
-    throw new RouteError(
-      `${file.name} is too small. Minimum size is 30KB.`,
-      400
-    );
-  }
-
-  if (file.size > MAX_AUDIO_SIZE) {
-    throw new RouteError(
-      `${file.name} exceeds the maximum file size.`,
-      413
-    );
-  }
-}
-
-// ============================================
-// COLLECT AUDIO FILES
-// ============================================
-
-function collectAudioFiles(formData: FormData): File[] {
-  const files: File[] = [];
-
-  const keys = ["audio", "audios", "files"];
-
-  for (const key of keys) {
-    for (const item of formData.getAll(key)) {
-      if (item instanceof File && item.size > 0) {
-        files.push(item);
-      }
-    }
-  }
-
-  for (let i = 0; i < MAX_FILES; i++) {
-    const item = formData.get(`audio_${i}`);
-
-    if (item instanceof File && item.size > 0) {
-      files.push(item);
-    }
-  }
-
-  // Remove duplicate representations.
-
-  const uniqueFiles = Array.from(
-    new Map(
-      files.map((file) => [
-        JSON.stringify([
-          file.name,
-          file.size,
-          file.lastModified,
-        ]),
-        file,
-      ])
-    ).values()
-  );
-
-  return uniqueFiles;
-}
-
-// ============================================
-// PERSISTENT RATE LIMIT
-// ============================================
-
-async function checkRateLimitPersistent(
-  admin: any,
-  email: string
+function response(
+  success: boolean,
+  message: string,
+  status = 200,
+  extra: Record<string, unknown> = {}
 ) {
-  const { error } = await admin.rpc(
-    "claim_chairman_voice_creation",
-    {
-      p_chairman_email: email.toLowerCase(),
-    }
-  );
-
-  if (!error) {
-    return;
-  }
-
-  const message = String(error.message || "");
-
-  if (message.includes("RATE_LIMIT_HOURLY")) {
-    throw new RouteError(
-      "Maximum 5 voice creations per hour. Please wait.",
-      429
-    );
-  }
-
-  if (message.includes("RATE_LIMIT_MINUTE")) {
-    throw new RouteError(
-      "Please wait one minute before creating another voice.",
-      429
-    );
-  }
-
-  if (message.includes("CHAIRMAN_ONLY")) {
-    throw new RouteError(
-      "Chairman only.",
-      403
-    );
-  }
-
-  console.error(
-    "Chairman rate-limit error:",
-    message
-  );
-
-  throw new RouteError(
-    "Could not verify the voice creation limit.",
-    500
+  return NextResponse.json(
+    { success, message, ...extra },
+    { status }
   );
 }
-
-// ============================================
-// DUPLICATE NAME PROTECTION
-// ============================================
-
-async function checkDuplicateName(
-  admin: any,
-  name: string
-) {
-  const escapedName = name.replace(
-    /[\\%_]/g,
-    "\\$&"
-  );
-
-  const { data, error } = await admin
-    .from("chairman_voices")
-    .select("id")
-    .ilike("name", escapedName)
-    .limit(1);
-
-  if (error) {
-    console.error(
-      "Voice name lookup failed:",
-      error
-    );
-
-    throw new RouteError(
-      "Could not check existing voice names.",
-      500
-    );
-  }
-
-  if (data && data.length > 0) {
-    throw new RouteError(
-      `Voice "${name}" already exists. Choose another name.`,
-      409
-    );
-  }
-}
-
-// ============================================
-// ELEVENLABS ERROR HANDLING
-// ============================================
-
-function getElevenLabsError(data: any): string {
-  const detail = data?.detail;
-
-  if (typeof detail === "string") {
-    return detail;
-  }
-
-  if (detail && typeof detail === "object") {
-    return (
-      detail.message ||
-      detail.status ||
-      JSON.stringify(detail)
-    );
-  }
-
-  return (
-    data?.message ||
-    data?.error ||
-    "Please check your audio and ElevenLabs account."
-  );
-}
-
-// ============================================
-// RECOVERY HELPER
-// ============================================
-
-async function saveRecoveryRecord(
-  admin: any,
-  details: {
-    name: string;
-    description: string;
-    category: string;
-    voiceId: string;
-    errorMessage: string;
-  }
-) {
-  const { data, error } = await admin
-    .from("chairman_voice_recovery")
-    .insert({
-      name: details.name,
-      description: details.description,
-      elevenlabs_voice_id: details.voiceId,
-      category: details.category,
-      error_message: details.errorMessage,
-      status: "orphan_needs_save",
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error(
-      "Voice recovery save failed:",
-      error
-    );
-
-    return null;
-  }
-
-  return data;
-}
-
-// ============================================
-// MAIN POST ROUTE
-// ============================================
 
 export async function POST(req: NextRequest) {
   let createdVoiceId: string | null = null;
-
-  let recoveryAttempted = false;
-
   let pendingName = "";
   let pendingCategory = "male";
   let pendingDesc = "";
-
   let admin: any = null;
 
   try {
-    // 1. Authenticate Chairman.
-
-    const user = await authorize(req);
-
-    // 2. Check request size.
-
-    const contentLengthHeader =
-      req.headers.get("content-length");
-
-    if (contentLengthHeader) {
-      const contentLength = Number(
-        contentLengthHeader
+    // 1. SERVER CONFIGURATION
+    if (
+      !supabaseUrl ||
+      !anonKey ||
+      !serviceRoleKey ||
+      !elevenLabsKey
+    ) {
+      return response(
+        false,
+        "Server configuration is incomplete.",
+        500
       );
-
-      if (
-        !Number.isFinite(contentLength) ||
-        contentLength < 0
-      ) {
-        throw new RouteError(
-          "Invalid upload request size.",
-          400
-        );
-      }
-
-      if (contentLength > MAX_REQUEST_SIZE) {
-        throw new RouteError(
-          "Upload too large. Maximum combined audio size is 25MB.",
-          413
-        );
-      }
     }
 
-    // 3. Initialize services.
-
-    admin = getAdminClient();
-
-    const elevenKey = getEnv(
-      "ELEVENLABS_API_KEY"
+    // 2. REQUEST SIZE PROTECTION
+    const contentLength = Number(
+      req.headers.get("content-length") || 0
     );
 
-    // 4. Parse form data.
-
-    let formData: FormData;
-
-    try {
-      formData = await req.formData();
-    } catch {
-      throw new RouteError(
-        "Invalid upload request. Please upload your audio again.",
-        400
+    if (contentLength > MAX_AUDIO_SIZE + 500_000) {
+      return response(
+        false,
+        "Audio upload exceeds the allowed size.",
+        413
       );
     }
 
-    // 5. Read fields.
+    // 3. CHAIRMAN AUTHENTICATION
+    const authorization =
+      req.headers.get("authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return response(
+        false,
+        "Please log in as Chairman.",
+        401
+      );
+    }
+
+    const token = authorization.slice(7).trim();
+
+    if (!token) {
+      return response(
+        false,
+        "Invalid session. Please log in again.",
+        401
+      );
+    }
+
+    const supabaseAuth = createClient(
+      supabaseUrl,
+      anonKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser(token);
+
+    if (
+      authError ||
+      !user ||
+      user.email?.trim().toLowerCase() !== CHAIRMAN_EMAIL
+    ) {
+      return response(
+        false,
+        "Chairman access only.",
+        403
+      );
+    }
+
+    // 4. READ UPLOAD
+    const formData = await req.formData();
 
     const name = String(
       formData.get("name") || ""
@@ -587,119 +172,226 @@ export async function POST(req: NextRequest) {
     pendingCategory = category;
     pendingDesc = voiceDescription;
 
-    // 6. Validate fields.
+    const audio =
+      formData.get("audio") ||
+      formData.get("file");
 
-    if (name.length < 2 || name.length > 80) {
-      throw new RouteError(
-        "Voice name must contain 2–80 characters.",
+    if (!name || name.length > 100) {
+      return response(
+        false,
+        "Enter a valid voice name.",
         400
       );
     }
 
     if (!["male", "female"].includes(category)) {
-      throw new RouteError(
+      return response(
+        false,
         "Gender must be male or female.",
         400
       );
     }
 
     if (descriptionInput.length > 1000) {
-      throw new RouteError(
+      return response(
+        false,
         "Description cannot exceed 1,000 characters.",
         400
       );
     }
 
-    // 7. Protect existing voices.
-
-    const normalizedName = normalizeName(name);
+    const normalizedName = name
+      .normalize("NFKC")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
 
     if (PROTECTED_NAMES.includes(normalizedName)) {
-      throw new RouteError(
-        `"${name}" is protected. Use a new voice name.`,
+      return response(
+        false,
+        "This is a protected Main Naija Pidgin voice name.",
         409
       );
     }
 
-    // 8. Collect audio files.
-
-    const uniqueFiles = collectAudioFiles(formData);
-
-    if (uniqueFiles.length === 0) {
-      throw new RouteError(
-        "Upload at least one audio recording. Each recording must be 30 seconds to 3 minutes.",
+    if (
+      !audio ||
+      typeof audio === "string" ||
+      typeof (audio as File).arrayBuffer !== "function"
+    ) {
+      return response(
+        false,
+        "Please upload an audio recording.",
         400
       );
     }
 
-    if (uniqueFiles.length > MAX_FILES) {
-      throw new RouteError(
-        "Maximum 5 audio files allowed per voice.",
+    const file = audio as File;
+
+    if (
+      file.size < MIN_AUDIO_SIZE ||
+      file.size > MAX_AUDIO_SIZE
+    ) {
+      return response(
+        false,
+        "Audio must be between 30KB and 15MB.",
         400
       );
     }
 
-    // 9. Validate files and combined size.
+    // 5. CHECK FILE FORMAT
+    const extension =
+      file.name.split(".").pop()?.toLowerCase() || "";
 
-    let totalSize = 0;
-
-    for (const file of uniqueFiles) {
-      validateAudioFile(file);
-      totalSize += file.size;
-    }
-
-    if (totalSize > MAX_AUDIO_SIZE) {
-      throw new RouteError(
-        "Combined audio files exceed the 25MB limit.",
-        413
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      return response(
+        false,
+        "Unsupported audio format. Use WAV, MP3, M4A, WEBM, OGG, FLAC or AAC.",
+        400
       );
     }
 
-    // 10. Verify actual audio duration.
-
-    let totalDuration = 0;
-
-    for (const file of uniqueFiles) {
-      const duration = await getDurationSec(file);
-
-      if (duration < MIN_DURATION_SEC) {
-        throw new RouteError(
-          `${file.name} is only ${Math.round(duration)} seconds. Minimum is 30 seconds.`,
-          400
-        );
-      }
-
-      if (duration > MAX_DURATION_SEC) {
-        throw new RouteError(
-          `${file.name} is ${Math.round(duration)} seconds. Maximum is 3 minutes.`,
-          400
-        );
-      }
-
-      totalDuration += duration;
+    const mime = file.type.trim().toLowerCase();
+    if (mime.startsWith("video/")) {
+      return response(
+        false,
+        "Video files are not allowed. Upload audio only.",
+        400
+      );
     }
 
-    // 11. Check duplicate name.
-
-    await checkDuplicateName(admin, name);
-
-    // 12. Check persistent rate limit.
-
-    await checkRateLimitPersistent(
-      admin,
-      user.email!
+    // 6. VALIDATE REAL AUDIO DURATION
+    const buffer = Buffer.from(
+      await file.arrayBuffer()
     );
 
-    // ========================================
-    // ELEVENLABS VOICE CREATION
-    // ========================================
+    let duration: number;
 
-    const elevenForm = new FormData();
+    try {
+      const metadata = await parseBuffer(
+        buffer,
+        {
+          mimeType: file.type || undefined,
+          size: buffer.length,
+          path: file.name,
+        },
+        { duration: true }
+      );
 
-    elevenForm.append("name", name);
-    elevenForm.append("description", voiceDescription);
+      duration = metadata.format.duration || 0;
+    } catch {
+      return response(
+        false,
+        "Unable to read this audio file. Please upload a valid recording.",
+        400
+      );
+    }
 
-    elevenForm.append(
+    if (
+      !Number.isFinite(duration) ||
+      duration < MIN_DURATION ||
+      duration > MAX_DURATION
+    ) {
+      return response(
+        false,
+        "Audio must be between 30 and 180 seconds.",
+        400
+      );
+    }
+
+    // 7. SUPABASE ADMIN CLIENT
+    const supabaseAdmin = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+    admin = supabaseAdmin;
+
+    // 8. CHECK EXISTING VOICE NAME - escaped for ilike
+    const escapedName = name.replace(/[\\%_]/g, "\\$&");
+
+    const { data: existingVoice, error: lookupError } =
+      await supabaseAdmin
+        .from("chairman_voices")
+        .select("id")
+        .ilike("name", escapedName)
+        .limit(1)
+        .maybeSingle();
+
+    if (lookupError) {
+      console.error(
+        "Voice lookup failed:",
+        lookupError.message
+      );
+
+      return response(
+        false,
+        "Could not verify existing voice names.",
+        500
+      );
+    }
+
+    if (existingVoice) {
+      return response(
+        false,
+        "A voice with this name already exists.",
+        409
+      );
+    }
+
+    // 9. ATOMIC CHAIRMAN RATE LIMIT
+    const { error: rateError } =
+      await supabaseAdmin.rpc(
+        "claim_chairman_voice_creation",
+        {
+          p_chairman_email: CHAIRMAN_EMAIL,
+        }
+      );
+
+    if (rateError) {
+      const message = rateError.message || "";
+
+      if (
+        message.includes("RATE_LIMIT") ||
+        message.includes("rate")
+      ) {
+        return response(
+          false,
+          "Voice creation limit reached. Please wait before trying again.",
+          429
+        );
+      }
+
+      console.error(
+        "Rate limit error:",
+        message
+      );
+
+      return response(
+        false,
+        "Could not verify voice creation permission.",
+        500
+      );
+    }
+
+    // 10. SEND AUDIO TO ELEVENLABS
+    const elevenLabsForm = new FormData();
+
+    const audioBlob = new Blob(
+      [new Uint8Array(buffer)],
+      {
+        type: file.type || "application/octet-stream",
+      }
+    );
+
+    elevenLabsForm.append("name", name);
+    elevenLabsForm.append("description", voiceDescription);
+    elevenLabsForm.append(
       "labels",
       JSON.stringify({
         language: "en",
@@ -711,211 +403,143 @@ export async function POST(req: NextRequest) {
         use_case: "conversational",
       })
     );
+    elevenLabsForm.append(
+      "files",
+      audioBlob,
+      file.name || `voice-sample.${extension}`
+    );
+    elevenLabsForm.append("remove_background_noise", "true");
 
-    for (const file of uniqueFiles) {
-      elevenForm.append(
-        "files",
-        file,
-        file.name
-      );
-    }
-
-    elevenForm.append(
-      "remove_background_noise",
-      "true"
+    const cloneResponse = await fetch(
+      "https://api.elevenlabs.io/v1/voices/add",
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": elevenLabsKey,
+        },
+        body: elevenLabsForm,
+        cache: "no-store",
+        signal: AbortSignal.timeout(90_000),
+      }
     );
 
-    // 13. Send to ElevenLabs.
-
-    let cloneResponse: Response;
-
-    try {
-      cloneResponse = await fetch(
-        "https://api.elevenlabs.io/v1/voices/add",
-        {
-          method: "POST",
-          headers: {
-            "xi-api-key": elevenKey,
-            Accept: "application/json",
-          },
-          body: elevenForm,
-          cache: "no-store",
-          signal: AbortSignal.timeout(50_000),
-        }
-      );
-    } catch (error) {
-      console.error(
-        "ElevenLabs connection error:",
-        safeErrorMessage(error)
-      );
-
-      throw new RouteError(
-        "Could not connect to ElevenLabs. Please try again.",
-        502
-      );
-    }
-
-    // 14. Read provider response.
-
-    const responseText = await cloneResponse.text();
-
     let cloneData: any = {};
-
     try {
-      cloneData = JSON.parse(responseText);
+      cloneData = await cloneResponse.json();
     } catch {
       cloneData = {};
     }
 
-    // 15. Handle provider errors.
+    if (!cloneResponse.ok) {
+      console.error(
+        "ElevenLabs cloning error:",
+        cloneResponse.status
+      );
 
-    if (!cloneResponse.ok || !cloneData.voice_id) {
-      const detail = getElevenLabsError(cloneData);
-
-      if (
-        cloneResponse.status === 401 ||
-        cloneResponse.status === 403
-      ) {
-        throw new RouteError(
-          `ElevenLabs permission error: ${detail.slice(0, 200)}`,
-          403
-        );
-      }
-
-      if (cloneResponse.status === 422) {
-        throw new RouteError(
-          `ElevenLabs rejected the audio: ${detail.slice(0, 200)}`,
-          422
-        );
-      }
-
-      if (cloneResponse.status === 429) {
-        throw new RouteError(
-          "ElevenLabs rate limit reached. Please wait and try again.",
-          429
-        );
-      }
-
-      throw new RouteError(
-        `ElevenLabs failed (${cloneResponse.status}). ${detail.slice(0, 200)}`,
-        502
+      return response(
+        false,
+        cloneData?.detail?.message ||
+          cloneData?.detail ||
+          cloneData?.message ||
+          "ElevenLabs could not clone this voice.",
+        cloneResponse.status
       );
     }
 
-    // 16. Preserve created voice ID.
+    createdVoiceId = cloneData.voice_id;
 
-    createdVoiceId = String(cloneData.voice_id);
+    if (!createdVoiceId) {
+      return response(
+        false,
+        "ElevenLabs did not return a voice ID.",
+        502
+      );
+    }
 
     const requiresVerification = Boolean(
       cloneData.requires_verification
     );
 
-    // ========================================
-    // SAVE TO CHAIRMAN CATALOGUE
-    // NEVER AUTO-PUBLISH
-    // ========================================
-
-    const {
-      data: savedVoice,
-      error: saveError,
-    } = await admin
-      .from("chairman_voices")
-      .insert({
-        name,
-
-        description:
-          descriptionInput ||
-          `Chairman ${category} Naija voice - ${uniqueFiles.length} samples`,
-
-        elevenlabs_voice_id: createdVoiceId,
-
-        category,
-
-        accent: "Naija Pidgin",
-
-        is_active: !requiresVerification,
-
-        is_published: false,
-
-        requires_verification: requiresVerification,
-      })
-      .select()
-      .single();
-
-    // ========================================
-    // DATABASE SAVE FAILURE RECOVERY
-    // ========================================
-
-    if (saveError || !savedVoice) {
-      console.error(
-        "Chairman voice save failed:",
-        saveError
-      );
-
-      recoveryAttempted = true;
-
-      const recoveryRecord = await saveRecoveryRecord(
-        admin,
-        {
+    // 11. SAVE AS UNPUBLISHED - NEVER AUTO-PUBLISH
+    const { data: savedVoice, error: saveError } =
+      await supabaseAdmin
+        .from("chairman_voices")
+        .insert({
           name,
           description: voiceDescription,
+          elevenlabs_voice_id: createdVoiceId,
           category,
-          voiceId: createdVoiceId,
-          errorMessage:
-            saveError?.message ||
-            "Unknown database save error",
-        }
+          accent: "Naija Pidgin",
+          is_active: !requiresVerification,
+          is_published: false,
+          requires_verification: requiresVerification,
+        })
+        .select("id, name, elevenlabs_voice_id")
+        .single();
+
+    if (saveError) {
+      console.error(
+        "Main voice save failed:",
+        saveError.message
       );
 
-      return json(
-        {
-          success: false,
-          needs_recovery: true,
-          recovery_saved: Boolean(recoveryRecord),
-
-          error: recoveryRecord
-            ? "ElevenLabs created the voice. Supabase saved its details in the recovery table."
-            : "ElevenLabs created the voice, but Supabase could not save it. Keep this voice ID for manual recovery.",
-
-          elevenlabs_voice_id: createdVoiceId,
-
-          recovery_id: recoveryRecord?.id || null,
-
-          recovery: {
+      // 12. ATTEMPT RECOVERY
+      const { data: recovery, error: recoveryError } =
+        await supabaseAdmin
+          .from("chairman_voice_recovery")
+          .insert({
             name,
+            description: voiceDescription,
             elevenlabs_voice_id: createdVoiceId,
             category,
-            description: voiceDescription,
-          },
-        },
-        500
+            error_message: saveError.message,
+            status: "orphan_needs_save",
+          })
+          .select("id")
+          .single();
+
+      if (recoveryError) {
+        console.error(
+          "Voice recovery save failed:",
+          recoveryError.message
+        );
+      }
+
+      return response(
+        false,
+        recovery
+          ? "Voice was cloned, but needs database recovery. Do not clone it again."
+          : "Voice was cloned, but database saving and recovery both failed. Keep this voice ID safe.",
+        500,
+        {
+          voice_id: createdVoiceId,
+          recovery_saved: !!recovery,
+          recovery_id: recovery?.id || null,
+        }
       );
     }
 
-    // ========================================
-    // SUCCESS
-    // ========================================
+    // 13. SUCCESS
+    console.log(
+      "Chairman voice created:",
+      createdVoiceId
+    );
 
-    return json({
-      success: true,
-
-      message: requiresVerification
-        ? `Voice "${name}" created successfully. Complete ElevenLabs verification before publishing.`
-        : `Voice "${name}" created successfully. It is saved privately and has NOT been published.`,
-
-      elevenlabs_voice_id:
-        savedVoice.elevenlabs_voice_id,
-
-      requiresVerification,
-
-      files_used: uniqueFiles.length,
-
-      total_audio_seconds: Math.round(totalDuration),
-
-      is_published: false,
-
-      voice: savedVoice,
-    });
+    return response(
+      true,
+      requiresVerification
+        ? `${name} cloned and saved privately. Complete ElevenLabs verification before publishing.`
+        : `${name} cloned and saved successfully. It is saved privately and has NOT been published.`,
+      200,
+      {
+        voice: savedVoice,
+        voice_id: createdVoiceId,
+        saved_to_database: true,
+        is_published: false,
+        requiresVerification,
+        duration_seconds: Math.round(duration),
+      }
+    );
 
   } catch (error) {
     console.error(
@@ -923,125 +547,44 @@ export async function POST(req: NextRequest) {
       error
     );
 
-    // If ElevenLabs already created the voice but
-    // an unexpected error happened afterward,
-    // attempt to preserve its ID in recovery.
+    // Preserve voice ID if ElevenLabs already created it
+    let recoverySaved = false;
+    let recoveryId: string | null = null;
 
-    let recoveryRecord: any = null;
-
-    if (
-      createdVoiceId &&
-      admin &&
-      !recoveryAttempted
-    ) {
-      recoveryAttempted = true;
-
+    if (createdVoiceId && admin) {
       try {
-        recoveryRecord = await saveRecoveryRecord(
-          admin,
-          {
+        const { data } = await admin
+          .from("chairman_voice_recovery")
+          .insert({
             name: pendingName,
             description: pendingDesc,
+            elevenlabs_voice_id: createdVoiceId,
             category: pendingCategory,
-            voiceId: createdVoiceId,
-            errorMessage: safeErrorMessage(error),
-          }
-        );
-      } catch (recoveryError) {
-        console.error(
-          "Unexpected recovery error:",
-          safeErrorMessage(recoveryError)
-        );
-      }
+            error_message:
+              error instanceof Error ? error.message.slice(0, 500) : "Unknown error",
+            status: "orphan_needs_save",
+          })
+          .select("id")
+          .single();
+        if (data) {
+          recoverySaved = true;
+          recoveryId = data.id;
+        }
+      } catch {}
     }
 
-    const status =
-      error instanceof RouteError
-        ? error.status
-        : 500;
-
-    return json(
+    return response(
+      false,
+      createdVoiceId
+        ? "ElevenLabs created a voice, but the request failed afterward. Check the recovery records before retrying."
+        : "Voice cloning failed. Please check the audio and try again.",
+      500,
       {
-        success: false,
-
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unexpected server error.",
-
-        elevenlabs_voice_id:
-          createdVoiceId || undefined,
-
-        needs_recovery:
-          Boolean(createdVoiceId),
-
-        recovery_saved:
-          Boolean(recoveryRecord),
-
-        recovery_id:
-          recoveryRecord?.id || null,
-
-        recovery:
-          createdVoiceId
-            ? {
-                name: pendingName,
-                elevenlabs_voice_id: createdVoiceId,
-                category: pendingCategory,
-                description: pendingDesc,
-              }
-            : undefined,
-      },
-      status
+        voice_id: createdVoiceId,
+        needs_recovery: Boolean(createdVoiceId),
+        recovery_saved: recoverySaved,
+        recovery_id: recoveryId,
+      }
     );
   }
-}
-
-// ============================================
-// HEALTH CHECK
-// ============================================
-
-export async function GET() {
-  return json({
-    success: true,
-
-    message:
-      "Main Naija Pidgin Chairman Voice V4.2",
-
-    mode:
-      "CREATE ONLY - NO AUTO-PUBLISH",
-
-    security:
-      "CHAIRMAN ONLY",
-
-    limits: {
-      maximum_files: MAX_FILES,
-
-      minimum_duration_seconds:
-        MIN_DURATION_SEC,
-
-      maximum_duration_seconds:
-        MAX_DURATION_SEC,
-
-      maximum_total_size_mb: 25,
-
-      creations_per_minute: 1,
-
-      creations_per_hour: 5,
-    },
-
-    protections: {
-      existing_voices_modified: false,
-      automatic_publishing: false,
-      recovery_enabled: true,
-      duplicate_name_check: true,
-      audio_duration_check: true,
-    },
-
-    protected_voices: [
-      "Main Naija Pidgin",
-      "Main Naija Pidgin Male",
-      "Warri Babe",
-      "Warri Boy",
-    ],
-  });
 }
