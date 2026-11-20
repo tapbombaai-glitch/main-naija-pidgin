@@ -1,9 +1,9 @@
 // app/api/chairman/voice/create/route.ts
 // MAIN NAIJA PIDGIN
-// V4.1 PRODUCTION - CREATE ONLY
-// NO AUTO-PUBLISH
+// V4.2 PRODUCTION
 // CHAIRMAN ONLY
-// EXISTING VOICE RECORDS ARE NOT DELETED OR MODIFIED
+// CREATE ONLY - NO AUTO-PUBLISH
+// EXISTING VOICES ARE NEVER DELETED OR UPDATED
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -24,7 +24,6 @@ const MAX_REQUEST_SIZE = MAX_AUDIO_SIZE + 1024 * 1024;
 const MIN_AUDIO_SIZE = 30_000;
 
 const MAX_FILES = 5;
-
 const MIN_DURATION_SEC = 30;
 const MAX_DURATION_SEC = 180;
 
@@ -99,6 +98,14 @@ function getEnv(name: string): string {
   return value;
 }
 
+function normalizeName(name: string): string {
+  return name
+    .normalize("NFKC")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
 function safeErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message.slice(0, 500);
@@ -137,9 +144,7 @@ async function authorize(req: NextRequest) {
     "NEXT_PUBLIC_SUPABASE_ANON_KEY"
   );
 
-  const authorization = req.headers.get(
-    "authorization"
-  );
+  const authorization = req.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
     throw new RouteError(
@@ -196,9 +201,7 @@ async function authorize(req: NextRequest) {
 // AUDIO DURATION VALIDATION
 // ============================================
 
-async function getDurationSec(
-  file: File
-): Promise<number> {
+async function getDurationSec(file: File): Promise<number> {
   try {
     const buffer = Buffer.from(
       await file.arrayBuffer()
@@ -229,7 +232,7 @@ async function getDurationSec(
     return duration;
   } catch {
     throw new RouteError(
-      `Cannot verify the duration of "${file.name}". Please upload a supported WAV, MP3, M4A, WEBM, OGG, FLAC or AAC recording.`,
+      `Cannot verify "${file.name}". Please upload a supported audio recording.`,
       400
     );
   }
@@ -255,7 +258,7 @@ function validateAudioFile(file: File) {
 
   if (!ALLOWED_EXTS.includes(extension)) {
     throw new RouteError(
-      `Unsupported file: ${file.name}. Allowed formats: WAV, MP3, M4A, WEBM, OGG, FLAC and AAC.`,
+      `Unsupported audio format: ${file.name}`,
       400
     );
   }
@@ -264,7 +267,7 @@ function validateAudioFile(file: File) {
 
   if (mime.startsWith("video/")) {
     throw new RouteError(
-      "Video files are not allowed. Upload audio only.",
+      "Video files are not allowed.",
       400
     );
   }
@@ -278,7 +281,7 @@ function validateAudioFile(file: File) {
 
   if (file.size < MIN_AUDIO_SIZE) {
     throw new RouteError(
-      `${file.name} is too small. Minimum file size is 30KB.`,
+      `${file.name} is too small. Minimum size is 30KB.`,
       400
     );
   }
@@ -295,23 +298,14 @@ function validateAudioFile(file: File) {
 // COLLECT AUDIO FILES
 // ============================================
 
-function collectAudioFiles(
-  formData: FormData
-): File[] {
+function collectAudioFiles(formData: FormData): File[] {
   const files: File[] = [];
 
-  const keys = [
-    "audio",
-    "audios",
-    "files",
-  ];
+  const keys = ["audio", "audios", "files"];
 
   for (const key of keys) {
     for (const item of formData.getAll(key)) {
-      if (
-        item instanceof File &&
-        item.size > 0
-      ) {
+      if (item instanceof File && item.size > 0) {
         files.push(item);
       }
     }
@@ -320,10 +314,7 @@ function collectAudioFiles(
   for (let i = 0; i < MAX_FILES; i++) {
     const item = formData.get(`audio_${i}`);
 
-    if (
-      item instanceof File &&
-      item.size > 0
-    ) {
+    if (item instanceof File && item.size > 0) {
       files.push(item);
     }
   }
@@ -347,7 +338,7 @@ function collectAudioFiles(
 }
 
 // ============================================
-// PERSISTENT ATOMIC RATE LIMIT
+// PERSISTENT RATE LIMIT
 // ============================================
 
 async function checkRateLimitPersistent(
@@ -369,7 +360,7 @@ async function checkRateLimitPersistent(
 
   if (message.includes("RATE_LIMIT_HOURLY")) {
     throw new RouteError(
-      "Maximum 5 voice creations per hour. Please wait before trying again.",
+      "Maximum 5 voice creations per hour. Please wait.",
       429
     );
   }
@@ -389,18 +380,18 @@ async function checkRateLimitPersistent(
   }
 
   console.error(
-    "Chairman voice rate-limit error:",
+    "Chairman rate-limit error:",
     message
   );
 
   throw new RouteError(
-    "Could not verify the voice creation limit. Please try again.",
+    "Could not verify the voice creation limit.",
     500
   );
 }
 
 // ============================================
-// DUPLICATE VOICE NAME CHECK
+// DUPLICATE NAME PROTECTION
 // ============================================
 
 async function checkDuplicateName(
@@ -412,10 +403,7 @@ async function checkDuplicateName(
     "\\$&"
   );
 
-  const {
-    data,
-    error,
-  } = await admin
+  const { data, error } = await admin
     .from("chairman_voices")
     .select("id")
     .ilike("name", escapedName)
@@ -423,7 +411,7 @@ async function checkDuplicateName(
 
   if (error) {
     console.error(
-      "Chairman voice name lookup failed:",
+      "Voice name lookup failed:",
       error
     );
 
@@ -468,17 +456,58 @@ function getElevenLabsError(data: any): string {
 }
 
 // ============================================
+// RECOVERY HELPER
+// ============================================
+
+async function saveRecoveryRecord(
+  admin: any,
+  details: {
+    name: string;
+    description: string;
+    category: string;
+    voiceId: string;
+    errorMessage: string;
+  }
+) {
+  const { data, error } = await admin
+    .from("chairman_voice_recovery")
+    .insert({
+      name: details.name,
+      description: details.description,
+      elevenlabs_voice_id: details.voiceId,
+      category: details.category,
+      error_message: details.errorMessage,
+      status: "orphan_needs_save",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error(
+      "Voice recovery save failed:",
+      error
+    );
+
+    return null;
+  }
+
+  return data;
+}
+
+// ============================================
 // MAIN POST ROUTE
 // ============================================
 
-export async function POST(
-  req: NextRequest
-) {
+export async function POST(req: NextRequest) {
   let createdVoiceId: string | null = null;
+
+  let recoveryAttempted = false;
 
   let pendingName = "";
   let pendingCategory = "male";
   let pendingDesc = "";
+
+  let admin: any = null;
 
   try {
     // 1. Authenticate Chairman.
@@ -515,7 +544,7 @@ export async function POST(
 
     // 3. Initialize services.
 
-    const admin = getAdminClient();
+    admin = getAdminClient();
 
     const elevenKey = getEnv(
       "ELEVENLABS_API_KEY"
@@ -534,7 +563,7 @@ export async function POST(
       );
     }
 
-    // 5. Read form fields.
+    // 5. Read fields.
 
     const name = String(
       formData.get("name") || ""
@@ -560,10 +589,7 @@ export async function POST(
 
     // 6. Validate fields.
 
-    if (
-      name.length < 2 ||
-      name.length > 80
-    ) {
+    if (name.length < 2 || name.length > 80) {
       throw new RouteError(
         "Voice name must contain 2–80 characters.",
         400
@@ -586,22 +612,18 @@ export async function POST(
 
     // 7. Protect existing voices.
 
-    if (
-      PROTECTED_NAMES.includes(
-        name.toLowerCase()
-      )
-    ) {
+    const normalizedName = normalizeName(name);
+
+    if (PROTECTED_NAMES.includes(normalizedName)) {
       throw new RouteError(
-        `"${name}" is protected. Use a new name such as "${name} V2".`,
+        `"${name}" is protected. Use a new voice name.`,
         409
       );
     }
 
     // 8. Collect audio files.
 
-    const uniqueFiles = collectAudioFiles(
-      formData
-    );
+    const uniqueFiles = collectAudioFiles(formData);
 
     if (uniqueFiles.length === 0) {
       throw new RouteError(
@@ -623,7 +645,6 @@ export async function POST(
 
     for (const file of uniqueFiles) {
       validateAudioFile(file);
-
       totalSize += file.size;
     }
 
@@ -635,6 +656,8 @@ export async function POST(
     }
 
     // 10. Verify actual audio duration.
+
+    let totalDuration = 0;
 
     for (const file of uniqueFiles) {
       const duration = await getDurationSec(file);
@@ -652,16 +675,15 @@ export async function POST(
           400
         );
       }
+
+      totalDuration += duration;
     }
 
-    // 11. Check duplicate voice name.
+    // 11. Check duplicate name.
 
-    await checkDuplicateName(
-      admin,
-      name
-    );
+    await checkDuplicateName(admin, name);
 
-    // 12. Check rate limit before cloning.
+    // 12. Check persistent rate limit.
 
     await checkRateLimitPersistent(
       admin,
@@ -674,15 +696,8 @@ export async function POST(
 
     const elevenForm = new FormData();
 
-    elevenForm.append(
-      "name",
-      name
-    );
-
-    elevenForm.append(
-      "description",
-      voiceDescription
-    );
+    elevenForm.append("name", name);
+    elevenForm.append("description", voiceDescription);
 
     elevenForm.append(
       "labels",
@@ -742,8 +757,7 @@ export async function POST(
 
     // 14. Read provider response.
 
-    const responseText =
-      await cloneResponse.text();
+    const responseText = await cloneResponse.text();
 
     let cloneData: any = {};
 
@@ -755,13 +769,8 @@ export async function POST(
 
     // 15. Handle provider errors.
 
-    if (
-      !cloneResponse.ok ||
-      !cloneData.voice_id
-    ) {
-      const detail = getElevenLabsError(
-        cloneData
-      );
+    if (!cloneResponse.ok || !cloneData.voice_id) {
+      const detail = getElevenLabsError(cloneData);
 
       if (
         cloneResponse.status === 401 ||
@@ -793,11 +802,9 @@ export async function POST(
       );
     }
 
-    // 16. Keep the created voice ID for recovery.
+    // 16. Preserve created voice ID.
 
-    createdVoiceId = String(
-      cloneData.voice_id
-    );
+    createdVoiceId = String(cloneData.voice_id);
 
     const requiresVerification = Boolean(
       cloneData.requires_verification
@@ -805,7 +812,7 @@ export async function POST(
 
     // ========================================
     // SAVE TO CHAIRMAN CATALOGUE
-    // NO AUTO-PUBLISH
+    // NEVER AUTO-PUBLISH
     // ========================================
 
     const {
@@ -820,8 +827,7 @@ export async function POST(
           descriptionInput ||
           `Chairman ${category} Naija voice - ${uniqueFiles.length} samples`,
 
-        elevenlabs_voice_id:
-          createdVoiceId,
+        elevenlabs_voice_id: createdVoiceId,
 
         category,
 
@@ -831,14 +837,13 @@ export async function POST(
 
         is_published: false,
 
-        requires_verification:
-          requiresVerification,
+        requires_verification: requiresVerification,
       })
       .select()
       .single();
 
     // ========================================
-    // RECOVERY IF DATABASE SAVE FAILS
+    // DATABASE SAVE FAILURE RECOVERY
     // ========================================
 
     if (saveError || !savedVoice) {
@@ -847,91 +852,40 @@ export async function POST(
         saveError
       );
 
-      const {
-        data: recoveryRecord,
-        error: recoveryError,
-      } = await admin
-        .from("chairman_voice_recovery")
-        .insert({
+      recoveryAttempted = true;
+
+      const recoveryRecord = await saveRecoveryRecord(
+        admin,
+        {
           name,
-
-          description:
-            voiceDescription,
-
-          elevenlabs_voice_id:
-            createdVoiceId,
-
+          description: voiceDescription,
           category,
-
-          error_message:
+          voiceId: createdVoiceId,
+          errorMessage:
             saveError?.message ||
             "Unknown database save error",
-
-          status: "orphan_needs_save",
-        })
-        .select()
-        .single();
-
-      if (
-        recoveryError ||
-        !recoveryRecord
-      ) {
-        console.error(
-          "Chairman voice recovery failed:",
-          recoveryError
-        );
-
-        return json(
-          {
-            success: false,
-
-            needs_recovery: true,
-
-            recovery_failed: true,
-
-            error:
-              "ElevenLabs created the voice, but Supabase could not save it. Keep this voice ID for manual recovery.",
-
-            elevenlabs_voice_id:
-              createdVoiceId,
-
-            recovery: {
-              name,
-              elevenlabs_voice_id:
-                createdVoiceId,
-              category,
-              description:
-                voiceDescription,
-            },
-          },
-          500
-        );
-      }
+        }
+      );
 
       return json(
         {
           success: false,
-
           needs_recovery: true,
+          recovery_saved: Boolean(recoveryRecord),
 
-          recovery_saved: true,
+          error: recoveryRecord
+            ? "ElevenLabs created the voice. Supabase saved its details in the recovery table."
+            : "ElevenLabs created the voice, but Supabase could not save it. Keep this voice ID for manual recovery.",
 
-          error:
-            "ElevenLabs created the voice successfully. Supabase saved it in the recovery table for restoration.",
+          elevenlabs_voice_id: createdVoiceId,
 
-          elevenlabs_voice_id:
-            createdVoiceId,
-
-          recovery_id:
-            recoveryRecord.id,
+          recovery_id: recoveryRecord?.id || null,
 
           recovery: {
             name,
-            elevenlabs_voice_id:
-              createdVoiceId,
+            elevenlabs_voice_id: createdVoiceId,
             category,
-            description:
-              voiceDescription,
+            description: voiceDescription,
           },
         },
         500
@@ -956,6 +910,8 @@ export async function POST(
 
       files_used: uniqueFiles.length,
 
+      total_audio_seconds: Math.round(totalDuration),
+
       is_published: false,
 
       voice: savedVoice,
@@ -966,6 +922,38 @@ export async function POST(
       "Chairman voice creation error:",
       error
     );
+
+    // If ElevenLabs already created the voice but
+    // an unexpected error happened afterward,
+    // attempt to preserve its ID in recovery.
+
+    let recoveryRecord: any = null;
+
+    if (
+      createdVoiceId &&
+      admin &&
+      !recoveryAttempted
+    ) {
+      recoveryAttempted = true;
+
+      try {
+        recoveryRecord = await saveRecoveryRecord(
+          admin,
+          {
+            name: pendingName,
+            description: pendingDesc,
+            category: pendingCategory,
+            voiceId: createdVoiceId,
+            errorMessage: safeErrorMessage(error),
+          }
+        );
+      } catch (recoveryError) {
+        console.error(
+          "Unexpected recovery error:",
+          safeErrorMessage(recoveryError)
+        );
+      }
+    }
 
     const status =
       error instanceof RouteError
@@ -987,12 +975,17 @@ export async function POST(
         needs_recovery:
           Boolean(createdVoiceId),
 
+        recovery_saved:
+          Boolean(recoveryRecord),
+
+        recovery_id:
+          recoveryRecord?.id || null,
+
         recovery:
           createdVoiceId
             ? {
                 name: pendingName,
-                elevenlabs_voice_id:
-                  createdVoiceId,
+                elevenlabs_voice_id: createdVoiceId,
                 category: pendingCategory,
                 description: pendingDesc,
               }
@@ -1012,10 +1005,13 @@ export async function GET() {
     success: true,
 
     message:
-      "Main Naija Pidgin Chairman Voice V4.1",
+      "Main Naija Pidgin Chairman Voice V4.2",
 
     mode:
       "CREATE ONLY - NO AUTO-PUBLISH",
+
+    security:
+      "CHAIRMAN ONLY",
 
     limits: {
       maximum_files: MAX_FILES,
@@ -1033,6 +1029,14 @@ export async function GET() {
       creations_per_hour: 5,
     },
 
+    protections: {
+      existing_voices_modified: false,
+      automatic_publishing: false,
+      recovery_enabled: true,
+      duplicate_name_check: true,
+      audio_duration_check: true,
+    },
+
     protected_voices: [
       "Main Naija Pidgin",
       "Main Naija Pidgin Male",
@@ -1041,35 +1045,3 @@ export async function GET() {
     ],
   });
 }
-
-Before deploying
-
-1. Install the missing dependency
-
-Run this in your project root:
-
-npm install music-metadata
-
-2. Confirm these Render environment variables exist:
-
-- "NEXT_PUBLIC_SUPABASE_URL"
-- "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-- "SUPABASE_SERVICE_ROLE_KEY"
-- "ELEVENLABS_API_KEY"
-
-3. Deploy
-
-git add app/api/chairman/voice/create/route.ts package.json package-lock.json
-git commit -m "Improve Chairman voice creation API"
-git push origin main
-
-Important protections
-
-- Your existing Main Naija Pidgin and Warri Babe voices are not deleted.
-- Existing voice IDs are not changed.
-- New voices remain unpublished.
-- The existing rate-limit RPC is retained.
-- The existing recovery table is retained.
-- The existing database columns are retained.
-
-One thing to check: This code assumes your "chairman_voices" and "chairman_voice_recovery" tables already contain the columns used in the original file. It does not create or alter database tables. Also, the upload size check using "Content-Length" is an early check, not a complete streaming limit; your hosting platform should also enforce request-body limits.
