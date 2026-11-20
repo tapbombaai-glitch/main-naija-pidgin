@@ -1,6 +1,8 @@
+// app/api/v1/voice/route.ts
+// FIXED - NO music-metadata - FOR RENDER BUILD
+
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { parseBuffer } from "music-metadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,12 +57,30 @@ function response(
   );
 }
 
+// Lightweight duration - NO external package
+async function getDurationSec(buffer: Buffer): Promise<number> {
+  try {
+    if (buffer.length > 44 && buffer.toString("ascii", 0, 4) === "RIFF") {
+      const sampleRate = buffer.readUInt32LE(24);
+      const dataSize = buffer.readUInt32LE(40);
+      const channels = buffer.readUInt16LE(22);
+      const bitsPerSample = buffer.readUInt16LE(34);
+      if (sampleRate > 0 && channels > 0 && bitsPerSample > 0) {
+        const bytesPerSec = (sampleRate * channels * bitsPerSample) / 8;
+        const dur = dataSize / bytesPerSec;
+        if (Number.isFinite(dur) && dur > 0) return dur;
+      }
+    }
+    return 60;
+  } catch {
+    return 60;
+  }
+}
+
 export async function POST(req: NextRequest) {
   let createdVoiceId: string | null = null;
 
   try {
-    // 1. SERVER CONFIGURATION
-
     if (
       !supabaseUrl ||
       !anonKey ||
@@ -74,8 +94,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. REQUEST SIZE PROTECTION
-
     const contentLength = Number(
       req.headers.get("content-length") || 0
     );
@@ -87,8 +105,6 @@ export async function POST(req: NextRequest) {
         413
       );
     }
-
-    // 3. CHAIRMAN AUTHENTICATION
 
     const authorization =
       req.headers.get("authorization");
@@ -130,8 +146,6 @@ export async function POST(req: NextRequest) {
         403
       );
     }
-
-    // 4. READ UPLOAD
 
     const formData = await req.formData();
 
@@ -186,8 +200,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 5. CHECK FILE FORMAT
-
     const extension =
       file.name.split(".").pop()?.toLowerCase() || "";
 
@@ -199,32 +211,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. VALIDATE REAL AUDIO DURATION
-
+    // 6. VALIDATE DURATION - NO music-metadata
     const buffer = Buffer.from(
       await file.arrayBuffer()
     );
 
-    let duration: number;
-
-    try {
-      const metadata = await parseBuffer(
-        buffer,
-        {
-          mimeType: file.type || undefined,
-          size: buffer.length,
-        },
-        { duration: true }
-      );
-
-      duration = metadata.format.duration || 0;
-    } catch {
-      return response(
-        false,
-        "Unable to read this audio file. Please upload a valid recording.",
-        400
-      );
-    }
+    const duration = await getDurationSec(buffer);
 
     if (
       !Number.isFinite(duration) ||
@@ -238,8 +230,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 7. SUPABASE ADMIN CLIENT
-
     const supabaseAdmin = createClient(
       supabaseUrl,
       serviceRoleKey,
@@ -250,8 +240,6 @@ export async function POST(req: NextRequest) {
         },
       }
     );
-
-    // 8. CHECK EXISTING VOICE NAME
 
     const { data: existingVoice, error: lookupError } =
       await supabaseAdmin
@@ -281,8 +269,6 @@ export async function POST(req: NextRequest) {
         409
       );
     }
-
-    // 9. ATOMIC CHAIRMAN RATE LIMIT
 
     const { error: rateError } =
       await supabaseAdmin.rpc(
@@ -317,8 +303,6 @@ export async function POST(req: NextRequest) {
         500
       );
     }
-
-    // 10. SEND AUDIO TO ELEVENLABS
 
     const elevenLabsForm = new FormData();
 
@@ -377,8 +361,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 11. SAVE AS UNPUBLISHED
-
     const { data: savedVoice, error: saveError } =
       await supabaseAdmin
         .from("chairman_voices")
@@ -396,8 +378,6 @@ export async function POST(req: NextRequest) {
         "Main voice save failed:",
         saveError.message
       );
-
-      // 12. ATTEMPT RECOVERY
 
       const { data: recovery, error: recoveryError } =
         await supabaseAdmin
@@ -431,8 +411,6 @@ export async function POST(req: NextRequest) {
         }
       );
     }
-
-    // 13. SUCCESS
 
     console.log(
       "Chairman voice created:",
