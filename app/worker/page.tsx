@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { getTodayPidgin } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 30;
+const APPROVED_SENTENCE_RATE = 20;
 
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
@@ -176,7 +177,7 @@ export default function WorkersPage() {
   const [showModal, setShowModal] = useState<string | null>(null);
   const [workerId, setWorkerId] = useState("WORKER");
   const [recordingDayKey, setRecordingDayKey] = useState(() => getLagosRecordingWindow().key);
-  const [earnings, setEarnings] = useState({ total: 0, pending: 0, approved: 0 });
+  const [earnings, setEarnings] = useState({ approved: 0 });
   const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
@@ -235,13 +236,27 @@ export default function WorkersPage() {
     const { data: recs, error } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
     if (error) { console.error("Worker recordings loading error:", error.message); return; }
     if (recs) {
-      let total = 0; let pending = 0; let approved = 0; let today = 0;
+      let approved = 0;
+      let today = 0;
+
       recs.forEach((r: any) => {
-        const amt = Number(r.earnings) || 0;
-        if (r.status === "approved") { total += amt; approved += amt; } else if (r.status === "pending") { total += amt; pending += amt; }
-        if (r.created_at) { const createdTime = new Date(r.created_at).getTime(); if (createdTime >= window.startMs && createdTime < window.nextResetMs) { today += 1; } }
+        if (r.status === "approved") {
+          approved += Number(r.earnings) || 0;
+        }
+
+        if (r.created_at) {
+          const createdTime = new Date(r.created_at).getTime();
+
+          if (
+            createdTime >= window.startMs &&
+            createdTime < window.nextResetMs
+          ) {
+            today += 1;
+          }
+        }
       });
-      setEarnings({ total, pending, approved });
+
+      setEarnings({ approved });
       setTaskProgress({ total: recs.length, today });
     }
   };
@@ -429,22 +444,22 @@ export default function WorkersPage() {
       const audioUrl = publicData?.publicUrl || "";
       if (!audioUrl) throw new Error("Could not create recording audio URL.");
       const recordingText = sentences[currentSentenceIndex];
-      const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: 30, status: "pending", is_approved: false }).select().single();
+      const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: APPROVED_SENTENCE_RATE, status: "pending", is_approved: false }).select().single();
       if (insertError) { try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {} throw new Error("Recording could not be submitted: " + insertError.message); }
-      const data = { id: recordingRow?.id || Date.now(), worker_id: wid, lang: selectedLang, sentence: recordingText, fileName, audio_url: audioUrl, storage_path: storagePath, time: new Date().toISOString(), earnings: 30, status: "pending", approved: false };
+      const data = { id: recordingRow?.id || Date.now(), worker_id: wid, lang: selectedLang, sentence: recordingText, fileName, audio_url: audioUrl, storage_path: storagePath, time: new Date().toISOString(), earnings: APPROVED_SENTENCE_RATE, status: "pending", approved: false };
       let old: any[] = [];
       try { const raw = localStorage.getItem("gin_recordings"); const parsed = raw ? JSON.parse(raw) : []; old = Array.isArray(parsed) ? parsed : []; } catch { old = []; }
       old.unshift(data);
       const updated = old.slice(0, 100);
       try { localStorage.setItem("gin_recordings", JSON.stringify(updated)); setSavedFiles(updated); } catch {}
-      const newEarnings = { total: earnings.total + 30, pending: earnings.pending + 30, approved: earnings.approved };
+      const newEarnings = earnings;
       const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
       const nextIndex = currentSentenceIndex + 1;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
       const progressKey = `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
       localStorage.setItem(progressKey, JSON.stringify({ index: nextIndex, dayKey: recordingDayKey }));
       setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
-      showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • ₦30`);
+      showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • Awaiting Approval`);
     } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
     finally { setSavingRecording(false); }
   };
@@ -478,10 +493,38 @@ export default function WorkersPage() {
             </div>
           ))}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px", marginTop: "12px" }}>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>TOTAL</div><div style={{ color: "#00E676", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.total}</div></div>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>PENDING</div><div style={{ color: "#EAB308", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.pending}</div></div>
-          <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "10px 6px", textAlign: "center" }}><div style={{ fontSize: "10px", color: "#888" }}>APPROVED</div><div style={{ color: "#4ADE80", fontWeight: "900", fontSize: "16px", marginTop: "3px" }}>₦{earnings.approved}</div></div>
+        <div style={{
+          background: "#111A11",
+          border: "1px solid #00E676",
+          borderRadius: "12px",
+          padding: "16px",
+          marginTop: "12px",
+          textAlign: "center"
+        }}>
+          <div style={{
+            fontSize: "11px",
+            color: "#aaa",
+            fontWeight: "900"
+          }}>
+            💰 APPROVED EARNINGS
+          </div>
+
+          <div style={{
+            color: "#00E676",
+            fontWeight: "900",
+            fontSize: "28px",
+            marginTop: "8px"
+          }}>
+            ₦{earnings.approved.toLocaleString("en-NG")}
+          </div>
+
+          <div style={{
+            fontSize: "10px",
+            color: "#aaa",
+            marginTop: "6px"
+          }}>
+            Only Chairman-approved recordings count as earnings.
+          </div>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
