@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 import { getTodayPidgin } from "@/app/data/pidgin-500";
 
 const DAILY_RECORDING_LIMIT = 30;
-const APPROVED_SENTENCE_RATE = 20;
+const APPROVED_SENTENCE_RATE = 30;
 
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
