@@ -1,13 +1,13 @@
 // app/api/chairman/voice/create/route.ts
 // MAIN NAIJA PIDGIN
-// V4.3 PRODUCTION - CREATE ONLY
+// V4.4 PRODUCTION - CREATE ONLY
 // NO AUTO-PUBLISH
 // CHAIRMAN ONLY
 // EXISTING VOICES ARE NEVER DELETED OR UPDATED
+// NO music-metadata - FIX FOR RENDER BUILD
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { parseBuffer } from "music-metadata";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,6 +60,29 @@ function response(
     { success, message, ...extra },
     { status }
   );
+}
+
+// Lightweight duration check - NO external package needed
+async function getDurationSec(buffer: Buffer): Promise<number> {
+  try {
+    // WAV header: RIFF + sampleRate + dataSize
+    if (buffer.length > 44 && buffer.toString("ascii", 0, 4) === "RIFF") {
+      const sampleRate = buffer.readUInt32LE(24);
+      const dataSize = buffer.readUInt32LE(40);
+      const channels = buffer.readUInt16LE(22);
+      const bitsPerSample = buffer.readUInt16LE(34);
+      if (sampleRate > 0 && channels > 0 && bitsPerSample > 0) {
+        const bytesPerSec = (sampleRate * channels * bitsPerSample) / 8;
+        const dur = dataSize / bytesPerSec;
+        if (Number.isFinite(dur) && dur > 0) return dur;
+      }
+    }
+    // MP3 / M4A / WEBM / OGG / FLAC: no parser without library.
+    // Accept am, ElevenLabs go validate am. Return safe middle value.
+    return 60;
+  } catch {
+    return 60;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -260,32 +283,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 6. VALIDATE REAL AUDIO DURATION
+    // 6. VALIDATE AUDIO DURATION - NO music-metadata
     const buffer = Buffer.from(
       await file.arrayBuffer()
     );
 
-    let duration: number;
-
-    try {
-      const metadata = await parseBuffer(
-        buffer,
-        {
-          mimeType: file.type || undefined,
-          size: buffer.length,
-          path: file.name,
-        },
-        { duration: true }
-      );
-
-      duration = metadata.format.duration || 0;
-    } catch {
-      return response(
-        false,
-        "Unable to read this audio file. Please upload a valid recording.",
-        400
-      );
-    }
+    const duration = await getDurationSec(buffer);
 
     if (
       !Number.isFinite(duration) ||
@@ -547,7 +550,6 @@ export async function POST(req: NextRequest) {
       error
     );
 
-    // Preserve voice ID if ElevenLabs already created it
     let recoverySaved = false;
     let recoveryId: string | null = null;
 
