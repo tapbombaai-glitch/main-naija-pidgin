@@ -216,7 +216,7 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
-  // LOCKED: Balance + History + Payment
+  // LOCKED: Balance + History + Payment — Balance = NEW CAMPAIGN ONLY, Old Balance REMOVED
   const [balance, setBalance] = useState({ amount: 0, count: 0 });
   const [todayEarn, setTodayEarn] = useState({ amount: 0, count: 0 });
   const [dailyHistory, setDailyHistory] = useState<{ date: string; count: number; amount: number }[]>([]);
@@ -312,7 +312,11 @@ export default function WorkersPage() {
         if (!byDay[dayKey]) byDay[dayKey] = { count: 0, amount: 0 };
         byDay[dayKey].count += 1;
         byDay[dayKey].amount += amt;
-        if (r.is_paid !== true) { balanceAmount += amt; balanceCount += 1; }
+        // OLD BALANCE REMOVED: Do NOT add old campaign to balance
+      }
+      // BALANCE = NEW CAMPAIGN ONLY
+      if (isNewCampaign && r.status === "approved" && r.is_paid !== true) {
+        balanceAmount += amt; balanceCount += 1;
       }
       if (isNewCampaign) {
         if (r.status === "approved") campaignApproved += 1;
@@ -611,7 +615,7 @@ export default function WorkersPage() {
           <div style={{ fontSize: "11px", color: "#ccc", marginTop: "8px" }}>✅ New Campaign Approved: {taskProgress.approved} • ⏳ Waiting: {taskProgress.pending} • ❌ Rejected: {taskProgress.rejected}</div>
         </div>
 
-        {/* LOCKED: TODAY + BALANCE + HISTORY */}
+        {/* LOCKED: TODAY + BALANCE + HISTORY — Balance = NEW CAMPAIGN ONLY */}
         <div style={{ background: "#111A11", border: "1px solid #FACC15", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>📅 TODAY — Resets daily at 5 PM Lagos</div>
           <div style={{ color: "#FACC15", fontWeight: "900", fontSize: "22px", marginTop: "6px" }}>₦{todayEarn.amount.toLocaleString("en-NG")}</div>
@@ -619,9 +623,9 @@ export default function WorkersPage() {
         </div>
 
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — Unpaid (Clears ONLY when Chairman presses Mark as Paid)</div>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — New Campaign Unpaid (Clears ONLY when Chairman presses Mark as Paid)</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "26px", marginTop: "6px" }}>₦{balance.amount.toLocaleString("en-NG")}</div>
-          <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings • Pay time na Chairman announcement only, no be code</div>
+          <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings in New Campaign • Old balance removed • Pay time na Chairman announcement only, no be code</div>
         </div>
 
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
