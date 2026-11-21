@@ -8,6 +8,11 @@ import { getTodayPidgin } from "@/app/data/pidgin-500";
 const DAILY_RECORDING_LIMIT = 30;
 const APPROVED_SENTENCE_RATE = 30;
 
+// FINAL NEW CAMPAIGN — Today, 21 Nov 2026, 5:00 PM Lagos
+// 5pm Lagos = 4pm UTC (Lagos is UTC+1)
+const CAMPAIGN_START_ISO = "2026-11-21T16:00:00.000Z";
+const CAMPAIGN_START_MS = new Date(CAMPAIGN_START_ISO).getTime();
+
 const AKWAIBOM_500: string[] = [
 "Idem mfo, nte afo amek? Ami mmedi idem mfo, mkpo idem mfo ke afo amekere mi. I dey talk am slow slow, make you hear am well well, no rush at all for this recording.",
 "Uyo adiaha mi, mkpo mfo adiaha mi, ami nkpo mfo ke ndin nte afo ade. Make you listen well well, I dey talk am clear clear, make e reach 11 seconds for this work.",
@@ -115,7 +120,6 @@ const YORUBA_15: string[] = [
 "Ẹ n lẹ, ki a bẹrẹ iṣẹ loni, mo fẹ ki ohun gbogbo lọ daradara, mo n sọ ọrọ laiyara, ko si iyara, ki o de iṣẹju-aaya mọkanla.",
 ];
 
-// IJAW / IZON - SENTENCES REQUIRE NATIVE SPEAKER VALIDATION
 const IJAW_15: string[] = [
 "[DRAFT - NEEDS VALIDATION] Tobou, nua bomo? I bieke tobara se, I tobou ke emi, I dey talk am slow slow, make you hear am well well, no rush at all for this recording, make e reach 11 seconds.",
 "[DRAFT - NEEDS VALIDATION] Emi tobou tobara, I bieke emi, I dey talk am clear clear, make you hear am well well, I dey work for this place everyday, God go bless our work for this recording.",
@@ -178,7 +182,7 @@ export default function WorkersPage() {
   const [workerId, setWorkerId] = useState("WORKER");
   const [recordingDayKey, setRecordingDayKey] = useState(() => getLagosRecordingWindow().key);
   const [earnings, setEarnings] = useState({ approved: 0 });
-  const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0 });
+  const [taskProgress, setTaskProgress] = useState({ total: 0, today: 0, approved: 0, pending: 0, rejected: 0 });
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [savedFiles, setSavedFiles] = useState<any[]>([]);
@@ -191,6 +195,10 @@ export default function WorkersPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [noiseScore, setNoiseScore] = useState(0);
   const [noiseWarning, setNoiseWarning] = useState("");
+  // NEW: Remote sentences from Supabase + Frozen sentence for recording
+  const [remoteSentences, setRemoteSentences] = useState<string[] | null>(null);
+  const [frozenSentence, setFrozenSentence] = useState<string | null>(null);
+  const frozenSentenceRef = useRef<string | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
@@ -214,8 +222,18 @@ export default function WorkersPage() {
     };
   }, [recordingDayKey]);
 
-  const sentences = allSentences[selectedLang] || allSentences["Pidgin"];
+  // SAFEGUARD 2: Remote sentences first, local fallback
+  // If Chairman publishes new text in Supabase, workers get it automatically
+  const sentences = useMemo(() => {
+    if (remoteSentences && remoteSentences.length > 0) {
+      return shuffleArray(remoteSentences, `Remote-${selectedLang}-${recordingDayKey}`);
+    }
+    return allSentences[selectedLang] || allSentences["Pidgin"];
+  }, [remoteSentences, allSentences, selectedLang, recordingDayKey]);
+
   const isIjawDraft = selectedLang === "Ijaw / Izon";
+  // SAFEGUARD 3: Display frozen sentence while recording / reviewing, so text never jumps mid-recording
+  const displaySentence = (isRecording || audioURL) && frozenSentence ? frozenSentence : sentences[currentSentenceIndex];
 
   useEffect(() => {
     const wid = localStorage.getItem("gin_worker_id") || "WORKER";
@@ -236,28 +254,27 @@ export default function WorkersPage() {
     const { data: recs, error } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
     if (error) { console.error("Worker recordings loading error:", error.message); return; }
     if (recs) {
-      let approved = 0;
-      let today = 0;
-
+      let allTimeEarnings = 0;
+      let campaignApproved = 0;
+      let campaignPending = 0;
+      let campaignRejected = 0;
+      let campaignToday = 0;
       recs.forEach((r: any) => {
-        if (r.status === "approved") {
-          approved += Number(r.earnings) || 0;
-        }
-
-        if (r.created_at) {
-          const createdTime = new Date(r.created_at).getTime();
-
-          if (
-            createdTime >= window.startMs &&
-            createdTime < window.nextResetMs
-          ) {
-            today += 1;
-          }
+        const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
+        const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
+        if (r.status === "approved") { allTimeEarnings += Number(r.earnings) || 0; }
+        if (isNewCampaign) {
+          if (r.status === "approved") campaignApproved += 1;
+          else if (r.status === "rejected") campaignRejected += 1;
+          else campaignPending += 1;
+          if (createdMs >= window.startMs && createdMs < window.nextResetMs) { campaignToday += 1; }
         }
       });
-
-      setEarnings({ approved });
-      setTaskProgress({ total: recs.length, today });
+      setEarnings({ approved: allTimeEarnings });
+      setTaskProgress({ total: campaignApproved, today: campaignToday, approved: campaignApproved, pending: campaignPending, rejected: campaignRejected });
+    } else {
+      setEarnings({ approved: 0 });
+      setTaskProgress({ total: 0, today: 0, approved: 0, pending: 0, rejected: 0 });
     }
   };
 
@@ -266,6 +283,8 @@ export default function WorkersPage() {
     const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
     try { const saved = localStorage.getItem(progressKey); if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(30, sentences.length)))); } else { setCurrentSentenceIndex(0); } } catch { setCurrentSentenceIndex(0); }
     setAudioURL(null); setTimer(0);
+    // New sentence set / new day: clear frozen sentence
+    setFrozenSentence(null); frozenSentenceRef.current = null;
   }, [workerId, selectedLang, recordingDayKey, sentences.length]);
 
   useEffect(() => {
@@ -275,6 +294,7 @@ export default function WorkersPage() {
         setRecordingDayKey(window.key); setCurrentSentenceIndex(0); setTaskProgress(prev => ({ ...prev, today: 0 }));
         if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.onstop = null; mediaRecorderRef.current.stop(); }
         setIsRecording(false); setAudioURL(null); setTimer(0);
+        setFrozenSentence(null); frozenSentenceRef.current = null;
         if (streamRef.current) { streamRef.current.getTracks().forEach(track => track.stop()); streamRef.current = null; }
         audioChunksRef.current = [];
         if (timerRef.current) { clearInterval(timerRef.current); }
@@ -286,6 +306,35 @@ export default function WorkersPage() {
     const interval = setInterval(checkRecordingDay, 15000);
     return () => clearInterval(interval);
   }, [recordingDayKey, workerId]);
+
+  // AUTOMATIC EARNINGS REFRESH — No logout needed
+  useEffect(() => {
+    if (workerId === "WORKER") return;
+    const poll = setInterval(() => { loadWorkerData(workerId); }, 20000);
+    const channel = supabase.channel(`worker-earnings-${workerId}`).on("postgres_changes", { event: "*", schema: "public", table: "recordings", filter: `worker_id=eq.${workerId}` }, () => { loadWorkerData(workerId); }).subscribe();
+    const onVisible = () => { if (document.visibilityState === "visible") { loadWorkerData(workerId); } };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(poll); supabase.removeChannel(channel); document.removeEventListener("visibilitychange", onVisible); };
+  }, [workerId]);
+
+  // SAFEGUARD 2: AUTO-DISTRIBUTE NEW SENTENCES — Realtime + 60s polling backup
+  // Chairman updates `sentences` table → workers get new text automatically, no redeploy
+  // If Supabase fails, local fallback keeps work going. Old recordings never change.
+  useEffect(() => {
+    if (workerId === "WORKER") return;
+    let cancelled = false;
+    const loadSentences = async () => {
+      const { data, error } = await supabase.from("sentences").select("text").eq("language", selectedLang.toLowerCase()).eq("is_active", true).order("sort_order", { ascending: true }).limit(30);
+      if (!cancelled && !error && data && data.length > 0) {
+        const texts = data.map((r: any) => String(r.text)).filter(Boolean);
+        if (texts.length > 0) setRemoteSentences(texts);
+      }
+    };
+    loadSentences();
+    const channel = supabase.channel(`sentences-${selectedLang}`).on("postgres_changes", { event: "*", schema: "public", table: "sentences" }, () => { loadSentences(); }).subscribe();
+    const poll = setInterval(loadSentences, 60000);
+    return () => { cancelled = true; supabase.removeChannel(channel); clearInterval(poll); };
+  }, [workerId, selectedLang]);
 
   useEffect(() => {
     let active = true;
@@ -363,20 +412,18 @@ export default function WorkersPage() {
   }
 
   const toggleRecording = async () => {
-    if (selectedLang !== "Pidgin") {
-      alert("Only Pidgin recording is currently available.");
-      return;
-    }
-    if (isIjawDraft) {
-      alert("Ijaw / Izon recording is temporarily unavailable. The sentences must first be checked and approved by a native Ijaw speaker.");
-      return;
-    }
+    if (selectedLang !== "Pidgin") { alert("Only Pidgin recording is currently available."); return; }
+    if (isIjawDraft) { alert("Ijaw / Izon recording is temporarily unavailable. The sentences must first be checked and approved by a native Ijaw speaker."); return; }
     if (!isRecording) {
       if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 30 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= dailySentenceCount) { alert("You have completed today's unique sentences in this language."); return; }
     }
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
     try {
+      // SAFEGUARD 3: FREEZE sentence at recording start — even if Chairman changes sentences mid-recording, this recording keeps this exact text
+      const sentenceToRecord = sentences[currentSentenceIndex];
+      setFrozenSentence(sentenceToRecord);
+      frozenSentenceRef.current = sentenceToRecord;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 48000 } });
       streamRef.current = stream;
       const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
@@ -391,27 +438,18 @@ export default function WorkersPage() {
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
       if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
       stopTimeoutRef.current = setTimeout(() => {
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-          mediaRecorderRef.current.stop();
-          setIsRecording(false);
-        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") { mediaRecorderRef.current.stop(); setIsRecording(false); }
       }, 15000);
     } catch { alert("Abeg allow microphone!"); }
   };
 
   const formatTime = (s: number) => { const m = Math.floor(s / 60).toString().padStart(2, "0"); const sec = (s % 60).toString().padStart(2, "0"); return `${m}:${sec}`; };
-  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } };
+  const reRecord = () => { if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); } setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); setFrozenSentence(null); frozenSentenceRef.current = null; if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } };
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
 
   const saveAndNext = async () => {
-    if (selectedLang !== "Pidgin") {
-      alert("Only Pidgin recordings can be submitted right now.");
-      return;
-    }
-    if (isIjawDraft) {
-      alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete.");
-      return;
-    }
+    if (selectedLang !== "Pidgin") { alert("Only Pidgin recordings can be submitted right now."); return; }
+    if (isIjawDraft) { alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete."); return; }
     if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! E no go work! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
     if (taskProgress.today >= DAILY_RECORDING_LIMIT) { return alert("You have completed your 30 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time."); }
     if (currentSentenceIndex >= dailySentenceCount) { return alert("You have completed all the unique sentences available in this language for today. You can choose another language or continue after the next 5:00 p.m. reset."); }
@@ -443,7 +481,9 @@ export default function WorkersPage() {
       const { data: publicData } = supabase.storage.from("voice-clips").getPublicUrl(storagePath);
       const audioUrl = publicData?.publicUrl || "";
       if (!audioUrl) throw new Error("Could not create recording audio URL.");
-      const recordingText = sentences[currentSentenceIndex];
+      // SAFEGUARD 1 + 3: Save EXACT frozen sentence from recording start — never fetch latest sentence here
+      // Chairman Panel must display this saved `text`, not the current `sentences` table
+      const recordingText = frozenSentenceRef.current || frozenSentence || sentences[currentSentenceIndex];
       const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: APPROVED_SENTENCE_RATE, status: "pending", is_approved: false }).select().single();
       if (insertError) { try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {} throw new Error("Recording could not be submitted: " + insertError.message); }
       const data = { id: recordingRow?.id || Date.now(), worker_id: wid, lang: selectedLang, sentence: recordingText, fileName, audio_url: audioUrl, storage_path: storagePath, time: new Date().toISOString(), earnings: APPROVED_SENTENCE_RATE, status: "pending", approved: false };
@@ -453,12 +493,15 @@ export default function WorkersPage() {
       const updated = old.slice(0, 100);
       try { localStorage.setItem("gin_recordings", JSON.stringify(updated)); setSavedFiles(updated); } catch {}
       const newEarnings = earnings;
-      const newProgress = { total: taskProgress.total + 1, today: taskProgress.today + 1 };
+      const submittedAt = Date.now();
+      const isNewCampaignSubmission = submittedAt >= CAMPAIGN_START_MS;
+      const newProgress = isNewCampaignSubmission ? { ...taskProgress, today: taskProgress.today + 1, pending: taskProgress.pending + 1 } : { ...taskProgress };
       const nextIndex = currentSentenceIndex + 1;
       setEarnings(newEarnings); setTaskProgress(newProgress); setCurrentSentenceIndex(nextIndex);
       const progressKey = `naija_progress:${wid}:${selectedLang}:${recordingDayKey}`;
       localStorage.setItem(progressKey, JSON.stringify({ index: nextIndex, dayKey: recordingDayKey }));
       setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
+      setFrozenSentence(null); frozenSentenceRef.current = null;
       showToast(`✅ SUBMITTED TO CHAIRMAN • ${fileName} • Awaiting Approval`);
     } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed. Please try again."); }
     finally { setSavingRecording(false); }
@@ -473,7 +516,8 @@ export default function WorkersPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "10px" }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1>
-            <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{workerId} ● {savedFiles.length} files saved</div>
+            <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{workerId} ● {taskProgress.approved} approved • {taskProgress.pending} waiting • {taskProgress.rejected} rejected</div>
+            <div style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>New Campaign: From 21 Nov 2026, 5:00 PM Lagos</div>
           </div>
           <button type="button" onClick={handleLogout} style={{ flexShrink: 0, background: "#2A0A0A", color: "#FF6B6B", border: "1px solid #7F1D1D", borderRadius: "10px", padding: "9px 11px", fontSize: "11px", fontWeight: "900", cursor: "pointer" }}>🚪 LOGOUT</button>
         </div>
@@ -493,46 +537,19 @@ export default function WorkersPage() {
             </div>
           ))}
         </div>
-        <div style={{
-          background: "#111A11",
-          border: "1px solid #00E676",
-          borderRadius: "12px",
-          padding: "16px",
-          marginTop: "12px",
-          textAlign: "center"
-        }}>
-          <div style={{
-            fontSize: "11px",
-            color: "#aaa",
-            fontWeight: "900"
-          }}>
-            💰 APPROVED EARNINGS
-          </div>
-
-          <div style={{
-            color: "#00E676",
-            fontWeight: "900",
-            fontSize: "28px",
-            marginTop: "8px"
-          }}>
-            ₦{earnings.approved.toLocaleString("en-NG")}
-          </div>
-
-          <div style={{
-            fontSize: "10px",
-            color: "#aaa",
-            marginTop: "6px"
-          }}>
-            Only Chairman-approved recordings count as earnings.
-          </div>
+        <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "16px", marginTop: "12px", textAlign: "center" }}>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 APPROVED EARNINGS — ALL TIME</div>
+          <div style={{ color: "#00E676", fontWeight: "900", fontSize: "28px", marginTop: "8px" }}>₦{earnings.approved.toLocaleString("en-NG")}</div>
+          <div style={{ fontSize: "10px", color: "#aaa", marginTop: "6px" }}>Old + New approved recordings count for earnings. Only Chairman-approved count.</div>
+          <div style={{ fontSize: "11px", color: "#ccc", marginTop: "8px" }}>✅ New Campaign Approved: {taskProgress.approved} • ⏳ Waiting: {taskProgress.pending} • ❌ Rejected: {taskProgress.rejected}</div>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS — NEW CAMPAIGN</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
           <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 30) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
-          <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total recordings</div>
+          <div style={{ marginTop: "6px", fontSize: "10px", color: "#777" }}>{taskProgress.total} total approved in new campaign</div>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-          <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "#00E676" }}>🎯 VOICE COLLECTION TARGET</h3>
+          <h3 style={{ margin: 0, fontSize: "13px", fontWeight: "900", color: "#00E676" }}>🎯 NEW CAMPAIGN TARGET</h3>
           <p style={{ margin: "8px 0 0", fontSize: "16px", fontWeight: "900" }}>{taskProgress.total} / {TOTAL_RECORDING_TARGET} Voices</p>
           <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#aaa" }}>{remainingTotal} Voices Remaining</p>
           <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#ccc" }}>Today&apos;s recordings: {taskProgress.today} / {DAILY_RECORDING_LIMIT} — {remainingToday} remaining today</p>
@@ -544,64 +561,27 @@ export default function WorkersPage() {
           {["Pidgin", "Hausa", "Igbo", "Yoruba", "Akwa Ibom", "Ijaw / Izon"].map((lang) => {
             const isPidgin = lang === "Pidgin";
             return (
-              <button
-                key={lang}
-                type="button"
-                disabled={!isPidgin}
-                onClick={() => {
-                  if (isRecording || audioURL || savingRecording) {
-                    alert("Please finish or discard your current recording first.");
-                    return;
-                  }
-                  setSelectedLang("Pidgin");
-                }}
-                style={{
-                  flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1",
-                  padding: "10px 0",
-                  borderRadius: "20px",
-                  fontSize: "11px",
-                  fontWeight: "900",
-                  border: isPidgin ? "1.5px solid #00E676" : "1px solid #444",
-                  background: isPidgin ? "#00E676" : "#171717",
-                  color: isPidgin ? "black" : "#777",
-                  cursor: isPidgin ? "pointer" : "not-allowed",
-                  opacity: isPidgin ? 1 : 0.65
-                }}
-              >
-                {lang === "Pidgin"
-                  ? "🇳🇬 PIDGIN ✓"
-                  : `${lang === "Akwa Ibom" ? "🌴 Akwa Ibom" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang} 🔒`}
-                {!isPidgin && (
-                  <span style={{ display: "block", fontSize: "8px", color: "#EAB308", marginTop: "3px" }}>
-                    COMING SOON
-                  </span>
-                )}
+              <button key={lang} type="button" disabled={!isPidgin} onClick={() => { if (isRecording || audioURL || savingRecording) { alert("Please finish or discard your current recording first."); return; } setSelectedLang("Pidgin"); }} style={{ flex: lang === "Akwa Ibom" || lang === "Ijaw / Izon" ? "1 1 48%" : "1", padding: "10px 0", borderRadius: "20px", fontSize: "11px", fontWeight: "900", border: isPidgin ? "1.5px solid #00E676" : "1px solid #444", background: isPidgin ? "#00E676" : "#171717", color: isPidgin ? "black" : "#777", cursor: isPidgin ? "pointer" : "not-allowed", opacity: isPidgin ? 1 : 0.65 }}>
+                {lang === "Pidgin" ? "🇳🇬 PIDGIN ✓" : `${lang === "Akwa Ibom" ? "🌴 Akwa Ibom" : lang === "Ijaw / Izon" ? "🌊 Ijaw / Izon" : lang} 🔒`}
+                {!isPidgin && (<span style={{ display: "block", fontSize: "8px", color: "#EAB308", marginTop: "3px" }}>COMING SOON</span>)}
               </button>
             );
           })}
         </div>
         {isIjawDraft && (
           <div style={{ background: "#2A1A00", border: "1px solid #FFA500", borderRadius: "10px", padding: "14px", marginTop: "10px", fontSize: "12px", color: "#FFD580", lineHeight: 1.7, fontWeight: "700" }}>
-            🌊 IJAW / IZON — VALIDATION IN PROGRESS
-            <br /><br />
-            Recording is temporarily disabled because the current sentences are AI-generated drafts and have not been verified by native Ijaw / Izon speakers.
-            <br /><br />
-            We want genuine Ijaw voices and correct native-language sentences in our Nigerian voice dataset.
-            <br /><br />
-            Native Ijaw speakers can contact the Chairman to help validate the sentences.
+            🌊 IJAW / IZON — VALIDATION IN PROGRESS<br /><br />Recording is temporarily disabled because the current sentences are AI-generated drafts and have not been verified by native Ijaw / Izon speakers.<br /><br />We want genuine Ijaw voices and correct native-language sentences in our Nigerian voice dataset.<br /><br />Native Ijaw speakers can contact the Chairman to help validate the sentences.
           </div>
         )}
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "16px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
+        <div style={{ background: "#2A1A00", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px", fontSize: "12px", lineHeight: 1.6, color: "#FFD580" }}>
+          ⚠️ <strong>READ FIRST, JOKE AFTER</strong><br />
+          Read sentence exactly as e dey for first 11 seconds. No laugh, no sing, no shout inside sentence. After you don read am finish, you fit add small joke. If you laugh inside sentence, Chairman go REJECT am.
+        </div>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "16px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", fontWeight: "800", marginBottom: "10px" }}>🎙️ {selectedLang} — {Math.min(currentSentenceIndex + 1, dailySentenceCount)}/{dailySentenceCount}</div>
           <div style={{ textAlign: "center", minHeight: "48px", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px" }}><p style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>
-            {isIjawDraft
-              ? "Ijaw / Izon sentences are awaiting native-speaker validation."
-              : taskProgress.today >= DAILY_RECORDING_LIMIT
-              ? "You have completed your 30 recordings for today. Come back at 5:00 p.m. for the next recording day."
-              : currentSentenceIndex >= Math.min(30, sentences.length)
-              ? "You have completed all unique sentences available in this language today."
-              : sentences[currentSentenceIndex]}
+            {isIjawDraft ? "Ijaw / Izon sentences are awaiting native-speaker validation." : taskProgress.today >= DAILY_RECORDING_LIMIT ? "You have completed your 30 recordings for today. Come back at 5:00 p.m. for the next recording day." : currentSentenceIndex >= Math.min(30, sentences.length) ? "You have completed all unique sentences available in this language today." : displaySentence}
           </p></div>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
             <button onClick={toggleRecording} disabled={isIjawDraft} style={{ width: "70px", height: "70px", borderRadius: "50%", background: isRecording ? "#CC0000" : isIjawDraft ? "#333" : "#E53935", border: "4px solid #7f1d1d", opacity: isIjawDraft ? 0.5 : 1, cursor: isIjawDraft ? "not-allowed" : "pointer" }}>{isRecording ? <div style={{ width: "22px", height: "22px", background: "white", borderRadius: "3px", margin: "auto" }} /> : <div style={{ width: "26px", height: "26px", background: "#7f1d1d", borderRadius: "50%", margin: "auto" }} />}</button>
