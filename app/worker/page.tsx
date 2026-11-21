@@ -172,6 +172,12 @@ function getLagosRecordingWindow(now = new Date()) {
   return { startMs: startUtc, startIso: new Date(startUtc).toISOString(), key: String(startUtc), nextResetMs: startUtc + 24 * 60 * 60 * 1000 };
 }
 
+// LOCKED: Lagos calendar day YYYY-MM-DD for Daily History
+function getLagosDayKey(iso: string) {
+  if (!iso) return "";
+  return new Date(new Date(iso).getTime() + 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export default function WorkersPage() {
   const router = useRouter();
   const [isRecording, setIsRecording] = useState(false);
@@ -195,7 +201,6 @@ export default function WorkersPage() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [noiseScore, setNoiseScore] = useState(0);
   const [noiseWarning, setNoiseWarning] = useState("");
-  // NEW: Remote sentences from Supabase + Frozen sentence for recording
   const [remoteSentences, setRemoteSentences] = useState<string[] | null>(null);
   const [frozenSentence, setFrozenSentence] = useState<string | null>(null);
   const frozenSentenceRef = useRef<string | null>(null);
@@ -211,6 +216,14 @@ export default function WorkersPage() {
   const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
   const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
 
+  // LOCKED: Balance + History + Payment
+  const [balance, setBalance] = useState({ amount: 0, count: 0 });
+  const [todayEarn, setTodayEarn] = useState({ amount: 0, count: 0 });
+  const [dailyHistory, setDailyHistory] = useState<{ date: string; count: number; amount: number }[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankSavedLabel, setBankSavedLabel] = useState("");
+
   const allSentences: Record<string, string[]> = useMemo(() => {
     return {
       Pidgin: shuffleArray([...new Set(getTodayPidgin())].slice(0, 30), `Pidgin-${recordingDayKey}`),
@@ -222,8 +235,6 @@ export default function WorkersPage() {
     };
   }, [recordingDayKey]);
 
-  // SAFEGUARD 2: Remote sentences first, local fallback
-  // If Chairman publishes new text in Supabase, workers get it automatically
   const sentences = useMemo(() => {
     if (remoteSentences && remoteSentences.length > 0) {
       return shuffleArray(remoteSentences, `Remote-${selectedLang}-${recordingDayKey}`);
@@ -232,7 +243,6 @@ export default function WorkersPage() {
   }, [remoteSentences, allSentences, selectedLang, recordingDayKey]);
 
   const isIjawDraft = selectedLang === "Ijaw / Izon";
-  // SAFEGUARD 3: Display frozen sentence while recording / reviewing, so text never jumps mid-recording
   const displaySentence = (isRecording || audioURL) && frozenSentence ? frozenSentence : sentences[currentSentenceIndex];
 
   useEffect(() => {
@@ -246,36 +256,83 @@ export default function WorkersPage() {
     try { const savedBank = localStorage.getItem("gin_bank_details"); if (savedBank) { const bank = JSON.parse(savedBank); setAccountName(bank.accountName || ""); setBankName(bank.bankName || ""); setAccountNumber(bank.accountNumber || ""); setPhoneNumber(bank.phoneNumber || ""); } } catch {}
   }, []);
 
+  // LOCKED: Bank - Supabase, preserve worker_id PK
+  const loadBankFromSupabase = async (wid: string) => {
+    const { data } = await supabase.from("worker_bank").select("*").eq("worker_id", wid).maybeSingle();
+    if (data) {
+      setAccountName(data.account_name || "");
+      setBankName(data.bank_name || "");
+      setAccountNumber(data.account_number || "");
+      setPhoneNumber(data.phone_number || "");
+      setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
+      return;
+    }
+    try {
+      const savedBank = localStorage.getItem("gin_bank_details");
+      if (savedBank) {
+        const bank = JSON.parse(savedBank);
+        setAccountName(bank.accountName || "");
+        setBankName(bank.bankName || "");
+        setAccountNumber(bank.accountNumber || "");
+        setPhoneNumber(bank.phoneNumber || "");
+      }
+    } catch {}
+  };
+
   const loadWorkerData = async (wid: string) => {
     const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false }).limit(5);
     if (anns) setAnnouncements(anns);
     setAnnouncementLoading(false);
     const window = getLagosRecordingWindow();
-    const { data: recs, error } = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
-    if (error) { console.error("Worker recordings loading error:", error.message); return; }
-    if (recs) {
-      let allTimeEarnings = 0;
-      let campaignApproved = 0;
-      let campaignPending = 0;
-      let campaignRejected = 0;
-      let campaignToday = 0;
-      recs.forEach((r: any) => {
-        const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
-        const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
-        if (r.status === "approved") { allTimeEarnings += Number(r.earnings) || 0; }
-        if (isNewCampaign) {
-          if (r.status === "approved") campaignApproved += 1;
-          else if (r.status === "rejected") campaignRejected += 1;
-          else campaignPending += 1;
-          if (createdMs >= window.startMs && createdMs < window.nextResetMs) { campaignToday += 1; }
-        }
-      });
-      setEarnings({ approved: allTimeEarnings });
-      setTaskProgress({ total: campaignApproved, today: campaignToday, approved: campaignApproved, pending: campaignPending, rejected: campaignRejected });
-    } else {
-      setEarnings({ approved: 0 });
-      setTaskProgress({ total: 0, today: 0, approved: 0, pending: 0, rejected: 0 });
+    let recs: any[] | null = null;
+    let { data, error } = await supabase.from("recordings").select("earnings, status, created_at, is_paid").eq("worker_id", wid);
+    if (error && String(error.message).includes("is_paid")) {
+      const retry = await supabase.from("recordings").select("earnings, status, created_at").eq("worker_id", wid);
+      data = retry.data as any; error = retry.error as any;
     }
+    if (error) { console.error("Worker recordings loading error:", error.message); return; }
+    recs = data || [];
+    let allTimeEarnings = 0;
+    let campaignApproved = 0;
+    let campaignPending = 0;
+    let campaignRejected = 0;
+    let campaignToday = 0;
+    let todayAmount = 0;
+    let todayCount = 0;
+    let balanceAmount = 0;
+    let balanceCount = 0;
+    const byDay: Record<string, { count: number; amount: number }> = {};
+    recs.forEach((r: any) => {
+      const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
+      const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
+      const amt = Number(r.earnings) || 0;
+      if (r.status === "approved") {
+        allTimeEarnings += amt;
+        const dayKey = getLagosDayKey(r.created_at);
+        if (!byDay[dayKey]) byDay[dayKey] = { count: 0, amount: 0 };
+        byDay[dayKey].count += 1;
+        byDay[dayKey].amount += amt;
+        if (r.is_paid !== true) { balanceAmount += amt; balanceCount += 1; }
+      }
+      if (isNewCampaign) {
+        if (r.status === "approved") campaignApproved += 1;
+        else if (r.status === "rejected") campaignRejected += 1;
+        else campaignPending += 1;
+        if (createdMs >= window.startMs && createdMs < window.nextResetMs) {
+          campaignToday += 1;
+          if (r.status === "approved") { todayAmount += amt; todayCount += 1; }
+        }
+      }
+    });
+    setEarnings({ approved: allTimeEarnings });
+    setTaskProgress({ total: campaignApproved, today: campaignToday, approved: campaignApproved, pending: campaignPending, rejected: campaignRejected });
+    setBalance({ amount: balanceAmount, count: balanceCount });
+    setTodayEarn({ amount: todayAmount, count: todayCount });
+    const history = Object.keys(byDay).sort().reverse().map(d => ({ date: d, count: byDay[d].count, amount: byDay[d].amount }));
+    setDailyHistory(history);
+    const { data: pays } = await supabase.from("payment_history").select("*").eq("worker_id", wid).order("paid_at", { ascending: false }).limit(10);
+    if (pays) setPaymentHistory(pays);
+    await loadBankFromSupabase(wid);
   };
 
   useEffect(() => {
@@ -283,7 +340,6 @@ export default function WorkersPage() {
     const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
     try { const saved = localStorage.getItem(progressKey); if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(30, sentences.length)))); } else { setCurrentSentenceIndex(0); } } catch { setCurrentSentenceIndex(0); }
     setAudioURL(null); setTimer(0);
-    // New sentence set / new day: clear frozen sentence
     setFrozenSentence(null); frozenSentenceRef.current = null;
   }, [workerId, selectedLang, recordingDayKey, sentences.length]);
 
@@ -307,7 +363,6 @@ export default function WorkersPage() {
     return () => clearInterval(interval);
   }, [recordingDayKey, workerId]);
 
-  // AUTOMATIC EARNINGS REFRESH — No logout needed
   useEffect(() => {
     if (workerId === "WORKER") return;
     const poll = setInterval(() => { loadWorkerData(workerId); }, 20000);
@@ -317,9 +372,6 @@ export default function WorkersPage() {
     return () => { clearInterval(poll); supabase.removeChannel(channel); document.removeEventListener("visibilitychange", onVisible); };
   }, [workerId]);
 
-  // SAFEGUARD 2: AUTO-DISTRIBUTE NEW SENTENCES — Realtime + 60s polling backup
-  // Chairman updates `sentences` table → workers get new text automatically, no redeploy
-  // If Supabase fails, local fallback keeps work going. Old recordings never change.
   useEffect(() => {
     if (workerId === "WORKER") return;
     let cancelled = false;
@@ -374,13 +426,31 @@ export default function WorkersPage() {
     }
   };
 
-  const saveBankDetails = () => {
+  const saveBankDetails = async () => {
     if (!accountName.trim()) return alert("Please enter your Account Name.");
     if (!bankName.trim()) return alert("Please select your Bank Name.");
     if (!accountNumber.trim()) return alert("Please enter your Account Number.");
     if (!phoneNumber.trim()) return alert("Please enter your Phone Number.");
+    if (accountNumber.trim().length !== 10) return alert("Account Number must be 10 digits.");
+    const wid = localStorage.getItem("gin_worker_id") || workerId;
+    if (!wid || wid === "WORKER") return alert("Worker account not found. Please logout and login again.");
+    setBankSaving(true);
     const bankDetails = { accountName: accountName.trim(), bankName: bankName.trim(), accountNumber: accountNumber.trim(), phoneNumber: phoneNumber.trim() };
-    try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); setShowModal(null); showToast("✅ Bank details saved successfully."); } catch { alert("Could not save bank details on this phone."); }
+    try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); } catch {}
+    const { error } = await supabase.from("worker_bank").upsert(
+      { worker_id: wid, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, phone_number: bankDetails.phoneNumber, updated_at: new Date().toISOString() },
+      { onConflict: "worker_id" }
+    );
+    setBankSaving(false);
+    if (error) {
+      console.error("Supabase bank save error:", error.message);
+      setShowModal(null);
+      showToast("✅ Bank saved on this phone. Tell Chairman to create worker_bank table for Supabase backup.");
+      return;
+    }
+    setBankSavedLabel(`Saved: ${bankDetails.bankName} • ${bankDetails.accountNumber} • ${bankDetails.accountName}`);
+    setShowModal(null);
+    showToast("✅ Bank details saved to Supabase successfully.");
   };
 
   async function analyzeNoise(blob: Blob): Promise<{ status: string; reason: string; score: number }> {
@@ -420,7 +490,6 @@ export default function WorkersPage() {
     }
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
     try {
-      // SAFEGUARD 3: FREEZE sentence at recording start — even if Chairman changes sentences mid-recording, this recording keeps this exact text
       const sentenceToRecord = sentences[currentSentenceIndex];
       setFrozenSentence(sentenceToRecord);
       frozenSentenceRef.current = sentenceToRecord;
@@ -481,8 +550,6 @@ export default function WorkersPage() {
       const { data: publicData } = supabase.storage.from("voice-clips").getPublicUrl(storagePath);
       const audioUrl = publicData?.publicUrl || "";
       if (!audioUrl) throw new Error("Could not create recording audio URL.");
-      // SAFEGUARD 1 + 3: Save EXACT frozen sentence from recording start — never fetch latest sentence here
-      // Chairman Panel must display this saved `text`, not the current `sentences` table
       const recordingText = frozenSentenceRef.current || frozenSentence || sentences[currentSentenceIndex];
       const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: selectedLang.toLowerCase(), text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: APPROVED_SENTENCE_RATE, status: "pending", is_approved: false }).select().single();
       if (insertError) { try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {} throw new Error("Recording could not be submitted: " + insertError.message); }
@@ -540,9 +607,40 @@ export default function WorkersPage() {
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "16px", marginTop: "12px", textAlign: "center" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 APPROVED EARNINGS — ALL TIME</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "28px", marginTop: "8px" }}>₦{earnings.approved.toLocaleString("en-NG")}</div>
-          <div style={{ fontSize: "10px", color: "#aaa", marginTop: "6px" }}>Old + New approved recordings count for earnings. Only Chairman-approved count.</div>
+          <div style={{ fontSize: "10px", color: "#aaa", marginTop: "6px" }}>Old + New approved recordings count for earnings. Only Chairman-approved count. Never decreases after payment.</div>
           <div style={{ fontSize: "11px", color: "#ccc", marginTop: "8px" }}>✅ New Campaign Approved: {taskProgress.approved} • ⏳ Waiting: {taskProgress.pending} • ❌ Rejected: {taskProgress.rejected}</div>
         </div>
+
+        {/* LOCKED: TODAY + BALANCE + HISTORY */}
+        <div style={{ background: "#111A11", border: "1px solid #FACC15", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>📅 TODAY — Resets daily at 5 PM Lagos</div>
+          <div style={{ color: "#FACC15", fontWeight: "900", fontSize: "22px", marginTop: "6px" }}>₦{todayEarn.amount.toLocaleString("en-NG")}</div>
+          <div style={{ fontSize: "11px", color: "#ccc" }}>{todayEarn.count} approved today • {taskProgress.today} total today (incl. pending)</div>
+        </div>
+
+        <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — Unpaid (Clears ONLY when Chairman presses Mark as Paid)</div>
+          <div style={{ color: "#00E676", fontWeight: "900", fontSize: "26px", marginTop: "6px" }}>₦{balance.amount.toLocaleString("en-NG")}</div>
+          <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings • Pay time na Chairman announcement only, no be code</div>
+        </div>
+
+        <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>📅 DAILY HISTORY — I work today list (Never deleted)</div>
+          {dailyHistory.length === 0 ? <div style={{ fontSize: "12px", color: "#888", marginTop: "8px" }}>No history yet</div> :
+            dailyHistory.slice(0, 7).map(h => (
+              <div key={h.date} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "8px 0", borderBottom: "1px solid #1E2F1E" }}>
+                <span>{h.date} • {h.count} recordings</span><b>I work ₦{h.amount.toLocaleString("en-NG")} that day</b>
+              </div>
+            ))}
+          <div style={{ fontSize: "11px", color: "#aaa", marginTop: "8px", fontWeight: "900" }}>💵 PAYMENT HISTORY</div>
+          {paymentHistory.length === 0 ? <div style={{ fontSize: "12px", color: "#888", marginTop: "6px" }}>No payment yet. Balance go clear after Chairman marks paid.</div> :
+            paymentHistory.map((p: any) => (
+              <div key={p.id} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", padding: "6px 0" }}>
+                <span>{new Date(p.paid_at).toLocaleDateString()} • You collect</span><b style={{color:"#00E676"}}>₦{Number(p.amount_paid||0).toLocaleString("en-NG")}</b>
+              </div>
+            ))}
+        </div>
+
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px" }}><span style={{ color: "#aaa" }}>TASK PROGRESS — NEW CAMPAIGN</span><strong style={{ color: "#00E676" }}>{taskProgress.today} today</strong></div>
           <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.today / 30) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
@@ -556,7 +654,7 @@ export default function WorkersPage() {
           <div style={{ height: "7px", background: "#1A251A", borderRadius: "10px", overflow: "hidden", marginTop: "8px" }}><div style={{ width: `${Math.min((taskProgress.total / TOTAL_RECORDING_TARGET) * 100, 100)}%`, height: "100%", background: "#00E676", borderRadius: "10px" }} /></div>
         </div>
         <a href="/worker/announcements" style={{ display: "block", width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #00E676", background: "#102010", color: "#00E676", fontWeight: "900", fontSize: "13px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}>📢 ANNOUNCEMENT BOARD</a>
-        <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS</button>
+        <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS {bankSavedLabel ? "✅ SAVED" : ""}</button>
         <div style={{ display: "flex", gap: "6px", marginTop: "12px", flexWrap: "wrap" }}>
           {["Pidgin", "Hausa", "Igbo", "Yoruba", "Akwa Ibom", "Ijaw / Izon"].map((lang) => {
             const isPidgin = lang === "Pidgin";
@@ -615,9 +713,10 @@ export default function WorkersPage() {
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>BANK NAME</label><select value={bankName} onChange={(e) => setBankName(e.target.value)} style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }}><option value="">Select your bank</option><option value="Opay">Opay</option><option value="Moniepoint">Moniepoint</option><option value="PalmPay">PalmPay</option><option value="Kuda">Kuda</option><option value="First Bank">First Bank</option><option value="GTBank">GTBank</option><option value="UBA">UBA</option><option value="Zenith Bank">Zenith Bank</option></select>
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>ACCOUNT NUMBER</label><input value={accountNumber} onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="Enter 10-digit account number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "15px", fontSize: "14px" }} />
             <label style={{ display: "block", fontSize: "12px", color: "#ccc", fontWeight: "800", marginBottom: "7px" }}>PHONE NUMBER</label><input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 11))} inputMode="tel" placeholder="Enter phone number" style={{ width: "100%", boxSizing: "border-box", padding: "14px", borderRadius: "12px", border: "1px solid #374137", background: "#070A07", color: "white", outline: "none", marginBottom: "20px", fontSize: "14px" }} />
-            <button type="button" onClick={saveBankDetails} style={{ width: "100%", padding: "15px", borderRadius: "12px", border: "none", background: "#00E676", color: "black", fontWeight: "900", fontSize: "14px", cursor: "pointer" }}>💾 SAVE BANK DETAILS</button>
+            {bankSavedLabel ? <div style={{ color: "#00E676", fontSize: "11px", marginBottom: "10px", textAlign: "center" }}>{bankSavedLabel}</div> : null}
+            <button type="button" onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", padding: "15px", borderRadius: "12px", border: "none", background: "#00E676", color: "black", fontWeight: "900", fontSize: "14px", cursor: "pointer" }}>{bankSaving ? "⏳ SAVING..." : "💾 SAVE BANK DETAILS"}</button>
             <button type="button" onClick={() => setShowModal(null)} style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "12px", border: "1px solid #333", background: "transparent", color: "#aaa", fontWeight: "700", fontSize: "13px" }}>Cancel</button>
-            <div style={{ marginTop: "15px", padding: "10px", borderRadius: "10px", background: "#171D17", color: "#777", fontSize: "10px", textAlign: "center", lineHeight: 1.5 }}>Your bank information is used for worker payment processing.</div>
+            <div style={{ marginTop: "15px", padding: "10px", borderRadius: "10px", background: "#171D17", color: "#777", fontSize: "10px", textAlign: "center", lineHeight: 1.5 }}>Your bank information is used for worker payment processing. Saved to Supabase with your worker_id.</div>
           </div>
         </div>
       )}
