@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const ADMIN_EMAIL = "tapbomba.ai@gmail.com";
+const CAMPAIGN_START_ISO = "2026-11-21T16:00:00.000Z";
 
 type Recording = {
   id: string;
@@ -29,7 +30,23 @@ type Announcement = {
   created_at: string;
 };
 
-type Tab = "overview" | "voices" | "announce";
+type PayWorker = {
+  worker_id: string;
+  name: string;
+  bank_name: string;
+  account_number: string;
+  account_name: string;
+  phone: string;
+  unpaidAmount: number;
+  unpaidCount: number;
+  totalApproved: number;
+  pending: number;
+  lastAudio: string;
+  lastText: string;
+  payments: any[];
+};
+
+type Tab = "overview" | "voices" | "announce" | "payments";
 
 export default function AdminPage() {
   const [supabase] = useState(() => createClient());
@@ -44,6 +61,12 @@ export default function AdminPage() {
   const [publishing, setPublishing] = useState(false);
   const [workingId, setWorkingId] = useState("");
   const [notice, setNotice] = useState("");
+
+  // --- PAYMENTS (SELECT + PAY SELECTED) ---
+  const [payWorkers, setPayWorkers] = useState<PayWorker[]>([]);
+  const [payLoading, setPayLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkPaying, setBulkPaying] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -60,7 +83,7 @@ export default function AdminPage() {
           window.location.replace("/admin/login");
           return;
         }
-        await Promise.all([load(), loadAnn()]);
+        await Promise.all([load(), loadAnn(), loadPayments()]);
         if (active) setLoading(false);
       } catch (error) {
         if (active) {
@@ -87,7 +110,6 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(result.error || "Could not load recordings.");
       const list: Recording[] = result.recordings || [];
       setItems(list);
-      // FIXED: Use TRUE stats from DB, not list.length (which caps at 1000)
       if (result.stats) {
         setStats({
           total: Number(result.stats.total || 0),
@@ -112,10 +134,35 @@ export default function AdminPage() {
     setAnnounces((data || []) as Announcement[]);
   }
 
+  async function loadPayments() {
+    try {
+      setPayLoading(true);
+      const { data: recs } = await supabase.from("recordings").select("worker_id, earnings, status, created_at, is_paid, audio_url, text").gte("created_at", CAMPAIGN_START_ISO);
+      const { data: banks } = await supabase.from("worker_bank").select("*");
+      const { data: pays } = await supabase.from("payment_history").select("*").order("paid_at", { ascending: false });
+      const map: Record<string, PayWorker> = {};
+      (recs || []).forEach((r: any) => {
+        const wid = r.worker_id;
+        if (!wid) return;
+        if (!map[wid]) {
+          const b: any = (banks || []).find((x: any) => x.worker_id === wid);
+          map[wid] = { worker_id: wid, name: b?.account_name || "", bank_name: b?.bank_name || "", account_number: b?.account_number || "", account_name: b?.account_name || "", phone: b?.phone_number || "", unpaidAmount: 0, unpaidCount: 0, totalApproved: 0, pending: 0, lastAudio: "", lastText: "", payments: [] };
+        }
+        if (r.status === "approved") { map[wid].totalApproved += 1; if (r.is_paid !== true) { map[wid].unpaidAmount += Number(r.earnings) || 0; map[wid].unpaidCount += 1; } }
+        if (r.status === "pending") map[wid].pending += 1;
+        if (r.audio_url) { map[wid].lastAudio = r.audio_url; map[wid].lastText = r.text || ""; }
+      });
+      (pays || []).forEach((p: any) => { if (map[p.worker_id]) map[p.worker_id].payments.push(p); });
+      setPayWorkers(Object.values(map).sort((a, b) => b.unpaidAmount - a.unpaidAmount));
+    } catch (e: any) {
+      setNotice("Payment loading failed: " + (e.message || ""));
+    } finally { setPayLoading(false); }
+  }
+
   async function refreshDashboard() {
     setRefreshing(true);
     setNotice("");
-    await Promise.all([load(), loadAnn()]);
+    await Promise.all([load(), loadAnn(), loadPayments()]);
     setRefreshing(false);
   }
 
@@ -136,6 +183,7 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(result.error || "Could not update recording.");
       setNotice(`Recording ${status} successfully.`);
       await load();
+      await loadPayments();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Recording update failed.");
     } finally { setWorkingId(""); }
@@ -163,29 +211,53 @@ export default function AdminPage() {
     window.location.replace("/admin/login");
   }
 
+  // --- PAYMENTS HELPERS ---
+  const toggleSelect = (id: string) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const selectAllUnpaid = () => setSelectedIds(payWorkers.filter(w => w.unpaidAmount > 0).map(w => w.worker_id));
+  const clearSelected = () => setSelectedIds([]);
+  const selectedWorkers = payWorkers.filter(w => selectedIds.includes(w.worker_id));
+  const selectedTotal = selectedWorkers.reduce((s, w) => s + w.unpaidAmount, 0);
+
+  async function markSelectedAsPaid(idsToPay?: string[]) {
+    const ids = idsToPay || selectedIds;
+    const selected = payWorkers.filter(w => ids.includes(w.worker_id) && w.unpaidAmount > 0);
+    if (selected.length === 0) { setNotice("Tick at least 1 worker with unpaid amount first."); return; }
+    const list = selected.map(w => `- ${w.worker_id} ${w.name ? `(${w.name})` : ""} — ₦${w.unpaidAmount.toLocaleString("en-NG")} • ${w.unpaidCount} recordings • Bank: ${w.bank_name} ${w.account_number}`).join("\n");
+    const total = selected.reduce((s, w) => s + w.unpaidAmount, 0);
+    const ok = window.confirm(`MARK SELECTED AS PAID?\n\n${list}\n\nTotal: ₦${total.toLocaleString("en-NG")} for ${selected.length} workers\n\nHave you checked slip + already paid ALL of them for bank? Server go calculate real amount, no duplicate payment.`);
+    if (!ok) return;
+    setBulkPaying(true);
+    setNotice("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { window.location.replace("/admin/login"); return; }
+      const batch_key = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const res = await fetch("/api/chairman/mark-selected-paid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ worker_ids: selected.map(w => w.worker_id), batch_key }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Bulk payment failed");
+      const failed = (j.results || []).filter((r: any) => !r.success);
+      setNotice(`Done ✅ Paid: ${j.succeeded} / ${j.total} workers. ${failed.length ? "Failed (still unpaid, you fit retry): " + failed.map((f: any) => `${f.worker_id}: ${f.error}`).join(" | ") : "All selected paid. Their YOUR MONEY don turn ₦0."}`);
+      setSelectedIds([]);
+      await Promise.all([loadPayments(), load()]);
+    } catch (e: any) {
+      setNotice("❌ " + (e.message || "Bulk payment failed"));
+    } finally { setBulkPaying(false); }
+  }
+
   const navCards = [
     { icon: "👥", title: "Workers", description: "Manage registered workers", href: "/admin/workers", color: "#00E676" },
-
     { icon: "🎙️", title: "Recordings", description: "Review voice submissions", href: "/admin/recordings", color: "#00E676" },
-
-    {
-      icon: "🇳🇬",
-      title: "Nigeria Pidgin Dataset",
-      description: "Review and manage Nigerian voice data",
-      href: "/admin/dataset",
-      color: "#00E676"
-    },
-
+    { icon: "🇳🇬", title: "Nigeria Pidgin Dataset", description: "Review and manage Nigerian voice data", href: "/admin/dataset", color: "#00E676" },
     { icon: "💰", title: "Payments", description: "Manage worker payments", href: "/admin/payments", color: "#FFC107" },
-
     { icon: "🎙️", title: "Voice Clone", description: "Create and manage Nigerian AI voices", href: "/clone", color: "#FFC107" },
-
     { icon: "🔑", title: "API Management", description: "Manage API keys and credits", href: "/admin/api", color: "#00E676" },
-
     { icon: "📢", title: "Announcements", description: "Publish platform updates", href: "/admin/announcements", color: "#FFC107" },
-
     { icon: "🛡️", title: "Security", description: "Access and security controls", href: "/admin/security", color: "#00E676" },
-
     { icon: "🛍️", title: "Marketplace", description: "Manage the separate marketplace", href: "/admin/marketplace", color: "#FFC107" },
   ];
 
@@ -207,7 +279,7 @@ export default function AdminPage() {
         .admin-tile { display: block; text-decoration: none; color: white; background: #151515; border: 1px solid #292929; border-radius: 14px; padding: 15px; min-height: 125px; transition: border-color .2s ease; }
         .admin-tile:active { border-color: #D4AF37; }
         .admin-button { cursor: pointer; font-weight: 800; }
-        .admin-bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(12,12,12,.97); border-top: 1px solid #292929; display: grid; grid-template-columns: repeat(4, 1fr); padding: 10px 5px calc(10px + env(safe-area-inset-bottom)); }
+        .admin-bottom { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: rgba(12,12,12,.97); border-top: 1px solid #292929; display: grid; grid-template-columns: repeat(5, 1fr); padding: 10px 5px calc(10px + env(safe-area-inset-bottom)); }
         .admin-bottom button { background: transparent; border: 0; color: #999; font-size: 11px; padding: 5px 2px; cursor: pointer; }
         .admin-bottom button.active { color: #D4AF37; font-weight: 900; }
         .recording-card { background: #171717; border: 1px solid #303030; border-radius: 13px; padding: 13px; margin-bottom: 11px; overflow: hidden; }
@@ -270,6 +342,7 @@ export default function AdminPage() {
               <h3 style={{ color: "#D4AF37", fontSize: 14, marginTop: 0 }}>Recording Review</h3>
               <p style={{ color: "#999", fontSize: 12 }}>You have {stats.pending} recordings waiting for review.</p>
               <button onClick={() => setTab("voices")} className="admin-button" style={{ width: "100%", background: "#00E676", color: "black", border: 0, padding: 12, borderRadius: 9 }}>Review Recordings</button>
+              <button onClick={() => setTab("payments")} className="admin-button" style={{ width: "100%", background: "#FFC107", color: "black", border: 0, padding: 12, borderRadius: 9, marginTop: 10 }}>💰 Open Payments — Select + Pay Selected</button>
             </section>
           </>
         )}
@@ -331,10 +404,51 @@ export default function AdminPage() {
             </div>
           </section>
         )}
+        {tab === "payments" && (
+          <section>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <h2 style={{ fontSize: 18, margin: 0 }}>💰 Payments — New Campaign</h2>
+              <button onClick={refreshDashboard} disabled={refreshing} className="admin-button" style={{ background: "#171717", color: "#00E676", border: "1px solid #00E676", borderRadius: 20, padding: "8px 10px" }}>{refreshing ? "Loading..." : "↻ Refresh"}</button>
+            </div>
+            <p style={{ color: "#999", fontSize: 12, marginTop: 0 }}>From 21 Nov 2026, 5:00 PM Lagos. One click, multiple selected workers, separate protected payments. No Pay All.</p>
+            <div style={{ background: "#1A2A00", border: "1px solid #EAB308", borderRadius: 12, padding: 12, marginBottom: 14, position: "sticky", top: 10, zIndex: 5 }}>
+              <div style={{ fontWeight: 900, fontSize: 13 }}>✅ Selected: {selectedIds.length} workers • Total: ₦{selectedTotal.toLocaleString("en-NG")}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                <button onClick={selectAllUnpaid} className="admin-button" style={{ background: "#333", color: "white", border: 0, padding: "10px 12px", borderRadius: 10, fontSize: 12 }}>☑️ Select All Unpaid</button>
+                <button onClick={clearSelected} className="admin-button" style={{ background: "#333", color: "white", border: 0, padding: "10px 12px", borderRadius: 10, fontSize: 12 }}>Clear Selection</button>
+                <button onClick={() => markSelectedAsPaid()} disabled={bulkPaying || selectedIds.length === 0} className="admin-button" style={{ background: selectedIds.length > 0 ? "#00E676" : "#333", color: selectedIds.length > 0 ? "black" : "#888", border: 0, padding: "10px 14px", borderRadius: 10, fontSize: 12 }}>{bulkPaying ? "⏳ PAYING SELECTED..." : `✅ MARK SELECTED AS PAID (${selectedIds.length})`}</button>
+              </div>
+              <div style={{ fontSize: 10, color: "#aaa", marginTop: 6 }}>Only ticked workers go pay. Server calculates real amount. Duplicate click no go pay twice. Failed remain unpaid, you fit retry.</div>
+            </div>
+            {payLoading && <p style={{ color: "#999" }}>Loading payments...</p>}
+            {!payLoading && payWorkers.length === 0 && <p style={{ color: "#888" }}>No workers for New Campaign yet.</p>}
+            {payWorkers.map((w) => (
+              <article key={w.worker_id} className="recording-card" style={{ borderColor: selectedIds.includes(w.worker_id) ? "#00E676" : "#303030" }}>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input type="checkbox" checked={selectedIds.includes(w.worker_id)} disabled={w.unpaidAmount <= 0} onChange={() => toggleSelect(w.worker_id)} style={{ width: 22, height: 22, accentColor: "#00E676", flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <strong style={{ fontSize: 13 }}>{w.worker_id} {w.name ? `• ${w.name}` : ""}</strong>
+                      <strong style={{ color: "#00E676", fontSize: 16 }}>₦{w.unpaidAmount.toLocaleString("en-NG")}</strong>
+                    </div>
+                    <div style={{ color: "#999", fontSize: 11, marginTop: 4 }}>Bank: {w.bank_name || "—"} • {w.account_number || "—"} • {w.account_name || "—"} • Phone: {w.phone || "—"}</div>
+                    <div style={{ color: "#ccc", fontSize: 11, marginTop: 4 }}>Unpaid: {w.unpaidCount} • Approved Total: {w.totalApproved} • Waiting: {w.pending}</div>
+                    {w.lastAudio && <div style={{ marginTop: 10 }}><div style={{ fontSize: 11, color: "#ccc" }}>🎧 Last Recording — Listen + Check Slip:</div><div style={{ fontSize: 12, color: "#aaa", margin: "6px 0" }}>{w.lastText?.slice(0, 120)}</div><audio controls preload="none" src={w.lastAudio} style={{ width: "100%", height: 36 }} /></div>}
+                    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                      <button onClick={() => markSelectedAsPaid([w.worker_id])} disabled={bulkPaying || w.unpaidAmount <= 0} className="admin-button" style={{ background: w.unpaidAmount > 0 ? "#FFC107" : "#333", color: w.unpaidAmount > 0 ? "black" : "#888", border: 0, padding: "10px 12px", borderRadius: 9, fontSize: 12 }}>{w.unpaidAmount > 0 ? `✅ MARK THIS WORKER AS PAID — ₦${w.unpaidAmount.toLocaleString("en-NG")}` : "✅ PAID — ₦0"}</button>
+                    </div>
+                    <div style={{ marginTop: 10, fontSize: 12 }}><b style={{ color: "#aaa" }}>💵 PREVIOUS PAYMENT HISTORY:</b>{w.payments.length === 0 ? <span style={{ color: "#888" }}> No payment yet</span> : w.payments.map((p: any) => <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", color: "#ccc" }}><span>{new Date(p.paid_at).toLocaleString()} • You paid</span><b style={{ color: "#00E676" }}>₦{Number(p.amount_paid || 0).toLocaleString("en-NG")}</b></div>)}</div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
       </div>
       <nav className="admin-bottom">
         <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}><div style={{ fontSize: 19 }}>⌂</div>Home</button>
         <button className={tab === "voices" ? "active" : ""} onClick={() => setTab("voices")}><div style={{ fontSize: 19 }}>🎙️</div>Recordings</button>
+        <button className={tab === "payments" ? "active" : ""} onClick={() => setTab("payments")}><div style={{ fontSize: 19 }}>💰</div>Payments</button>
         <button className={tab === "announce" ? "active" : ""} onClick={() => setTab("announce")}><div style={{ fontSize: 19 }}>📢</div>Alerts</button>
         <button onClick={logout}><div style={{ fontSize: 19 }}>⚙️</div>Logout</button>
       </nav>
