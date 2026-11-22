@@ -64,10 +64,11 @@ export async function POST(request: NextRequest) {
     const accountName = String(body.accountName || "").trim();
     const bankName = String(body.bankName || "").trim();
     const accountNumber = String(body.accountNumber || "").trim();
+    const phoneNumber = String(body.phoneNumber || "").trim();
 
-    if (!accountName || !bankName || !accountNumber) {
+    if (!accountName || !bankName || !accountNumber || !phoneNumber) {
       return NextResponse.json(
-        { error: "Please provide all bank details." },
+        { error: "Please provide all bank details and your phone number." },
         { status: 400 }
       );
     }
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
           account_name: accountName,
           bank_name: bankName,
           account_number: accountNumber,
+          phone: phoneNumber,
         })
         .eq("auth_user_id", user.id)
         .select("worker_id")
