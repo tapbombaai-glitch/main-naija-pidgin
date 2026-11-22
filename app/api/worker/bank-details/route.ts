@@ -27,55 +27,153 @@ const supabaseAdmin = createClient(
   }
 );
 
+async function authenticateWorker(request: NextRequest) {
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return {
+      user: null,
+      error: "Please log in again.",
+      status: 401,
+    };
+  }
+
+  const token = authorization.slice(7).trim();
+
+  const {
+    data: { user },
+    error,
+  } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !user) {
+    return {
+      user: null,
+      error: "Your login session is invalid.",
+      status: 401,
+    };
+  }
+
+  if (user.email?.toLowerCase() === "tapbomba.ai@gmail.com") {
+    return {
+      user: null,
+      error: "Chairman cannot use worker bank settings.",
+      status: 403,
+    };
+  }
+
+  return {
+    user,
+    error: null,
+    status: 200,
+  };
+}
+
+// LOAD SAVED BANK DETAILS
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await authenticateWorker(request);
+
+    if (!auth.user) {
+      return NextResponse.json(
+        { error: auth.error },
+        { status: auth.status }
+      );
+    }
+
+    const { data: worker, error } = await supabaseAdmin
+      .from("workers")
+      .select(
+        "worker_id, account_name, bank_name, account_number, phone"
+      )
+      .eq("auth_user_id", auth.user.id)
+      .maybeSingle();
+
+    if (error || !worker) {
+      console.error("Bank details load error:", error);
+
+      return NextResponse.json(
+        { error: "Worker bank details could not be found." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        worker_id: worker.worker_id,
+        accountName: worker.account_name || "",
+        bankName: worker.bank_name || "",
+        accountNumber: worker.account_number || "",
+        phoneNumber: worker.phone || "",
+        saved: Boolean(
+          worker.account_name &&
+          worker.bank_name &&
+          worker.account_number &&
+          worker.phone
+        ),
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      }
+    );
+  } catch (error) {
+    console.error("Worker bank details load error:", error);
+
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
+  }
+}
+
+// SAVE BANK DETAILS
 export async function POST(request: NextRequest) {
   try {
-    const authorization = request.headers.get("authorization");
+    const auth = await authenticateWorker(request);
 
-    if (!authorization?.startsWith("Bearer ")) {
+    if (!auth.user) {
       return NextResponse.json(
-        { error: "Please log in again." },
-        { status: 401 }
-      );
-    }
-
-    const token = authorization.slice(7).trim();
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Your login session is invalid." },
-        { status: 401 }
-      );
-    }
-
-    if (user.email?.toLowerCase() === "tapbomba.ai@gmail.com") {
-      return NextResponse.json(
-        { error: "Chairman cannot use worker bank settings." },
-        { status: 403 }
+        { error: auth.error },
+        { status: auth.status }
       );
     }
 
     const body = await request.json();
 
-    const accountName = String(body.accountName || "").trim();
-    const bankName = String(body.bankName || "").trim();
-    const accountNumber = String(body.accountNumber || "").trim();
-    const phoneNumber = String(body.phoneNumber || "").trim();
+    // Accept both camelCase and snake_case from the dashboard.
+    const accountName = String(
+      body.accountName ?? body.account_name ?? ""
+    ).trim();
+
+    const bankName = String(
+      body.bankName ?? body.bank_name ?? ""
+    ).trim();
+
+    const accountNumber = String(
+      body.accountNumber ?? body.account_number ?? ""
+    ).trim();
+
+    const phoneNumber = String(
+      body.phoneNumber ?? body.phone ?? ""
+    ).trim();
 
     if (!accountName || !bankName || !accountNumber || !phoneNumber) {
       return NextResponse.json(
-        { error: "Please provide all bank details and your phone number." },
+        {
+          error:
+            "Please provide all bank details and your phone number.",
+        },
         { status: 400 }
       );
     }
 
     if (!/^\d{10}$/.test(accountNumber)) {
       return NextResponse.json(
-        { error: "Account number must contain exactly 10 digits." },
+        {
+          error: "Account number must contain exactly 10 digits.",
+        },
         { status: 400 }
       );
     }
@@ -89,7 +187,7 @@ export async function POST(request: NextRequest) {
           account_number: accountNumber,
           phone: phoneNumber,
         })
-        .eq("auth_user_id", user.id)
+        .eq("auth_user_id", auth.user.id)
         .select("worker_id")
         .maybeSingle();
 
@@ -97,7 +195,10 @@ export async function POST(request: NextRequest) {
       console.error("Bank details save error:", workerError);
 
       return NextResponse.json(
-        { error: "Could not save bank details to your worker account." },
+        {
+          error:
+            "Could not save bank details to your worker account.",
+        },
         { status: 400 }
       );
     }
@@ -106,8 +207,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Bank details saved successfully.",
       worker_id: worker.worker_id,
+      saved: true,
     });
-
   } catch (error) {
     console.error("Worker bank details error:", error);
 
