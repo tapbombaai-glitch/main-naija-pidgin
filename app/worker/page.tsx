@@ -1,6 +1,9 @@
 const loadWorkerData = async (wid: string) => {
   setAllocationLoading(true);
 
+  // Never leave an old available amount visible while checking.
+  setAvailableWithdrawal({ amount: 0, count: 0 });
+
   try {
     const { data: anns } = await supabase
       .from("announcements")
@@ -14,12 +17,16 @@ const loadWorkerData = async (wid: string) => {
 
     const recordingWindow = getLagosRecordingWindow();
 
+    let hasIsPaidColumn = true;
+
     let { data, error } = await supabase
       .from("recordings")
       .select("id, earnings, status, created_at, is_paid, language")
       .eq("worker_id", wid);
 
     if (error && String(error.message).includes("is_paid")) {
+      hasIsPaidColumn = false;
+
       const retry = await supabase
         .from("recordings")
         .select("id, earnings, status, created_at, language")
@@ -48,9 +55,12 @@ const loadWorkerData = async (wid: string) => {
     let balanceCount = 0;
     let nvTodayCount = 0;
 
-    const byDay: Record<string, { count: number; amount: number }> = {};
+    const byDay: Record<
+      string,
+      { count: number; amount: number }
+    > = {};
 
-    // Check which recordings already belong to active withdrawal requests.
+    // Check active withdrawal allocations.
     const allocatedIds = new Set<string>();
     let allocationFailed = false;
 
@@ -74,21 +84,33 @@ const loadWorkerData = async (wid: string) => {
         }
       );
 
+      if (!allocationResponse.ok) {
+        throw new Error("Allocation lookup failed.");
+      }
+
       const allocationData = await allocationResponse.json();
 
-      if (!allocationResponse.ok) {
-        throw new Error(
-          allocationData.error || "Allocation lookup failed."
-        );
+      // Missing or invalid allocatedIds MUST block withdrawals.
+      if (
+        !allocationData ||
+        !Array.isArray(allocationData.allocatedIds) ||
+        !allocationData.allocatedIds.every(
+          (id: any) =>
+            typeof id === "string" && id.trim().length > 0
+        )
+      ) {
+        throw new Error("Invalid allocation response.");
       }
 
-      if (Array.isArray(allocationData.allocatedIds)) {
-        allocationData.allocatedIds.forEach((id: string) => {
-          allocatedIds.add(String(id));
-        });
-      }
+      allocationData.allocatedIds.forEach((id: string) => {
+        allocatedIds.add(id);
+      });
     } catch (allocationError) {
-      console.error("Withdrawal allocation lookup failed:", allocationError);
+      console.error(
+        "Withdrawal allocation lookup failed:",
+        allocationError
+      );
+
       allocationFailed = true;
     }
 
@@ -97,7 +119,9 @@ const loadWorkerData = async (wid: string) => {
         ? new Date(r.created_at).getTime()
         : 0;
 
-      const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
+      const isNewCampaign =
+        createdMs >= CAMPAIGN_START_MS;
+
       const amount = Number(r.earnings) || 0;
 
       if (r.status === "approved") {
@@ -113,8 +137,7 @@ const loadWorkerData = async (wid: string) => {
         byDay[dayKey].amount += amount;
       }
 
-      // Total unpaid balance includes recordings allocated
-      // to an active withdrawal request.
+      // Total unpaid balance includes allocated recordings.
       if (
         isNewCampaign &&
         r.status === "approved" &&
@@ -123,18 +146,6 @@ const loadWorkerData = async (wid: string) => {
       ) {
         balanceAmount += amount;
         balanceCount += 1;
-      }
-
-      // Available balance excludes recordings already allocated.
-      if (
-        isNewCampaign &&
-        r.status === "approved" &&
-        r.is_paid !== true &&
-        amount > 0 &&
-        !allocationFailed &&
-        !allocatedIds.has(String(r.id))
-      ) {
-        // These values are calculated separately below.
       }
 
       if (isNewCampaign) {
@@ -157,7 +168,6 @@ const loadWorkerData = async (wid: string) => {
             todayCount += 1;
           }
 
-          // Nigerian English daily limit comes from database records.
           if (
             r.language === DATASET_NIGERIAN_ENGLISH ||
             r.language === "nigerian-voice"
@@ -168,11 +178,11 @@ const loadWorkerData = async (wid: string) => {
       }
     });
 
-    // Calculate available withdrawal separately.
+    // Calculate available withdrawal only when BOTH checks succeed.
     let availableAmount = 0;
     let availableCount = 0;
 
-    if (!allocationFailed) {
+    if (!allocationFailed && hasIsPaidColumn) {
       recs.forEach((r: any) => {
         const createdMs = r.created_at
           ? new Date(r.created_at).getTime()
@@ -183,7 +193,7 @@ const loadWorkerData = async (wid: string) => {
         if (
           createdMs >= CAMPAIGN_START_MS &&
           r.status === "approved" &&
-          r.is_paid !== true &&
+          r.is_paid === false &&
           amount > 0 &&
           !allocatedIds.has(String(r.id))
         ) {
@@ -193,7 +203,9 @@ const loadWorkerData = async (wid: string) => {
       });
     }
 
-    setEarnings({ approved: allTimeEarnings });
+    setEarnings({
+      approved: allTimeEarnings,
+    });
 
     setTaskProgress({
       total: campaignApproved,
@@ -240,8 +252,10 @@ const loadWorkerData = async (wid: string) => {
 
     if (pays) setPaymentHistory(pays);
 
-    // Load withdrawal request history and find any active request.
-    const { data: withdrawals, error: withdrawalError } = await supabase
+    const {
+      data: withdrawals,
+      error: withdrawalError,
+    } = await supabase
       .from("withdrawal_requests")
       .select(
         "id, amount, fee, net_amount, status, requested_at, processed_at, payment_reference"
@@ -262,14 +276,20 @@ const loadWorkerData = async (wid: string) => {
       setActiveWithdrawal(
         rows.find(
           (item: any) =>
-            item.status === "pending" || item.status === "approved"
+            item.status === "pending" ||
+            item.status === "approved"
         ) || null
       );
     }
 
     await loadBankFromSupabase(wid);
   } catch (error) {
-    console.error("Worker dashboard loading error:", error);
+    console.error(
+      "Worker dashboard loading error:",
+      error
+    );
+
+    setAvailableWithdrawal({ amount: 0, count: 0 });
   } finally {
     setAllocationLoading(false);
   }
