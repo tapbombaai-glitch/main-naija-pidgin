@@ -246,3 +246,11 @@ const loadWorkerData = async (wid: string) => {
     console.error("Worker dashboard loading error:", error.message);
   }
 };
+// WITHDRAWAL STATES - STEP 1
+const [availableWithdrawal, setAvailableWithdrawal] = useState({ amount: 0, count: 0 });
+const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
+const [activeWithdrawal, setActiveWithdrawal] = useState<any>(null);
+const [allocationLoading, setAllocationLoading] = useState(true);
+const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
+const [withdrawalMessage, setWithdrawalMessage] = useState("");
+const [showEarningsModal, setShowEarningsModal] = useState(false);
