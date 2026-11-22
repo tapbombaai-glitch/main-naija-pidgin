@@ -17,6 +17,7 @@ const CAMPAIGN_START_ISO = "2026-11-21T16:00:00.000Z";
 const CAMPAIGN_START_MS = new Date(CAMPAIGN_START_ISO).getTime();
 const NIGERIAN_VOICE_DAILY_LIMIT = 10;
 const MIN_WITHDRAWAL = 1000;
+const PLATFORM_FEE_RATE = 0.30;
 
 export type RecordingDataset = "pidgin" | "nigerian_english";
 const DATASET_PIDGIN: RecordingDataset = "pidgin";
@@ -360,12 +361,16 @@ export default function WorkersPage() {
     finally { setBankSaving(false); }
   };
 
+  // ===== WITHDRAWAL SECTOR — UPGRADED: PLATFORM FEE 30% ALWAYS SHOWS =====
+  const platformFeeAmount = Math.round(availableWithdrawal.amount * PLATFORM_FEE_RATE);
+  const netWithdrawalAmount = Math.max(0, availableWithdrawal.amount - platformFeeAmount);
+
   const requestWithdrawal = async () => {
     if (!allocationVerified) return alert("Allocation check never succeed yet. Tap Refresh for Withdrawal first — for safety, withdrawal blocked.");
     if (!accountName.trim() || !bankName.trim() || !accountNumber.trim()) return alert("Save your Bank Details first before withdrawal.");
     if (availableWithdrawal.amount < MIN_WITHDRAWAL) return alert(`Minimum withdrawal na ₦${MIN_WITHDRAWAL.toLocaleString("en-NG")}. Your available na ₦${availableWithdrawal.amount.toLocaleString("en-NG")}.`);
-    if (activeWithdrawal) return alert("You already have an active withdrawal waiting for Chairman. Wait for am first.");
-    if (!window.confirm(`Request withdrawal of ₦${availableWithdrawal.amount.toLocaleString("en-NG")} (${availableWithdrawal.count} recordings) to ${bankName} • ${accountNumber} • ${accountName}?\n\nYou go receive am within 48 hours after Chairman approve.\nMinimum: ₦1,000`)) return;
+    if (activeWithdrawal) return alert("You already have an active withdrawal waiting for approval. Wait for am first.");
+    if (!window.confirm(`Request withdrawal?\n\nTotal Earned: ₦${availableWithdrawal.amount.toLocaleString("en-NG")} (${availableWithdrawal.count} recordings)\nPlatform Fee (30%): - ₦${platformFeeAmount.toLocaleString("en-NG")}\nYOU GO RECEIVE (70%): ₦${netWithdrawalAmount.toLocaleString("en-NG")}\n\nTo: ${bankName} • ${accountNumber} • ${accountName}\n\nYou go receive am within 48 hours after approval.\nMinimum: ₦1,000`)) return;
     setRequestingWithdrawal(true); setWithdrawalMessage("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -382,7 +387,7 @@ export default function WorkersPage() {
       // ✅ INSTANT ZERO: Available goes to 0 so worker knows e don withdraw
       setAvailableWithdrawal(prev => ({ amount: 0, count: 0, allocatedAmount: prev.allocatedAmount + withdrawnAmount, allocatedCount: prev.allocatedCount + withdrawnCount }));
       setActiveWithdrawal(j.withdrawal || j.data || { amount: withdrawnAmount, status: "pending", created_at: new Date().toISOString(), bank_name: bankName, account_number: accountNumber, account_name: accountName });
-      setWithdrawalMessage(`✅ Withdrawal of ₦${withdrawnAmount.toLocaleString("en-NG")} sent! You go receive am in your ${bankName} • ${accountNumber} within 48 hours.`);
+      setWithdrawalMessage(`✅ Withdrawal of ₦${withdrawnAmount.toLocaleString("en-NG")} sent! Platform Fee 30%: -₦${platformFeeAmount.toLocaleString("en-NG")} • You go receive ₦${netWithdrawalAmount.toLocaleString("en-NG")} in your ${bankName} • ${accountNumber} within 48 hours.`);
       showToast("✅ Withdrawal requested • You go receive am in 48 hours");
       await loadWithdrawal(workerId, balance); await loadWorkerData(workerId);
     } catch (e: any) { setWithdrawalMessage("❌ " + (e.message || "Withdrawal failed")); }
@@ -614,7 +619,7 @@ export default function WorkersPage() {
             <button onClick={() => loadWithdrawal(workerId, balance)} disabled={allocationLoading} style={{ background:"#222", color:"white", border:"1px solid #444", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:900 }}>{allocationLoading ? "Loading..." : "↻ Refresh"}</button>
           </div>
           <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>Available = Unpaid Approved − Already Allocated. Minimum withdrawal: ₦1,000.</div>
-          <div style={{ fontSize:11, color:"#FACC15", marginTop:6, fontWeight:900 }}>⏰ You go receive your money within 48 hours after Chairman approve.</div>
+          <div style={{ fontSize:11, color:"#FACC15", marginTop:6, fontWeight:900 }}>⏰ You go receive your money within 48 hours after approval.</div>
           {bankSavedLabel && (
             <div style={{ background:"#111A11", border:"1px solid #333", borderRadius:8, padding:"8px", marginTop:8, fontSize:11 }}>
               <b style={{ color:"#ccc" }}>💳 Money go enter:</b>
@@ -626,10 +631,21 @@ export default function WorkersPage() {
             <div style={{ color:"#00E676", fontWeight:900, fontSize:28, marginTop:4 }}>₦{availableWithdrawal.amount.toLocaleString("en-NG")}</div>
             <div style={{ fontSize:11, color:"#ccc" }}>{availableWithdrawal.count} recordings available • {availableWithdrawal.allocatedCount} already allocated (₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")})</div>
           </div>
+
+          {/* ✅ PLATFORM FEE 30% — ALWAYS SHOWS, EVEN FOR ₦0 — NOTICE BOARD INSIDE APP */}
+          <div style={{ background:"#111A11", border:"1px solid #EAB308", borderRadius:10, padding:10, marginTop:10, fontSize:12, textAlign:"left" }}>
+            <div style={{ display:"flex", justifyContent:"space-between" }}><span>Total Earned:</span><b>₦{availableWithdrawal.amount.toLocaleString("en-NG")}</b></div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:4, color:"#FF6B6B" }}><span>Platform Fee (30%):</span><b>- ₦{platformFeeAmount.toLocaleString("en-NG")}</b></div>
+            <div style={{ display:"flex", justifyContent:"space-between", marginTop:6, borderTop:"1px solid #333", paddingTop:6, color:"#00E676" }}><span><b>YOU GO RECEIVE (70%):</b></span><b>₦{netWithdrawalAmount.toLocaleString("en-NG")}</b></div>
+            <div style={{ fontSize:11, color:"#FACC15", marginTop:6 }}>ℹ️ Free to join, no activation fee. 30% na Platform Fee from your earnings only, not from your pocket. Minimum ₦1,000 to withdraw.</div>
+          </div>
+
           {activeWithdrawal && (
             <div style={{ background:"#1A2A00", border:"1px solid #EAB308", borderRadius:10, padding:10, marginTop:10, fontSize:12 }}>
-              <b style={{ color:"#FACC15" }}>⏳ ACTIVE WITHDRAWAL — Waiting for Chairman</b>
-              <div style={{ marginTop:6 }}>₦{Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0).toLocaleString("en-NG")} • {activeWithdrawal.status || "pending"}</div>
+              <b style={{ color:"#FACC15" }}>⏳ ACTIVE WITHDRAWAL — Waiting for Approval</b>
+              <div style={{ marginTop:6 }}>Total: ₦{Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0).toLocaleString("en-NG")} • {activeWithdrawal.status || "pending"}</div>
+              <div style={{ marginTop:4, color:"#FF6B6B" }}>Platform Fee (30%): - ₦{Math.round(Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0) * 0.30).toLocaleString("en-NG")}</div>
+              <div style={{ marginTop:4, color:"#00E676" }}><b>You Go Receive (70%): ₦{Math.round(Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0) * 0.70).toLocaleString("en-NG")}</b></div>
               <div style={{ color:"#aaa", fontSize:11 }}>{activeWithdrawal.created_at ? new Date(activeWithdrawal.created_at).toLocaleString() : ""}</div>
               <div style={{ color:"#FACC15", fontSize:11, marginTop:4 }}>⏰ You go receive am within 48 hours. Available don go ₦0 because e don enter withdrawal.</div>
             </div>
@@ -638,6 +654,7 @@ export default function WorkersPage() {
           <button onClick={requestWithdrawal} disabled={requestingWithdrawal || !canWithdraw} style={{ width:"100%", marginTop:12, padding:"14px", borderRadius:12, background: canWithdraw ? "#00E676" : "#333", color: canWithdraw ? "black" : "#888", fontWeight:900, border:"none", cursor:"pointer" }}>
             {requestingWithdrawal ? "Requesting..." : !allocationVerified ? "⚠️ Allocation Not Verified — Tap Refresh" : activeWithdrawal ? "⏳ Withdrawal Already Waiting" : availableWithdrawal.amount < MIN_WITHDRAWAL ? `Minimum ₦1,000 — You get ₦${availableWithdrawal.amount.toLocaleString("en-NG")}` : `💸 REQUEST WITHDRAWAL — ₦${availableWithdrawal.amount.toLocaleString("en-NG")}`}
           </button>
+          {canWithdraw && <div style={{ textAlign:"center", fontSize:12, color:"#00E676", marginTop:6, fontWeight:900 }}>You go receive ₦{netWithdrawalAmount.toLocaleString("en-NG")} after Platform Fee 30%</div>}
           <div style={{ marginTop:12 }}>
             <b style={{ fontSize:12, color:"#aaa" }}>Withdrawal History:</b>
             {withdrawalHistory.length === 0 ? <div style={{ fontSize:12, color:"#888", marginTop:4 }}>No withdrawal yet.</div> : withdrawalHistory.slice(0,5).map((w:any, i:number) => (
