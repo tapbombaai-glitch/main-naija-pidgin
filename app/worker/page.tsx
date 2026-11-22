@@ -10,10 +10,10 @@ const [withdrawalMessage, setWithdrawalMessage] = useState("");
 const [showEarningsModal, setShowEarningsModal] = useState(false);
 
 // ============================================================
-// 2. COMPLETE loadWorkerData — CORRECTED: setAllocationLoading at top
+// 2. COMPLETE loadWorkerData — FIXED
 // ============================================================
 const loadWorkerData = async (wid: string) => {
-  setAllocationLoading(true); // ✅ CORRECTED: Moved to beginning so it no go stuck if query fails
+  setAllocationLoading(true);
   try {
     const { data: anns } = await supabase
       .from("announcements")
@@ -32,6 +32,7 @@ const loadWorkerData = async (wid: string) => {
       .eq("worker_id", wid);
     if (error) {
       console.error("Worker recordings loading error:", error.message);
+      setAllocationLoading(false);
       return;
     }
 
@@ -148,70 +149,38 @@ const loadWorkerData = async (wid: string) => {
 };
 
 // ============================================================
-// 3. REQUEST FUNCTION — ✅ CORRECTED: Uses API route, NOT supabase.rpc
-// Paste JUST BELOW loadWorkerData
+// 3. REQUEST FUNCTION — Uses API route, NOT supabase.rpc
 // ============================================================
 const handleRequestWithdrawal = async () => {
   if (allocationLoading) {
     setWithdrawalMessage("⏳ Still checking your balance. Please wait.");
     return;
   }
-
   if (availableWithdrawal.amount < 1000) {
     setWithdrawalMessage("Minimum withdrawal is ₦1,000.");
     return;
   }
-
   if (activeWithdrawal) {
-    setWithdrawalMessage(
-      "You already have an active withdrawal request waiting for Chairman."
-    );
+    setWithdrawalMessage("You already have an active withdrawal request waiting for Chairman.");
     return;
   }
-
   const gross = availableWithdrawal.amount;
   const fee = Math.round(gross * 0.30);
   const net = gross - fee;
-
-  if (!confirm(
-    `Request ₦${gross.toLocaleString()}?\n` +
-    `Fee (30%): ₦${fee.toLocaleString()}\n` +
-    `You will receive: ₦${net.toLocaleString()}`
-  )) return;
-
+  if (!confirm(`Request ₦${gross.toLocaleString()}?\nFee (30%): ₦${fee.toLocaleString()}\nYou will receive: ₦${net.toLocaleString()}`)) return;
   setRequestingWithdrawal(true);
   setWithdrawalMessage("");
-
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!session?.access_token) {
-      throw new Error("Please log in again.");
-    }
-
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Please log in again.");
     const response = await fetch("/api/worker/withdrawal-request", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       cache: "no-store",
     });
-
     const result = await response.json();
-
-    if (!response.ok || result.success === false) {
-      throw new Error(result.error || "Withdrawal request failed.");
-    }
-
-    setWithdrawalMessage(
-      `✅ Request submitted! Your expected payout is ₦${Number(
-        result.net_amount
-      ).toLocaleString()}. Waiting for Chairman's approval.`
-    );
-
+    if (!response.ok || result.success === false) throw new Error(result.error || "Withdrawal request failed.");
+    setWithdrawalMessage(`✅ Request submitted! Your expected payout is ₦${Number(result.net_amount).toLocaleString()}. Waiting for Chairman's approval.`);
     await loadWorkerData(workerId);
   } catch (error: any) {
     setWithdrawalMessage(`❌ ${error.message}`);
@@ -221,13 +190,12 @@ const handleRequestWithdrawal = async () => {
 };
 
 // ============================================================
-// 4. WITHDRAWAL CENTRE JSX — INSIDE main return (...), immediately after Bank Details </div>
+// 4. WITHDRAWAL CENTRE JSX — After Bank Details </div>
 // ============================================================
-{/* 💳 WITHDRAWAL CENTRE - Always visible below Bank Details */}
+{/* 💳 WITHDRAWAL CENTRE */}
 <div className="mt-4 rounded-2xl border border-green-800 bg-[#0a1f14] p-4">
   <h3 className="text-lg font-bold text-green-400">💳 WITHDRAWAL CENTRE</h3>
   <p className="text-xs text-gray-400">Chairman approves and pays manually • 48hrs processing after approval • No duplicate request</p>
-
   <div className="mt-3 grid grid-cols-2 gap-2">
     <div className="rounded-xl bg-black/40 p-3">
       <p className="text-xs text-gray-400">💰 Total Unpaid Balance</p>
@@ -248,18 +216,15 @@ const handleRequestWithdrawal = async () => {
       <p className="text-lg font-bold text-green-300">₦{Math.round(availableWithdrawal.amount * 0.70).toLocaleString()}</p>
     </div>
   </div>
-
   {allocationLoading && <p className="mt-2 text-xs text-yellow-300">⏳ Checking balance...</p>}
   {withdrawalMessage && <p className="mt-2 text-sm">{withdrawalMessage}</p>}
-
   <button
     onClick={handleRequestWithdrawal}
     disabled={requestingWithdrawal || allocationLoading || availableWithdrawal.amount < 1000 || !!activeWithdrawal}
     className={`mt-3 w-full rounded-xl py-3 font-bold ${availableWithdrawal.amount >= 1000 && !activeWithdrawal ? "bg-green-500 text-black" : "bg-gray-700 text-gray-400"}`}
   >
-    {requestingWithdrawal ? "Sending..." : activeWithdrawal ? "⏳ REQUEST ALREADY PENDING - WAIT CHAIRMAN" : availableWithdrawal.amount >= 1000 ? "🟢 REQUEST WITHDRAWAL" : `Need ₦1,000 to withdraw (You get ₦${availableWithdrawal.amount.toLocaleString()})`}
+    {requestingWithdrawal ? "Sending..." : activeWithdrawal ? "⏳ REQUEST ALREADY PENDING - WAIT CHAIRMAN" : availableWithdrawal.amount >= 1000 ? "🟢 REQUEST WITHDRAWAL" : `Need ₦1,000 to withdraw (You get ₦${Math.round(availableWithdrawal.amount * 0.70).toLocaleString()})`}
   </button>
-
   {activeWithdrawal && (
     <div className="mt-4 rounded-xl bg-yellow-900/30 p-3 text-sm">
       <p className="font-bold text-yellow-300">⏳ Pending Withdrawal Request</p>
@@ -268,7 +233,6 @@ const handleRequestWithdrawal = async () => {
       <p className="text-xs text-yellow-200">{activeWithdrawal.status === "pending" ? "Waiting Chairman approval" : "Approved — 48hrs processing"}</p>
     </div>
   )}
-
   {withdrawalHistory.length > 0 && (
     <div className="mt-4">
       <p className="font-bold text-gray-300">💳 Withdrawal History</p>
@@ -283,9 +247,8 @@ const handleRequestWithdrawal = async () => {
 </div>
 
 // ============================================================
-// 5. APPROVED EARNINGS BUTTON — Replace ONLY old earnings card, not calculation
+// 5. APPROVED EARNINGS BUTTON
 // ============================================================
-{/* 💰 APPROVED EARNINGS - BUTTON, NO AMOUNT FOR DASHBOARD */}
 <button
   onClick={() => setShowEarningsModal(true)}
   className="w-full rounded-2xl border border-yellow-700 bg-[#1a1400] p-4 text-left active:scale-[0.98]"
@@ -296,9 +259,8 @@ const handleRequestWithdrawal = async () => {
 </button>
 
 // ============================================================
-// 6. EARNINGS POP-UP MODAL — INSIDE main JSX, near bottom, before final </div>
+// 6. EARNINGS POP-UP MODAL — Near bottom, before final </div>
 // ============================================================
-{/* 💰 EARNINGS POP-UP MODAL */}
 {showEarningsModal && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShowEarningsModal(false)}>
     <div className="w-full max-w-sm rounded-2xl bg-[#111] p-5 border border-yellow-700" onClick={(e) => e.stopPropagation()}>
