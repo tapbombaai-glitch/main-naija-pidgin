@@ -2,37 +2,26 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { getTodayPidgin } from "@/app/data/pidgin-500";
 import {
   getTodayNigerianVoice,
   getAllNigerianVoiceParagraphs,
-  NIGERIAN_VOICE_REWARD,
   NIGERIAN_VOICE_MIN_DURATION,
   countNigerianVoiceWords,
   isNigerianVoiceRecordingLongEnough,
 } from "@/lib/nigerian-voice-data";
 
 const DAILY_RECORDING_LIMIT = 30;
-const APPROVED_SENTENCE_RATE = 20;
-
 const CAMPAIGN_START_ISO = "2026-11-21T16:00:00.000Z";
 const CAMPAIGN_START_MS = new Date(CAMPAIGN_START_ISO).getTime();
-
 const NIGERIAN_VOICE_DAILY_LIMIT = 10;
-
-// --- WITHDRAWAL SETTINGS ---
-const MIN_WITHDRAWAL = 1000;
-const WITHDRAWAL_FEE_RATE = 0.30; // 30%
-const WITHDRAWAL_NET_RATE = 0.70; // 70%
+const MIN_WITHDRAWAL = 1000; // ✅ ₦1,000 minimum
 
 export type RecordingDataset = "pidgin" | "nigerian_english";
 const DATASET_PIDGIN: RecordingDataset = "pidgin";
 const DATASET_NIGERIAN_ENGLISH: RecordingDataset = "nigerian_english";
-
-// NOTE: Keep your existing AKWAIBOM_500, IGBO_15, HAUSA_15, YORUBA_15, IJAW_15 arrays here unchanged.
-// They are DRAFT ONLY - no recording for them. I removed them from this paste only to keep file readable,
-// but your deployed file must keep them if you still want them in code. They do not affect Pidgin / Nigerian English.
 
 function seededRandom(seed: number) {
   let s = seed;
@@ -43,13 +32,6 @@ function hashString(str: string): number {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return Math.abs(h);
 }
-function shuffleArray<T>(arr: T[], seedKey = "default"): T[] {
-  const a = [...arr];
-  const rand = seededRandom(hashString(seedKey) || 12345);
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-}
-
 function getLagosRecordingWindow(now = new Date()) {
   const offset = 60 * 60 * 1000;
   const lagosNow = new Date(now.getTime() + offset);
@@ -95,26 +77,18 @@ export default function WorkersPage() {
   const stopTimeoutRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const TOTAL_RECORDING_TARGET = 500;
-
   const [recordingMode, setRecordingMode] = useState<RecordingDataset>(DATASET_PIDGIN);
   const [nigerianVoiceIndex, setNigerianVoiceIndex] = useState(0);
   const [nigerianVoiceToday, setNigerianVoiceToday] = useState(0);
   const isNigerianVoiceMode = recordingMode === DATASET_NIGERIAN_ENGLISH;
   const isPidginMode = recordingMode === DATASET_PIDGIN;
-  const currentDataset: RecordingDataset = isNigerianVoiceMode ? DATASET_NIGERIAN_ENGLISH : DATASET_PIDGIN;
   const nigerianVoiceParagraphs = useMemo(() => getAllNigerianVoiceParagraphs(), []);
   const todayNigerianVoice = useMemo(() => getTodayNigerianVoice(), [recordingDayKey]);
   const currentNigerianVoice = nigerianVoiceParagraphs[nigerianVoiceIndex % nigerianVoiceParagraphs.length] || todayNigerianVoice;
-  const nigerianVoiceWordCount = countNigerianVoiceWords(currentNigerianVoice?.text || "");
-
   const isTooShort = isPidginMode && timer > 0 && timer < 11;
   const isPass = isPidginMode && timer >= 11;
-  const isPerfect = isPidginMode && timer >= 12 && timer <= 13;
   const isVoiceTooShort = isNigerianVoiceMode && timer > 0 && timer < NIGERIAN_VOICE_MIN_DURATION;
   const isVoicePass = isNigerianVoiceMode && isNigerianVoiceRecordingLongEnough(timer);
-  const isVoicePerfect = isNigerianVoiceMode && timer >= 60 && timer <= 65;
-  const remainingToday = Math.max(0, DAILY_RECORDING_LIMIT - taskProgress.today);
-  const remainingTotal = Math.max(0, TOTAL_RECORDING_TARGET - taskProgress.total);
   const [balance, setBalance] = useState({ amount: 0, count: 0 });
   const [todayEarn, setTodayEarn] = useState({ amount: 0, count: 0 });
   const [dailyHistory, setDailyHistory] = useState<{ date: string; count: number; amount: number }[]>([]);
@@ -122,56 +96,111 @@ export default function WorkersPage() {
   const [bankSaving, setBankSaving] = useState(false);
   const [bankSavedLabel, setBankSavedLabel] = useState("");
 
-  // --- WITHDRAWAL CENTRE STATE (NEW - DOES NOT TOUCH OTHER LOGIC) ---
-  const [withdrawalRequests, setWithdrawalRequests] = useState<any[]>([]);
-  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
+  // ✅ WITHDRAWAL CENTRE STATES — kept
+  const [availableWithdrawal, setAvailableWithdrawal] = useState({ amount: 0, count: 0, allocatedAmount: 0, allocatedCount: 0 });
+  const [activeWithdrawal, setActiveWithdrawal] = useState<any | null>(null);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<any[]>([]);
+  const [allocationLoading, setAllocationLoading] = useState(false);
+  const [allocationVerified, setAllocationVerified] = useState(false); // ✅ FAIL-CLOSED flag
   const [requestingWithdrawal, setRequestingWithdrawal] = useState(false);
-  const activeWithdrawal = withdrawalRequests.find((r: any) => ["pending", "processing", "approved"].includes(String(r.status || "").toLowerCase()));
-  const hasBankDetails = accountName.trim() !== "" && bankName.trim() !== "" && accountNumber.trim() !== "";
-  const withdrawalFee = Math.round(balance.amount * WITHDRAWAL_FEE_RATE);
-  const withdrawalNet = Math.round(balance.amount * WITHDRAWAL_NET_RATE);
-  const canWithdraw = balance.amount >= MIN_WITHDRAWAL && hasBankDetails && !activeWithdrawal;
+  const [withdrawalMessage, setWithdrawalMessage] = useState("");
 
-  // Sentences: remote first, fallback to today Pidgin
   const sentences = useMemo(() => {
     if (remoteSentences && remoteSentences.length > 0) return remoteSentences;
     try { return getTodayPidgin(); } catch { return []; }
   }, [remoteSentences]);
-
-  // Ijaw is DRAFT - no recording
   const isIjawDraft = selectedLang === "Ijaw / Izon";
-
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-  // --- LOAD WORKER DATA (UNCHANGED LOGIC + WITHDRAWAL LOAD) ---
+  // ✅ FIX 3: BANK LOAD — safe. Try GET, if no GET handler, fallback to workers table.
   const loadBankFromSupabase = async (wid: string) => {
-    const { data } = await supabase.from("worker_bank").select("*").eq("worker_id", wid).maybeSingle();
-    if (data) {
-      setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
-      setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone_number || "");
-      setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
-      return;
-    }
     try {
-      const savedBank = localStorage.getItem("gin_bank_details");
-      if (savedBank) {
-        const bank = JSON.parse(savedBank);
-        setAccountName(bank.accountName || ""); setBankName(bank.bankName || "");
-        setAccountNumber(bank.accountNumber || ""); setPhoneNumber(bank.phoneNumber || "");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        try {
+          const res = await fetch("/api/worker/bank-details", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+          if (res.ok) {
+            const j = await res.json().catch(() => ({}));
+            const b = j.bank || j;
+            if (b && (b.account_name || b.bank_name)) {
+              setAccountName(b.account_name || ""); setBankName(b.bank_name || "");
+              setAccountNumber(b.account_number || ""); setPhoneNumber(b.phone || b.phone_number || "");
+              setBankSavedLabel(`Saved: ${b.bank_name} • ${b.account_number} • ${b.account_name}`);
+              return;
+            }
+          }
+        } catch {}
+      }
+      // Fallback: workers table is source of truth
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData?.user?.id;
+      if (uid) {
+        const { data } = await supabase.from("workers").select("bank_name, account_number, account_name, phone").eq("id", uid).maybeSingle();
+        if (data && (data.account_name || data.bank_name)) {
+          setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
+          setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone || "");
+          setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
+          return;
+        }
+      }
+      // Last fallback: try by worker_id column
+      if (wid && wid !== "WORKER") {
+        const { data } = await supabase.from("workers").select("bank_name, account_number, account_name, phone").eq("worker_id", wid).maybeSingle();
+        if (data && (data.account_name || data.bank_name)) {
+          setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
+          setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone || "");
+          setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
+        }
       }
     } catch {}
   };
 
-  const loadWithdrawalRequests = async (wid: string) => {
+  // ✅ FIX 1+2+5: WITHDRAWAL — via allocated-recordings (IDs) + FAIL-CLOSED
+  const loadWithdrawal = async (wid: string, currentBalance?: { amount: number; count: number }) => {
+    if (!wid || wid === "WORKER") return;
+    setAllocationLoading(true);
+    setAllocationVerified(false);
     try {
-      const { data, error } = await supabase.from("withdrawal_requests").select("*").eq("worker_id", wid).order("created_at", { ascending: false }).limit(5);
-      if (!error && data) { setWithdrawalRequests(data); return; }
-    } catch {}
-    // Fallback: localStorage if table no dey yet
-    try {
-      const raw = localStorage.getItem(`gin_withdrawals:${wid}`);
-      if (raw) setWithdrawalRequests(JSON.parse(raw) || []);
-    } catch {}
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("No session");
+      // Verified allocation endpoint — returns allocated recording IDs
+      const res = await fetch("/api/worker/allocated-recordings", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
+      if (!res.ok) throw new Error("Allocation check failed");
+      const j = await res.json().catch(() => ({}));
+      const allocatedIds: string[] = j.allocatedRecordingIds || j.allocatedIds || j.ids || (Array.isArray(j) ? j : []) || (j.recordings || []).map((r: any) => r.recording_id || r.id).filter(Boolean);
+      // Also support direct amounts if API returns them
+      let allocatedAmount = Number(j.allocatedAmount || j.total_allocated_amount || 0);
+      let allocatedCount = allocatedIds.length;
+      if (allocatedIds.length > 0 && allocatedAmount === 0) {
+        // Sum earnings of allocated recordings from recordings table
+        const { data: allocRecs } = await supabase.from("recordings").select("id, earnings").in("id", allocatedIds);
+        allocatedAmount = (allocRecs || []).reduce((s: number, r: any) => s + (Number(r.earnings) || 0), 0);
+        allocatedCount = (allocRecs || []).length;
+      }
+      // Active + history from withdrawal_requests if readable, else from API payload
+      if (j.active) setActiveWithdrawal(j.active);
+      if (j.history) setWithdrawalHistory(j.history);
+      if (!j.active && !j.history) {
+        // Try to read worker's own withdrawal_requests for display
+        const { data: wr } = await supabase.from("withdrawal_requests").select("*").eq("worker_id", wid).order("created_at", { ascending: false }).limit(10);
+        if (wr) {
+          setWithdrawalHistory(wr);
+          const active = wr.find((x: any) => x.status === "pending" || x.status === "processing" || x.status === "awaiting_payment");
+          setActiveWithdrawal(active || null);
+        }
+      }
+      const bal = currentBalance || balance;
+      const availAmount = Math.max(0, bal.amount - allocatedAmount);
+      const availCount = Math.max(0, bal.count - allocatedCount);
+      setAvailableWithdrawal({ amount: availAmount, count: availCount, allocatedAmount, allocatedCount });
+      setAllocationVerified(true); // ✅ Only true when allocation check succeeded
+      setWithdrawalMessage("");
+    } catch (e: any) {
+      // ✅ FAIL-CLOSED: block withdrawal, show 0
+      setAvailableWithdrawal(prev => ({ ...prev, amount: 0, count: 0 }));
+      setAllocationVerified(false);
+      setWithdrawalMessage("⚠️ Could not verify allocated recordings. Withdrawal blocked for safety — tap Refresh to retry.");
+    } finally { setAllocationLoading(false); }
   };
 
   const loadWorkerData = async (wid: string) => {
@@ -179,14 +208,13 @@ export default function WorkersPage() {
     if (anns) setAnnouncements(anns);
     setAnnouncementLoading(false);
     const window = getLagosRecordingWindow();
-    let recs: any[] | null = null;
     let { data, error } = await supabase.from("recordings").select("earnings, status, created_at, is_paid, language").eq("worker_id", wid);
     if (error && String(error.message).includes("is_paid")) {
       const retry = await supabase.from("recordings").select("earnings, status, created_at, language").eq("worker_id", wid);
       data = retry.data as any; error = retry.error as any;
     }
     if (error) { console.error("Worker recordings loading error:", error.message); return; }
-    recs = data || [];
+    const recs = data || [];
     let allTimeEarnings = 0, campaignApproved = 0, campaignPending = 0, campaignRejected = 0, campaignToday = 0;
     let todayAmount = 0, todayCount = 0, balanceAmount = 0, balanceCount = 0, nvTodayCount = 0;
     const byDay: Record<string, { count: number; amount: number }> = {};
@@ -217,22 +245,18 @@ export default function WorkersPage() {
     setBalance({ amount: balanceAmount, count: balanceCount });
     setTodayEarn({ amount: todayAmount, count: todayCount });
     setNigerianVoiceToday(nvTodayCount);
-    const history = Object.keys(byDay).sort().reverse().map(d => ({ date: d, count: byDay[d].count, amount: byDay[d].amount }));
-    setDailyHistory(history);
+    setDailyHistory(Object.keys(byDay).sort().reverse().map(d => ({ date: d, count: byDay[d].count, amount: byDay[d].amount })));
     const { data: pays } = await supabase.from("payment_history").select("*").eq("worker_id", wid).order("paid_at", { ascending: false }).limit(10);
     if (pays) setPaymentHistory(pays);
     await loadBankFromSupabase(wid);
-    await loadWithdrawalRequests(wid);
+    await loadWithdrawal(wid, { amount: balanceAmount, count: balanceCount });
   };
 
-  // Init workerId from storage / session
   useEffect(() => {
     const init = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
         const wid = localStorage.getItem("gin_worker_id") || localStorage.getItem("worker_id") || "";
         if (wid) { setWorkerId(wid); loadWorkerData(wid); }
-        if (!session) { /* keep login page redirect logic in your existing auth guard if any */ }
       } catch {}
     };
     init();
@@ -331,53 +355,45 @@ export default function WorkersPage() {
     const wid = localStorage.getItem("gin_worker_id") || workerId;
     if (!wid || wid === "WORKER") return alert("Worker account not found. Please logout and login again.");
     setBankSaving(true);
-    const bankDetails = { accountName: accountName.trim(), bankName: bankName.trim(), accountNumber: accountNumber.trim(), phoneNumber: phoneNumber.trim() };
-    try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); } catch {}
-    const { error } = await supabase.from("worker_bank").upsert({ worker_id: wid, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, phone_number: bankDetails.phoneNumber, updated_at: new Date().toISOString() }, { onConflict: "worker_id" });
-    setBankSaving(false);
-    if (error) { setShowModal(null); showToast("✅ Bank saved on this phone. Tell Chairman to create worker_bank table for Supabase backup."); return; }
-    setBankSavedLabel(`Saved: ${bankDetails.bankName} • ${bankDetails.accountNumber} • ${bankDetails.accountName}`);
-    setShowModal(null); showToast("✅ Bank details saved to Supabase successfully.");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Session expired. Login again.");
+      const res = await fetch("/api/worker/bank-details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ bank_name: bankName.trim(), account_number: accountNumber.trim(), account_name: accountName.trim(), phone: phoneNumber.trim() }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || "Bank save failed");
+      setBankSavedLabel(`Saved: ${bankName.trim()} • ${accountNumber.trim()} • ${accountName.trim()}`);
+      setShowModal(null); showToast("✅ Bank details saved to Supabase successfully.");
+      await loadBankFromSupabase(wid);
+    } catch (e: any) { alert(e.message || "Bank save failed"); }
+    finally { setBankSaving(false); }
   };
 
-  // --- WITHDRAWAL REQUEST (NEW) ---
+  // ✅ FIX 1+4: REQUEST via /api/worker/withdrawal-request + ₦1,000 minimum + fail-closed
   const requestWithdrawal = async () => {
-    const wid = localStorage.getItem("gin_worker_id") || workerId;
-    if (!wid || wid === "WORKER") return alert("Worker account not found. Please logout and login again.");
-    if (activeWithdrawal) return alert("You already have an active withdrawal request. Wait for Chairman to approve am.");
-    if (!hasBankDetails) { setShowModal("bank"); return alert("Abeg save your Bank Details first before you request withdrawal."); }
-    if (balance.amount < MIN_WITHDRAWAL) return alert(`You need at least ₦${MIN_WITHDRAWAL.toLocaleString("en-NG")} in eligible approved unpaid earnings before you can request a withdrawal. Your available na ₦${balance.amount.toLocaleString("en-NG")}.`);
-    const fee = Math.round(balance.amount * WITHDRAWAL_FEE_RATE);
-    const net = Math.round(balance.amount * WITHDRAWAL_NET_RATE);
-    if (!window.confirm(`Confirm Withdrawal?\n\nAvailable: ₦${balance.amount.toLocaleString("en-NG")}\nFee (30%): -₦${fee.toLocaleString("en-NG")}\nYou go receive (70%): ₦${net.toLocaleString("en-NG")}\nBank: ${bankName} • ${accountNumber} • ${accountName}`)) return;
-    setRequestingWithdrawal(true);
+    if (!allocationVerified) return alert("Allocation check never succeed yet. Tap Refresh for Withdrawal first — for safety, withdrawal blocked.");
+    if (!accountName.trim() || !bankName.trim() || !accountNumber.trim()) return alert("Save your Bank Details first before withdrawal.");
+    if (availableWithdrawal.amount < MIN_WITHDRAWAL) return alert(`Minimum withdrawal na ₦${MIN_WITHDRAWAL.toLocaleString("en-NG")}. Your available na ₦${availableWithdrawal.amount.toLocaleString("en-NG")}.`);
+    if (activeWithdrawal) return alert("You already have an active withdrawal waiting for Chairman. Wait for am first.");
+    if (!window.confirm(`Request withdrawal of ₦${availableWithdrawal.amount.toLocaleString("en-NG")} (${availableWithdrawal.count} recordings) to ${bankName} • ${accountNumber} • ${accountName}?\n\nMinimum: ₦1,000`)) return;
+    setRequestingWithdrawal(true); setWithdrawalMessage("");
     try {
-      const payload = {
-        worker_id: wid,
-        amount: balance.amount,
-        fee: fee,
-        net_amount: net,
-        bank_name: bankName.trim(),
-        account_number: accountNumber.trim(),
-        account_name: accountName.trim(),
-        phone_number: phoneNumber.trim(),
-        status: "pending",
-      };
-      const { data, error } = await supabase.from("withdrawal_requests").insert(payload).select().single();
-      if (error) {
-        // Fallback if table no dey yet - save locally so worker see active request
-        const localReq = { ...payload, id: Date.now(), created_at: new Date().toISOString() };
-        const next = [localReq, ...withdrawalRequests].slice(0, 5);
-        setWithdrawalRequests(next);
-        try { localStorage.setItem(`gin_withdrawals:${wid}`, JSON.stringify(next)); } catch {}
-        showToast("✅ Withdrawal request saved. Tell Chairman to create withdrawal_requests table in Supabase.");
-        setRequestingWithdrawal(false);
-        return;
-      }
-      if (data) setWithdrawalRequests([data, ...withdrawalRequests]);
-      showToast("✅ Withdrawal requested! Chairman go review am.");
-      await loadWorkerData(wid);
-    } catch (e) { alert("Withdrawal request failed. Try again."); }
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Session expired. Login again.");
+      const res = await fetch("/api/worker/withdrawal-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ amount: availableWithdrawal.amount }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || "Withdrawal request failed");
+      setWithdrawalMessage("✅ Withdrawal request sent to Chairman. E go review and pay you.");
+      showToast("✅ Withdrawal requested • Waiting for Chairman");
+      await loadWithdrawal(workerId, balance); await loadWorkerData(workerId);
+    } catch (e: any) { setWithdrawalMessage("❌ " + (e.message || "Withdrawal failed")); }
     finally { setRequestingWithdrawal(false); }
   };
 
@@ -423,7 +439,6 @@ export default function WorkersPage() {
       } catch { alert("Abeg allow microphone!"); }
       return;
     }
-    // Pidgin 11-15 sec
     if (selectedLang !== "Pidgin") { alert("Only Pidgin recording is currently available."); return; }
     if (isIjawDraft) { alert("Ijaw / Izon recording is temporarily unavailable."); return; }
     if (!isRecording) {
@@ -459,21 +474,29 @@ export default function WorkersPage() {
     if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
   };
   const dailySentenceCount = Math.min(DAILY_RECORDING_LIMIT, sentences.length);
+  const submitViaSecureAPI = async (blob: Blob, language: "pidgin" | "nigerian_english", text: string, filePrefix: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) throw new Error("Session expired. Please logout and login again.");
+    const form = new FormData();
+    form.append("audio", blob, `${filePrefix}-${Date.now()}.webm`);
+    form.append("language", language);
+    form.append("text", text);
+    const res = await fetch("/api/worker/submit-recording", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: form,
+    });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(result?.error || "Submission failed.");
+    return result.recording;
+  };
 
   const saveAndNext = async () => {
-    // ===== NIGERIAN ENGLISH SUBMIT — UNTOUCHED (OLD WAY, ₦30) =====
     if (isNigerianVoiceMode) {
       if (!isNigerianVoiceRecordingLongEnough(timer)) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! For Nigerian English, you must reach 60 seconds.`); return; }
       if (nigerianVoiceToday >= NIGERIAN_VOICE_DAILY_LIMIT) return alert("You have completed your 10 Nigerian English recordings for today.");
       if (!audioURL) return alert("🎤 Record first!");
       if (savingRecording) return;
-      const wid = localStorage.getItem("gin_worker_id");
-      if (!wid) return alert("Worker account not found. Please logout and login again.");
-      try {
-        const window = getLagosRecordingWindow();
-        const { data: todayRows } = await supabase.from("recordings").select("id").eq("worker_id", wid).eq("language", DATASET_NIGERIAN_ENGLISH).gte("created_at", new Date(window.startMs).toISOString()).lt("created_at", new Date(window.nextResetMs).toISOString());
-        if (todayRows && todayRows.length >= NIGERIAN_VOICE_DAILY_LIMIT) { setNigerianVoiceToday(todayRows.length); return alert("You have completed your 10 Nigerian English recordings for today (verified from database)."); }
-      } catch {}
       setSavingRecording(true);
       try {
         const blob = await fetch(audioURL).then((r) => r.blob());
@@ -482,28 +505,16 @@ export default function WorkersPage() {
         setNoiseScore(noiseResult.score);
         if (noiseResult.status === "NOISY") { setSavingRecording(false); setNoiseWarning(noiseResult.reason); alert(`❌ REJECTED - NOISY!\n\n${noiseResult.reason}\n\nScore: ${noiseResult.score}/100 (Need 60+)`); return; }
         if (noiseResult.status === "WARNING") { const goAhead = confirm(`⚠️ ${noiseResult.reason}\n\nScore: ${noiseResult.score}/100\n\nYou want submit am still, or you want record again?`); if (!goAhead) { setSavingRecording(false); return; } }
-        const fileName = `GIN-NigerianEnglish-${Date.now()}.webm`;
-        const storagePath = `${wid}/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from("voice-clips").upload(storagePath, blob, { contentType: "audio/webm", upsert: false });
-        if (uploadError) throw new Error("Audio upload failed: " + uploadError.message);
-        const { data: publicData } = supabase.storage.from("voice-clips").getPublicUrl(storagePath);
-        const audioUrl = publicData?.publicUrl || "";
         const recordingText = frozenSentenceRef.current || frozenSentence || currentNigerianVoice.text;
-        const { data: recordingRow, error: insertError } = await supabase.from("recordings").insert({ worker_id: wid, language: DATASET_NIGERIAN_ENGLISH, text: recordingText, audio_url: audioUrl, file_name: fileName, duration: timer, earnings: NIGERIAN_VOICE_REWARD, status: "pending", is_approved: false }).select().single();
-        if (insertError) { try { await supabase.storage.from("voice-clips").remove([storagePath]); } catch {} throw new Error("Recording could not be submitted: " + insertError.message); }
-        const nextNvIndex = nigerianVoiceIndex + 1; const nextNvToday = nigerianVoiceToday + 1;
-        setNigerianVoiceIndex(nextNvIndex); setNigerianVoiceToday(nextNvToday);
-        localStorage.setItem(`nigerian_english_progress:${wid}:${recordingDayKey}`, JSON.stringify({ index: nextNvIndex, dayKey: recordingDayKey }));
-        localStorage.setItem(`nigerian_english_today:${wid}:${recordingDayKey}`, String(nextNvToday));
+        await submitViaSecureAPI(blob, "nigerian_english", recordingText, "GIN-NigerianEnglish");
+        setNigerianVoiceIndex(prev => prev + 1); setNigerianVoiceToday(prev => prev + 1);
         setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning(""); setFrozenSentence(null); frozenSentenceRef.current = null;
-        showToast("✅ NIGERIAN ENGLISH SUBMITTED • ₦30 • Awaiting Approval");
-        loadWorkerData(wid);
+        showToast("✅ NIGERIAN ENGLISH SUBMITTED • Awaiting Chairman Approval");
+        if (workerId !== "WORKER") loadWorkerData(workerId);
       } catch (error) { alert(error instanceof Error ? error.message : "Recording submission failed."); }
       finally { setSavingRecording(false); }
       return;
     }
-
-    // ===== PIDGIN SUBMIT — ✅ CORRECTED: VIA NEW SECURE API ONLY =====
     if (selectedLang !== "Pidgin") { alert("Only Pidgin recordings can be submitted right now."); return; }
     if (isIjawDraft) { alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete."); return; }
     if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
@@ -519,33 +530,13 @@ export default function WorkersPage() {
       setNoiseScore(noiseResult.score);
       if (noiseResult.status === "NOISY") { setSavingRecording(false); setNoiseWarning(noiseResult.reason); alert(`❌ REJECTED - NOISY!\n\n${noiseResult.reason}\n\nScore: ${noiseResult.score}/100 (Need 60+)`); return; }
       if (noiseResult.status === "WARNING") { const goAhead = confirm(`⚠️ ${noiseResult.reason}\n\nScore: ${noiseResult.score}/100\n\nYou want submit am still, or you want record again?`); if (!goAhead) { setSavingRecording(false); return; } }
-
-      // NEW: Get real Supabase session - no localStorage worker ID
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) { setSavingRecording(false); return alert("Session expired. Please logout and login again."); }
-
       const recordingText = frozenSentenceRef.current || frozenSentence || sentences[currentSentenceIndex];
-      const form = new FormData();
-      form.append("audio", blob, `GIN-Pidgin-${Date.now()}.webm`);
-      form.append("language", "pidgin"); // API expects "language", NOT "dataset"
-      form.append("text", recordingText);
-
-      const res = await fetch("/api/worker/submit-recording", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: form,
-      });
-      const result = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(result?.error || "Pidgin submission failed.");
-      const recordingRow = result.recording;
-
-      // Local UI only - no earnings here, API sets earnings: 0
+      const recordingRow = await submitViaSecureAPI(blob, "pidgin", recordingText, "GIN-Pidgin");
       const data = { id: recordingRow?.id || Date.now(), worker_id: workerId, lang: DATASET_PIDGIN, sentence: recordingText, fileName: `GIN-Pidgin-${Date.now()}.webm`, time: new Date().toISOString(), earnings: 0, status: "pending", approved: false };
       let old: any[] = [];
       try { const raw = localStorage.getItem("gin_recordings"); const parsed = raw ? JSON.parse(raw) : []; old = Array.isArray(parsed) ? parsed : []; } catch { old = []; }
       old.unshift(data);
       try { localStorage.setItem("gin_recordings", JSON.stringify(old.slice(0, 100))); setSavedFiles(old.slice(0, 100)); } catch {}
-
       const nextIndex = currentSentenceIndex + 1;
       setTaskProgress(prev => ({ ...prev, today: prev.today + 1, pending: prev.pending + 1 }));
       setCurrentSentenceIndex(nextIndex);
@@ -558,21 +549,24 @@ export default function WorkersPage() {
   };
 
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
-
-  // --- UI (same as before, simplified layout, same data) ---
   const currentText = isNigerianVoiceMode ? currentNigerianVoice?.text : sentences[currentSentenceIndex];
+  const canWithdraw = allocationVerified && !activeWithdrawal && availableWithdrawal.amount >= MIN_WITHDRAWAL;
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 1000 }}>{toast}</div>}
       <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
+        <div style={{ display:"flex", gap:8, marginBottom:10 }}>
+          <Link href="/" style={{ flex:1, textAlign:"center", background:"#222", color:"white", padding:"10px", borderRadius:10, fontSize:11, fontWeight:900, textDecoration:"none" }}>🏠 HOME</Link>
+          <Link href="/marketplace" style={{ flex:1, textAlign:"center", background:"#FFC107", color:"black", padding:"10px", borderRadius:10, fontSize:11, fontWeight:900, textDecoration:"none" }}>🛍️ MARKET</Link>
+          <Link href="/admin" style={{ flex:1, textAlign:"center", background:"#D4AF37", color:"black", padding:"10px", borderRadius:10, fontSize:11, fontWeight:900, textDecoration:"none" }}>👑 CHAIRMAN</Link>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
           <div><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1>
             <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{workerId} ● {taskProgress.approved} approved • {taskProgress.pending} waiting • {taskProgress.rejected} rejected</div>
             <div style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>New Campaign: From 21 Nov 2026, 5:00 PM Lagos</div></div>
           <button type="button" onClick={handleLogout} style={{ background: "#2A0A0A", color: "#FF6B6B", border: "1px solid #7F1D1D", borderRadius: "10px", padding: "9px 11px", fontSize: "11px", fontWeight: "900", cursor: "pointer" }}>🚪 LOGOUT</button>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px" }}>
           <strong style={{ color: "#FACC15", fontSize: "14px" }}>📢 CHAIRMAN ANNOUNCEMENTS</strong>
           {announcementLoading ? <p style={{ color: "#aaa", fontSize: "12px" }}>Loading announcements...</p> : announcements.length === 0 ? <p style={{ color: "#888", fontSize: "12px" }}>No announcements yet.</p> : announcements.map((a) => (
@@ -584,30 +578,26 @@ export default function WorkersPage() {
             </div>
           ))}
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "16px", marginTop: "12px", textAlign: "center" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 APPROVED EARNINGS — ALL TIME</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "28px", marginTop: "8px" }}>₦{earnings.approved.toLocaleString("en-NG")}</div>
           <div style={{ fontSize: "11px", color: "#ccc", marginTop: "8px" }}>✅ New Campaign Approved: {taskProgress.approved} • ⏳ Waiting: {taskProgress.pending} • ❌ Rejected: {taskProgress.rejected}</div>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #FACC15", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>📅 TODAY — Resets daily at 5 PM Lagos</div>
           <div style={{ color: "#FACC15", fontWeight: "900", fontSize: "22px", marginTop: "6px" }}>₦{todayEarn.amount.toLocaleString("en-NG")}</div>
           <div style={{ fontSize: "11px", color: "#ccc" }}>{todayEarn.count} approved today • {taskProgress.today} total today (incl. pending)</div>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — New Campaign Unpaid</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "26px", marginTop: "6px" }}>₦{balance.amount.toLocaleString("en-NG")}</div>
           <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings in New Campaign</div>
+          <div style={{ fontSize: "11px", color: "#FACC15", marginTop: 6 }}>Allocated to withdrawal: ₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")} • {availableWithdrawal.allocatedCount} recordings {allocationVerified ? "✅ Verified" : "⚠️ Not verified"}</div>
         </div>
-
         <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
           <button type="button" onClick={() => { if (isRecording || audioURL || savingRecording) return alert("Please finish or discard your current recording first."); setRecordingMode(DATASET_PIDGIN); }} style={{ flex: 1, padding: "13px 0", borderRadius: "12px", fontSize: "12px", fontWeight: "900", border: !isNigerianVoiceMode ? "2px solid #00E676" : "1px solid #333", background: !isNigerianVoiceMode ? "#00E676" : "#171717", color: !isNigerianVoiceMode ? "black" : "#ccc", cursor: "pointer" }}>🇳🇬 PIDGIN<br /><span style={{ fontSize: "10px" }}>11–15 sec • ₦20</span></button>
           <button type="button" onClick={() => { if (isRecording || audioURL || savingRecording) return alert("Please finish or discard your current recording first."); setRecordingMode(DATASET_NIGERIAN_ENGLISH); }} style={{ flex: 1, padding: "13px 0", borderRadius: "12px", fontSize: "12px", fontWeight: "900", border: isNigerianVoiceMode ? "2px solid #FACC15" : "1px solid #333", background: isNigerianVoiceMode ? "#FACC15" : "#171717", color: isNigerianVoiceMode ? "black" : "#ccc", cursor: "pointer" }}>🎙️ NIGERIAN ENGLISH<br /><span style={{ fontSize: "10px" }}>60+ sec • ₦30 • No max</span></button>
         </div>
-
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>{isNigerianVoiceMode ? "🎙️ NIGERIAN ENGLISH PARAGRAPH" : `🇳🇬 PIDGIN SENTENCE ${currentSentenceIndex + 1}`}</div>
           <p style={{ fontSize: "15px", lineHeight: 1.7, marginTop: "8px" }}>{frozenSentence || currentText || "Loading..."}</p>
@@ -621,61 +611,54 @@ export default function WorkersPage() {
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: "10px" }} />}
         </div>
 
+        {/* ✅ BANK DETAILS BUTTON — Withdrawal Centre now comes DIRECTLY BELOW this */}
         <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS {bankSavedLabel ? "✅ SAVED" : ""}</button>
 
-        {/* ===== WITHDRAWAL CENTRE - ALWAYS VISIBLE, DIRECTLY UNDER BANK DETAILS ===== */}
-        <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "14px", marginTop: "12px" }}>
-          <div style={{ fontSize: "13px", fontWeight: "900", color: "#00E676" }}>🏦 Withdrawal Centre</div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#ccc", marginTop: "10px" }}><span>Available:</span><b style={{ color: "white" }}>₦{balance.amount.toLocaleString("en-NG")}</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#ccc", marginTop: "6px" }}><span>Minimum withdrawal:</span><b style={{ color: "white" }}>₦{MIN_WITHDRAWAL.toLocaleString("en-NG")}</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#ccc", marginTop: "6px" }}><span>Fee:</span><b style={{ color: "#FF6B6B" }}>30% (−₦{withdrawalFee.toLocaleString("en-NG")})</b></div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#ccc", marginTop: "6px" }}><span>Net payout:</span><b style={{ color: "#00E676" }}>70% (₦{withdrawalNet.toLocaleString("en-NG")})</b></div>
-
-          {activeWithdrawal ? (
-            <div style={{ background: "#0A1A0A", border: "1px solid #FACC15", borderRadius: "10px", padding: "12px", marginTop: "12px" }}>
-              <div style={{ fontSize: "13px", fontWeight: "900", color: "#FACC15" }}>⏳ Withdrawal Request Active — {String(activeWithdrawal.status).toUpperCase()}</div>
-              <div style={{ fontSize: "12px", color: "#ccc", marginTop: "6px" }}>Amount: ₦{Number(activeWithdrawal.amount || 0).toLocaleString("en-NG")} • You go receive: ₦{Number(activeWithdrawal.net_amount || 0).toLocaleString("en-NG")}</div>
-              <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>{activeWithdrawal.bank_name} • {activeWithdrawal.account_number} • {activeWithdrawal.account_name}</div>
-              <div style={{ fontSize: "11px", color: "#888", marginTop: "4px" }}>{activeWithdrawal.created_at ? new Date(activeWithdrawal.created_at).toLocaleString() : ""}</div>
-              <div style={{ fontSize: "11px", color: "#FACC15", marginTop: "6px" }}>Chairman go review am. You no fit request another one until this one finish.</div>
-            </div>
-          ) : canWithdraw ? (
-            <>
-              <button type="button" onClick={requestWithdrawal} disabled={requestingWithdrawal} style={{ width: "100%", marginTop: "12px", padding: "14px", borderRadius: "12px", background: "#00E676", color: "black", fontWeight: "900", fontSize: "13px", border: "none", cursor: "pointer" }}>{requestingWithdrawal ? "Sending..." : "💰 Request Withdrawal"}</button>
-              <div style={{ fontSize: "11px", color: "#aaa", marginTop: "6px", textAlign: "center" }}>You go receive ₦{withdrawalNet.toLocaleString("en-NG")} after 30% fee.</div>
-            </>
-          ) : (
-            <>
-              <button type="button" disabled style={{ width: "100%", marginTop: "12px", padding: "14px", borderRadius: "12px", background: "#222", color: "#888", fontWeight: "900", fontSize: "13px", border: "1px solid #444", cursor: "not-allowed" }}>🔒 Can’t Withdraw Yet</button>
-              {!hasBankDetails ? (
-                <div style={{ fontSize: "11px", color: "#FACC15", marginTop: "8px", lineHeight: 1.6 }}>Abeg save your Bank Details first. Press PAYMENT / BANK DETAILS button above.</div>
-              ) : (
-                <div style={{ fontSize: "11px", color: "#ccc", marginTop: "8px", lineHeight: 1.6 }}>You need at least ₦1,000 in eligible approved unpaid earnings before you can request a withdrawal. Your available now na ₦{balance.amount.toLocaleString("en-NG")} — keep recording, e go reach.</div>
-              )}
-            </>
-          )}
-
-          {withdrawalRequests.length > 0 && (
-            <div style={{ marginTop: "12px", borderTop: "1px solid #222", paddingTop: "8px" }}>
-              <div style={{ fontSize: "11px", fontWeight: "900", color: "#aaa" }}>Recent Withdrawals</div>
-              {withdrawalRequests.slice(0, 3).map((w: any) => (
-                <div key={w.id} style={{ fontSize: "11px", color: "#ccc", marginTop: "6px" }}>₦{Number(w.amount || 0).toLocaleString("en-NG")} • {String(w.status || "pending").toUpperCase()} • {w.created_at ? new Date(w.created_at).toLocaleDateString() : ""}</div>
-              ))}
+        {/* ✅ WITHDRAWAL CENTRE — MOVED BELOW BANK DETAILS */}
+        <div style={{ background: "#0F1A0F", border: "1px solid #00E676", borderRadius: "12px", padding: "14px", marginTop: "12px" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <strong style={{ color: "#00E676", fontSize: "14px" }}>💸 WITHDRAWAL CENTRE</strong>
+            <button onClick={() => loadWithdrawal(workerId, balance)} disabled={allocationLoading} style={{ background:"#222", color:"white", border:"1px solid #444", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:900 }}>{allocationLoading ? "Loading..." : "↻ Refresh"}</button>
+          </div>
+          <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>Available = Unpaid Approved − Already Allocated. Minimum withdrawal: ₦1,000. Chairman go approve your withdrawal.</div>
+          <div style={{ textAlign:"center", marginTop:10 }}>
+            <div style={{ fontSize:11, color:"#aaa", fontWeight:900 }}>AVAILABLE FOR WITHDRAWAL {allocationVerified ? "✅ Verified" : "⚠️ Not verified — blocked"}</div>
+            <div style={{ color:"#00E676", fontWeight:900, fontSize:28, marginTop:4 }}>₦{availableWithdrawal.amount.toLocaleString("en-NG")}</div>
+            <div style={{ fontSize:11, color:"#ccc" }}>{availableWithdrawal.count} recordings available • {availableWithdrawal.allocatedCount} already allocated (₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")})</div>
+          </div>
+          {activeWithdrawal && (
+            <div style={{ background:"#1A2A00", border:"1px solid #EAB308", borderRadius:10, padding:10, marginTop:10, fontSize:12 }}>
+              <b style={{ color:"#FACC15" }}>⏳ ACTIVE WITHDRAWAL — Waiting for Chairman</b>
+              <div style={{ marginTop:6 }}>₦{Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0).toLocaleString("en-NG")} • {activeWithdrawal.status || "pending"}</div>
+              <div style={{ color:"#aaa", fontSize:11 }}>{activeWithdrawal.created_at ? new Date(activeWithdrawal.created_at).toLocaleString() : ""}</div>
             </div>
           )}
+          {withdrawalMessage && <div style={{ fontSize:12, marginTop:10, color: withdrawalMessage.startsWith("❌") || withdrawalMessage.startsWith("⚠️") ? "#FF6B6B" : "#00E676" }}>{withdrawalMessage}</div>}
+          <button onClick={requestWithdrawal} disabled={requestingWithdrawal || !canWithdraw} style={{ width:"100%", marginTop:12, padding:"14px", borderRadius:12, background: canWithdraw ? "#00E676" : "#333", color: canWithdraw ? "black" : "#888", fontWeight:900, border:"none", cursor:"pointer" }}>
+            {requestingWithdrawal ? "Requesting..." : !allocationVerified ? "⚠️ Allocation Not Verified — Tap Refresh" : activeWithdrawal ? "⏳ Withdrawal Already Waiting" : availableWithdrawal.amount < MIN_WITHDRAWAL ? `Minimum ₦1,000 — You get ₦${availableWithdrawal.amount.toLocaleString("en-NG")}` : `💸 REQUEST WITHDRAWAL — ₦${availableWithdrawal.amount.toLocaleString("en-NG")}`}
+          </button>
+          <div style={{ marginTop:12 }}>
+            <b style={{ fontSize:12, color:"#aaa" }}>Withdrawal History:</b>
+            {withdrawalHistory.length === 0 ? <div style={{ fontSize:12, color:"#888", marginTop:4 }}>No withdrawal yet.</div> : withdrawalHistory.slice(0,5).map((w:any, i:number) => (
+              <div key={w.id || i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #222", fontSize:12 }}>
+                <span>{w.created_at ? new Date(w.created_at).toLocaleString() : ""} • {w.status || ""}</span>
+                <b style={{ color: w.status === "paid" || w.status === "approved" ? "#00E676" : "#FACC15" }}>₦{Number(w.amount || w.amount_requested || 0).toLocaleString("en-NG")}</b>
+              </div>
+            ))}
+          </div>
         </div>
 
         <a href="/worker/dataset" style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "16px", marginTop: "12px", background: "#064e3b", color: "#ffffff", border: "1px solid #00E676", borderRadius: "12px", textAlign: "center", fontWeight: "900", fontSize: "13px", textDecoration: "none" }}>🎙️ JOIN NIGERIAN VOICE DATASET →</a>
-
         {showModal === "bank" && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", zIndex: 2000, padding: "16px" }}>
             <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px" }}>
-              <h3 style={{ margin: 0 }}>💳 Bank Details</h3>
+              <h3 style={{ margin: 0 }}>💳 Bank Details — Saved to Database</h3>
+              <p style={{ fontSize:11, color:"#aaa" }}>Source of truth: workers table via /api/worker/bank-details (POST)</p>
               <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <input value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <button onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", marginTop: "12px", padding: "13px", borderRadius: "10px", background: "#00E676", color: "black", fontWeight: "900", border: "none" }}>{bankSaving ? "Saving..." : "Save Bank"}</button>
+              <button onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", marginTop: "12px", padding: "13px", borderRadius: "10px", background: "#00E676", color: "black", fontWeight: "900", border: "none" }}>{bankSaving ? "Saving..." : "Save Bank to Database"}</button>
               <button onClick={() => setShowModal(null)} style={{ width: "100%", marginTop: "8px", padding: "12px", borderRadius: "10px", background: "#222", color: "white", border: "1px solid #444" }}>Close</button>
             </div>
           </div>
