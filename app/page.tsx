@@ -129,56 +129,22 @@ export default function WorkersPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   // --- LOAD WORKER DATA (UNCHANGED LOGIC) ---
-  // FIXED: Reads from workers table, not worker_bank
   const loadBankFromSupabase = async (wid: string) => {
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        setBankSavedLabel("");
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("workers")
-        .select("account_name, bank_name, account_number, phone")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Bank details loading error:", error);
-        setBankSavedLabel("");
-        return;
-      }
-
-      if (!data) {
-        setAccountName("");
-        setBankName("");
-        setAccountNumber("");
-        setPhoneNumber("");
-        setBankSavedLabel("");
-        return;
-      }
-
-      setAccountName(data.account_name || "");
-      setBankName(data.bank_name || "");
-      setAccountNumber(data.account_number || "");
-      setPhoneNumber(data.phone || "");
-
-      if (data.account_name && data.bank_name && data.account_number) {
-        setBankSavedLabel(
-          `Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`
-        );
-      } else {
-        setBankSavedLabel("");
-      }
-    } catch (error) {
-      console.error("Bank details loading error:", error);
-      setBankSavedLabel("");
+    const { data } = await supabase.from("worker_bank").select("*").eq("worker_id", wid).maybeSingle();
+    if (data) {
+      setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
+      setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone_number || "");
+      setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
+      return;
     }
+    try {
+      const savedBank = localStorage.getItem("gin_bank_details");
+      if (savedBank) {
+        const bank = JSON.parse(savedBank);
+        setAccountName(bank.accountName || ""); setBankName(bank.bankName || "");
+        setAccountNumber(bank.accountNumber || ""); setPhoneNumber(bank.phoneNumber || "");
+      }
+    } catch {}
   };
 
   const loadWorkerData = async (wid: string) => {
@@ -328,63 +294,22 @@ export default function WorkersPage() {
     } catch { localStorage.removeItem("gin_worker_id"); localStorage.removeItem("worker_id"); router.replace("/worker/login"); router.refresh(); }
   };
 
-  // FIXED: Calls /api/worker/bank-details, not worker_bank table
   const saveBankDetails = async () => {
-    if (!accountName.trim()) {
-      return alert("Please enter your account name.");
-    }
-    if (!bankName.trim()) {
-      return alert("Please select your bank.");
-    }
-    if (!/^\d{10}$/.test(accountNumber.trim())) {
-      return alert("Account number must contain exactly 10 digits.");
-    }
-    if (!phoneNumber.trim()) {
-      return alert("Please enter your phone number.");
-    }
-
+    if (!accountName.trim()) return alert("Please enter your Account Name.");
+    if (!bankName.trim()) return alert("Please select your Bank Name.");
+    if (!accountNumber.trim()) return alert("Please enter your Account Number.");
+    if (!phoneNumber.trim()) return alert("Please enter your Phone Number.");
+    if (accountNumber.trim().length !== 10) return alert("Account Number must be 10 digits.");
+    const wid = localStorage.getItem("gin_worker_id") || workerId;
+    if (!wid || wid === "WORKER") return alert("Worker account not found. Please logout and login again.");
     setBankSaving(true);
-
-    try {
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
-
-      if (sessionError || !session?.access_token) {
-        throw new Error("Your session has expired. Please log in again.");
-      }
-
-      const response = await fetch("/api/worker/bank-details", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          accountName: accountName.trim(),
-          bankName: bankName.trim(),
-          accountNumber: accountNumber.trim(),
-          phoneNumber: phoneNumber.trim(),
-        }),
-        cache: "no-store",
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || result.success !== true) {
-        throw new Error(result.error || "Could not save your bank details.");
-      }
-
-      await loadBankFromSupabase(workerId);
-      setShowModal(null);
-      showToast("✅ Bank details saved successfully!");
-    } catch (error: any) {
-      console.error("Bank details save error:", error);
-      alert(error.message || "Could not save bank details.");
-    } finally {
-      setBankSaving(false);
-    }
+    const bankDetails = { accountName: accountName.trim(), bankName: bankName.trim(), accountNumber: accountNumber.trim(), phoneNumber: phoneNumber.trim() };
+    try { localStorage.setItem("gin_bank_details", JSON.stringify(bankDetails)); } catch {}
+    const { error } = await supabase.from("worker_bank").upsert({ worker_id: wid, bank_name: bankDetails.bankName, account_number: bankDetails.accountNumber, account_name: bankDetails.accountName, phone_number: bankDetails.phoneNumber, updated_at: new Date().toISOString() }, { onConflict: "worker_id" });
+    setBankSaving(false);
+    if (error) { setShowModal(null); showToast("✅ Bank saved on this phone. Tell Chairman to create worker_bank table for Supabase backup."); return; }
+    setBankSavedLabel(`Saved: ${bankDetails.bankName} • ${bankDetails.accountNumber} • ${bankDetails.accountName}`);
+    setShowModal(null); showToast("✅ Bank details saved to Supabase successfully.");
   };
 
   async function analyzeNoise(blob: Blob): Promise<{ status: string; reason: string; score: number }> {
@@ -634,7 +559,6 @@ export default function WorkersPage() {
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", zIndex: 2000, padding: "16px" }}>
             <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px" }}>
               <h3 style={{ margin: 0 }}>💳 Bank Details</h3>
-              {bankSavedLabel && <div style={{ marginTop: "10px", fontSize: "12px", color: "#00E676", fontWeight: "700" }}>{bankSavedLabel}</div>}
               <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
