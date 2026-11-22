@@ -15,7 +15,7 @@ const loadWorkerData = async (wid: string) => {
   // LOAD WORKER RECORDINGS
   const { data, error } = await supabase
     .from("recordings")
-    .select("id, earnings, status, created_at, is_paid, earnings_paid")
+    .select("id, earnings, status, created_at, is_paid")
     .eq("worker_id", wid);
 
   if (error) {
@@ -32,15 +32,18 @@ const loadWorkerData = async (wid: string) => {
   let campaignToday = 0;
   let todayAmount = 0;
   let todayCount = 0;
+
+  // Displayed unpaid balance includes allocated recordings.
   let balanceAmount = 0;
   let balanceCount = 0;
+
+  // Available balance excludes recordings already in a withdrawal request.
+  let availableAmount = 0;
+  let availableCount = 0;
 
   const byDay: Record<string, { count: number; amount: number }> = {};
 
   // SECURE ALLOCATION LOOKUP
-  // Pending and approved withdrawals remain allocated until paid.
-  // If verification fails, available balance remains zero.
-
   const allocatedIds = new Set<string>();
   let allocationFailed = false;
 
@@ -53,23 +56,18 @@ const loadWorkerData = async (wid: string) => {
       throw new Error("Login session unavailable.");
     }
 
-    const allocRes = await fetch(
-      "/api/worker/allocated-recordings",
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        cache: "no-store",
-      }
-    );
+    const allocRes = await fetch("/api/worker/allocated-recordings", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      cache: "no-store",
+    });
 
     const allocJson = await allocRes.json();
 
     if (!allocRes.ok) {
-      throw new Error(
-        allocJson.error || "Allocation lookup failed."
-      );
+      throw new Error(allocJson.error || "Allocation lookup failed.");
     }
 
     if (!Array.isArray(allocJson.allocatedIds)) {
@@ -79,61 +77,55 @@ const loadWorkerData = async (wid: string) => {
     allocJson.allocatedIds.forEach((id: string) => {
       allocatedIds.add(String(id));
     });
-
   } catch (e: any) {
     console.error(
-      "Allocation lookup failed - balance blocked for safety:",
+      "Allocation lookup failed - new withdrawal requests blocked:",
       e.message
     );
-
     allocationFailed = true;
   }
 
-  // CALCULATE EARNINGS AND CAMPAIGN PROGRESS
   recs.forEach((r: any) => {
     const createdMs = r.created_at
       ? new Date(r.created_at).getTime()
       : 0;
 
     const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
-    const amt = Number(r.earnings) || 0;
+    const amount = Number(r.earnings) || 0;
 
-    // ALL-TIME APPROVED EARNINGS
     if (r.status === "approved") {
-      allTimeEarnings += amt;
+      allTimeEarnings += amount;
 
       const dayKey = getLagosDayKey(r.created_at);
 
       if (!byDay[dayKey]) {
-        byDay[dayKey] = {
-          count: 0,
-          amount: 0,
-        };
+        byDay[dayKey] = { count: 0, amount: 0 };
       }
 
       byDay[dayKey].count += 1;
-      byDay[dayKey].amount += amt;
+      byDay[dayKey].amount += amount;
     }
-
-    // NEW CAMPAIGN BALANCE
-    // Exclude paid recordings and recordings already allocated
-    // to pending or approved withdrawals.
 
     const isAllocated = allocatedIds.has(String(r.id));
 
-    if (
-      !allocationFailed &&
+    const isUnpaidApproved =
       isNewCampaign &&
       r.status === "approved" &&
       r.is_paid !== true &&
-      r.earnings_paid !== true &&
-      !isAllocated
-    ) {
-      balanceAmount += amt;
+      amount > 0;
+
+    if (isUnpaidApproved) {
+      // Keep displaying the unpaid balance until Chairman marks it paid.
+      balanceAmount += amount;
       balanceCount += 1;
+
+      // Only unallocated recordings can fund a new withdrawal request.
+      if (!allocationFailed && !isAllocated) {
+        availableAmount += amount;
+        availableCount += 1;
+      }
     }
 
-    // CAMPAIGN PROGRESS
     if (isNewCampaign) {
       if (r.status === "approved") {
         campaignApproved += 1;
@@ -143,7 +135,6 @@ const loadWorkerData = async (wid: string) => {
         campaignPending += 1;
       }
 
-      // TODAY'S RECORDINGS
       if (
         createdMs >= window.startMs &&
         createdMs < window.nextResetMs
@@ -151,17 +142,14 @@ const loadWorkerData = async (wid: string) => {
         campaignToday += 1;
 
         if (r.status === "approved") {
-          todayAmount += amt;
+          todayAmount += amount;
           todayCount += 1;
         }
       }
     }
   });
 
-  // UPDATE DASHBOARD
-  setEarnings({
-    approved: allTimeEarnings,
-  });
+  setEarnings({ approved: allTimeEarnings });
 
   setTaskProgress({
     total: campaignApproved,
@@ -176,24 +164,31 @@ const loadWorkerData = async (wid: string) => {
     count: balanceCount,
   });
 
+  // This state must be declared near your other useState declarations:
+  // const [availableWithdrawal, setAvailableWithdrawal] =
+  //   useState({ amount: 0, count: 0 });
+
+  setAvailableWithdrawal({
+    amount: availableAmount,
+    count: availableCount,
+  });
+
   setTodayEarn({
     amount: todayAmount,
     count: todayCount,
   });
 
-  // DAILY HISTORY
   const history = Object.keys(byDay)
     .sort()
     .reverse()
-    .map((d) => ({
-      date: d,
-      count: byDay[d].count,
-      amount: byDay[d].amount,
+    .map((date) => ({
+      date,
+      count: byDay[date].count,
+      amount: byDay[date].amount,
     }));
 
   setDailyHistory(history);
 
-  // PAYMENT HISTORY
   const { data: pays } = await supabase
     .from("payment_history")
     .select("*")
@@ -201,8 +196,9 @@ const loadWorkerData = async (wid: string) => {
     .order("paid_at", { ascending: false })
     .limit(10);
 
-  if (pays) setPaymentHistory(pays);
+  if (pays) {
+    setPaymentHistory(pays);
+  }
 
-  // LOAD BANK DETAILS
   await loadBankFromSupabase(wid);
 };
