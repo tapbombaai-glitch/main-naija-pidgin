@@ -1,117 +1,77 @@
-import "server-only";
-
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-export const dynamic = "force-dynamic";
-
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  process.env.SUPABASE_URL;
-
-const serviceRoleKey =
-  process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("Missing Supabase server environment variables");
-}
-
-const supabaseAdmin = createClient(
-  supabaseUrl,
-  serviceRoleKey,
-  {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  }
-);
-
-export async function POST(request: NextRequest) {
-  try {
-    // Require the logged-in worker's access token.
-    const authorization = request.headers.get("authorization");
-
-    if (!authorization?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { error: "Please log in again." },
-        { status: 401 }
-      );
-    }
-
-    const token = authorization.slice(7).trim();
-
-    if (!token) {
-      return NextResponse.json(
-        { error: "Invalid login token." },
-        { status: 401 }
-      );
-    }
-
-    // Verify the token with Supabase Auth.
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Your login session is invalid. Please log in again." },
-        { status: 401 }
-      );
-    }
-
-    // Chairman must not use the worker withdrawal endpoint.
-    if (
-      user.email?.toLowerCase() === "tapbomba.ai@gmail.com"
-    ) {
-      return NextResponse.json(
-        { error: "Chairman accounts cannot request worker withdrawals." },
-        { status: 403 }
-      );
-    }
-
-    // Find the worker using the verified authentication ID.
-    const { data: worker, error: workerError } =
-      await supabaseAdmin
-        .from("workers")
-        .select("worker_id")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-
-    if (workerError || !worker) {
-      return NextResponse.json(
-        { error: "Worker account not found." },
-        { status: 403 }
-      );
-    }
-
-    // The database function calculates the balance and fee.
-    const { data, error } = await supabaseAdmin.rpc(
-      "create_worker_withdrawal_request",
-      {
-        p_worker_id: worker.worker_id,
-      }
-    );
-
-    if (error) {
-      const message = error.message || "Unable to create withdrawal request.";
-
-      return NextResponse.json(
-        { error: message },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json(data, { status: 200 });
-
-  } catch (error) {
-    console.error("Worker withdrawal error:", error);
-
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again." },
-      { status: 500 }
-    );
-  }
-}
+const handleRequestWithdrawal = async () => {  
+  if (allocationLoading) {  
+    setWithdrawalMessage("⏳ Still checking your balance. Please wait.");  
+    return;  
+  }  
+  
+  if (availableWithdrawal.amount < 1000) {  
+    setWithdrawalMessage("Minimum withdrawal is ₦1,000.");  
+    return;  
+  }  
+  
+  if (activeWithdrawal) {  
+    setWithdrawalMessage(  
+      "You already have an active withdrawal request waiting for Chairman."  
+    );  
+    return;  
+  }  
+  
+  if (!bankName || !accountNumber || !accountName) {  
+    setWithdrawalMessage("Please save your bank details first.");  
+    return;  
+  }  
+  
+  const gross = availableWithdrawal.amount;  
+  const fee = Math.round(gross * 0.30);  
+  const net = gross - fee;  
+  
+  if (  
+    !confirm(  
+      `Request ₦${gross.toLocaleString()}?\n` +  
+      `Fee (30%): ₦${fee.toLocaleString()}\n` +  
+      `You will receive: ₦${net.toLocaleString()}`  
+    )  
+  ) {  
+    return;  
+  }  
+  
+  setRequestingWithdrawal(true);  
+  setWithdrawalMessage("");  
+  
+  try {  
+    const {  
+      data: { session },  
+    } = await supabase.auth.getSession();  
+  
+    if (!session?.access_token) {  
+      throw new Error("Please log in again.");  
+    }  
+  
+    const response = await fetch("/api/worker/withdrawal-request", {  
+      method: "POST",  
+      headers: {  
+        "Content-Type": "application/json",  
+        Authorization: `Bearer ${session.access_token}`,  
+      },  
+      cache: "no-store",  
+    });  
+  
+    const result = await response.json();  
+  
+    if (!response.ok || result.success === false) {  
+      throw new Error(result.error || "Withdrawal request failed.");  
+    }  
+  
+    setWithdrawalMessage(  
+      `✅ Request submitted! Your expected payout is ₦${Number(  
+        result.net_amount  
+      ).toLocaleString()}.`  
+    );  
+  
+    await loadWorkerData(workerId);  
+  } catch (error: any) {  
+    setWithdrawalMessage(`❌ ${error.message}`);  
+  } finally {  
+    setRequestingWithdrawal(false);  
+  }  
+};
