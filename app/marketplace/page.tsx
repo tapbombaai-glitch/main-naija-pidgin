@@ -75,7 +75,7 @@ export default function Marketplace() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [testApiKey, setTestApiKey] = useState("");
-  const [testVoice, setTestVoice] = useState("warri-babe");
+  const [testVoice, setTestVoice] = useState("warri-boy");
   const [testText, setTestText] = useState(
     "My people, welcome to Main Naija Pidgin."
   );
@@ -396,9 +396,6 @@ export default function Marketplace() {
       if (data.credits && typeof data.credits.remaining !== "undefined") {
         setTestRemaining(Number(data.credits.remaining));
         setCreditsLeft(Number(data.credits.remaining));
-        if (testVoice === "warri-babe") {
-          setFreeLeft((current) => current > 0 ? current - 1 : current);
-        }
         setTestMessage(`✅ ${data.voice?.name || "Voice"} generated successfully. 1 credit deducted.`);
       } else {
         setTestMessage(`✅ ${data.voice?.name || "Voice"} generated successfully.`);
@@ -588,9 +585,31 @@ export default function Marketplace() {
 
           <div style={{ marginTop: "10px" }}>
             <div style={{ color: "#A5D6A7", fontSize: "9px", fontWeight: "900", marginBottom: "5px" }}>🎙️ CHOOSE VOICE</div>
-            <select value={testVoice} onChange={(event) => { stopAllAudio(); setTestVoice(event.target.value); setTestAudio(""); }} style={{ width: "100%", background: "#050A05", border: "1px solid #294329", color: "white", padding: "11px", borderRadius: "8px", outline: "none", fontSize: "11px" }}>
-              <option value="warri-babe">🇳🇬 Warri Babe</option>
-              <option value="chairman-voice">🇳🇬 Chairman Voice</option>
+            <select
+              value={testVoice}
+              onChange={(event) => {
+                stopAllAudio();
+                setTestVoice(event.target.value);
+                setTestAudio("");
+                setTestMessage("");
+                setTestError("");
+                setTestRemaining(null);
+              }}
+              style={{
+                width: "100%",
+                background: "#050A05",
+                border: "1px solid #294329",
+                color: "white",
+                padding: "13px",
+                borderRadius: "8px",
+                outline: "none",
+                fontSize: "12px",
+              }}
+            >
+              <option value="warri-boy">🇳🇬 Warri Boy — Nigerian Male</option>
+              <option value="main-naija-pidgin-male-new">
+                🇳🇬 Main Naija Pidgin Male — Studio Voice
+              </option>
             </select>
           </div>
 
@@ -616,7 +635,6 @@ export default function Marketplace() {
           {testAudio && (
             <div style={{ marginTop: "10px", background: "#121C12", border: "1px solid #1E4D2B", borderRadius: "9px", padding: "9px" }}>
               <div style={{ color: "#00E676", fontSize: "9px", fontWeight: "900", marginBottom: "6px" }}>🔊 GENERATED AUDIO</div>
-              {/* FIX: NO autoPlay - we play once via testAudioRef, no double play */}
               <audio ref={testAudioRef} controls src={testAudio} style={{ width: "100%", height: "38px" }} />
             </div>
           )}
