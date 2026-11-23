@@ -192,7 +192,7 @@ export default function WorkersPage() {
   };
 
   const loadWorkerData = async (wid: string) => {
-    const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false }).limit(5);
+    const { data: anns } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("published", true).order("created_at", { ascending: false }).limit(5);
     if (anns) setAnnouncements(anns);
     setAnnouncementLoading(false);
     const window = getLagosRecordingWindow();
@@ -315,7 +315,7 @@ export default function WorkersPage() {
   useEffect(() => {
     let active = true;
     async function loadAnnouncements() {
-      const { data, error } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("is_published", true).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("announcements").select("id, title, message, type, created_at").eq("published", true).order("created_at", { ascending: false });
       if (!active) return;
       if (error) console.error("Announcement loading error:", error.message);
       else setAnnouncements(data || []);
