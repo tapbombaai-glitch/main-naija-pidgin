@@ -62,6 +62,7 @@ export default function WorkersPage() {
   const [savingRecording, setSavingRecording] = useState(false);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [announcementLoading, setAnnouncementLoading] = useState(true);
+  const [showAnnouncementsModal, setShowAnnouncementsModal] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [bankName, setBankName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -213,8 +214,6 @@ export default function WorkersPage() {
       const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
       const amt = Number(r.earnings) || 0;
       const isHistoricallyApproved = r.status === "approved" || r.is_approved === true;
-      // ✅ ALIGNED TO RPC: NO campaign cutoff for balance. RPC = is_approved=true AND COALESCE(is_paid,false)=false AND earnings>0
-      // In JS: COALESCE(is_paid,false)=false means is_paid === false OR is_paid == null
       const isWithdrawable = r.is_approved === true && (r.is_paid === false || r.is_paid == null) && amt > 0;
       if (isHistoricallyApproved) {
         allTimeEarnings += amt;
@@ -222,7 +221,6 @@ export default function WorkersPage() {
         if (!byDay[dayKey]) byDay[dayKey] = { count: 0, amount: 0 };
         byDay[dayKey].count += 1; byDay[dayKey].amount += amt;
       }
-      // ✅ Balance = ALL TIME withdrawable (matches RPC) — NOT only New Campaign
       if (isWithdrawable) { balanceAmount += amt; balanceCount += 1; }
       if (isNewCampaign) {
         if (isHistoricallyApproved) campaignApproved += 1;
@@ -571,17 +569,13 @@ export default function WorkersPage() {
             <div style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>New Campaign: From 21 Nov 2026, 5:00 PM Lagos</div></div>
           <button type="button" onClick={handleLogout} style={{ background: "#2A0A0A", color: "#FF6B6B", border: "1px solid #7F1D1D", borderRadius: "10px", padding: "9px 11px", fontSize: "11px", fontWeight: "900", cursor: "pointer" }}>🚪 LOGOUT</button>
         </div>
-        <div style={{ background: "#111A11", border: "1px solid #EAB308", borderRadius: "12px", padding: "12px", marginTop: "12px" }}>
-          <strong style={{ color: "#FACC15", fontSize: "14px" }}>📢 CHAIRMAN ANNOUNCEMENTS</strong>
-          {announcementLoading ? <p style={{ color: "#aaa", fontSize: "12px" }}>Loading announcements...</p> : announcements.length === 0 ? <p style={{ color: "#888", fontSize: "12px" }}>No announcements yet.</p> : announcements.map((a) => (
-            <div key={a.id} style={{ background: "#080E08", border: "1px solid #263526", borderRadius: "10px", padding: "10px", marginTop: "10px" }}>
-              <div style={{ color: "#FACC15", fontSize: "10px", fontWeight: "900" }}>📢 {String(a.type || "GENERAL").toUpperCase()}</div>
-              <div style={{ fontWeight: "900", fontSize: "14px", marginTop: "5px" }}>{a.title}</div>
-              <p style={{ color: "#ccc", fontSize: "12px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{a.message}</p>
-              <div style={{ color: "#777", fontSize: "10px" }}>{new Date(a.created_at).toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
+
+        {/* ✅ ANNOUNCEMENT BUTTON ONLY — Tap to open popup. Shows 1 if 1 message, 2 if 2 messages */}
+        <button type="button" onClick={() => setShowAnnouncementsModal(true)} style={{ width: "100%", marginTop: "12px", padding: "14px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>📢 VIEW CHAIRMAN ANNOUNCEMENTS</span>
+          <span style={{ background: "#EAB308", color: "black", borderRadius: "20px", padding: "2px 8px", fontSize: "11px" }}>{announcementLoading ? "..." : announcements.length}</span>
+        </button>
+
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "16px", marginTop: "12px", textAlign: "center" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 APPROVED EARNINGS — ALL TIME</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "28px", marginTop: "8px" }}>₦{earnings.approved.toLocaleString("en-NG")}</div>
@@ -688,6 +682,26 @@ export default function WorkersPage() {
               <input value={phoneNumber} onChange={e => { setBankSavedLabel(""); setPhoneNumber(e.target.value); }} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <button onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", marginTop: "12px", padding: "13px", borderRadius: "10px", background: "#00E676", color: "black", fontWeight: "900", border: "none" }}>{bankSaving ? "Saving..." : "Save Bank to Database"}</button>
               <button onClick={() => setShowModal(null)} style={{ width: "100%", marginTop: "8px", padding: "12px", borderRadius: "10px", background: "#222", color: "white", border: "1px solid #444" }}>Close</button>
+            </div>
+          </div>
+        )}
+
+        {/* ✅ ANNOUNCEMENTS POPUP — Shows exactly how many you send: 1 = 1, 2 = 2 */}
+        {showAnnouncementsModal && (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", zIndex: 2000, padding: "16px" }} onClick={() => setShowAnnouncementsModal(false)}>
+            <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px", maxHeight: "80vh", overflowY: "auto", border: "1px solid #EAB308" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ margin: 0, color: "#FACC15", fontSize: "15px" }}>📢 CHAIRMAN ANNOUNCEMENTS</h3>
+                <button type="button" onClick={() => setShowAnnouncementsModal(false)} style={{ background: "#222", color: "white", border: "1px solid #444", borderRadius: "8px", padding: "6px 10px", fontWeight: "900", cursor: "pointer" }}>✖ CLOSE</button>
+              </div>
+              {announcementLoading ? <p style={{ color: "#aaa", fontSize: "12px", marginTop: "12px" }}>Loading announcements...</p> : announcements.length === 0 ? <p style={{ color: "#888", fontSize: "12px", marginTop: "12px" }}>No announcements yet.</p> : announcements.map((a) => (
+                <div key={a.id} style={{ background: "#080E08", border: "1px solid #263526", borderRadius: "10px", padding: "10px", marginTop: "10px" }}>
+                  <div style={{ color: "#FACC15", fontSize: "10px", fontWeight: "900" }}>📢 {String(a.type || "GENERAL").toUpperCase()}</div>
+                  <div style={{ fontWeight: "900", fontSize: "14px", marginTop: "5px" }}>{a.title}</div>
+                  <p style={{ color: "#ccc", fontSize: "12px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{a.message}</p>
+                  <div style={{ color: "#777", fontSize: "10px" }}>{new Date(a.created_at).toLocaleString()}</div>
+                </div>
+              ))}
             </div>
           </div>
         )}
