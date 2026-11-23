@@ -25,6 +25,8 @@ type DatasetRecording = {
   consented_at: string;
   status: string;
   created_at: string;
+  worker_id: string | null;
+  worker_name: string | null;
 };
 
 type Filter = "all" | "pending" | "approved" | "rejected";
@@ -114,36 +116,32 @@ export default function AdminDatasetPage() {
     setError("");
 
     try {
-      const { data, error: datasetError } = await supabase
-        .from("dataset_recordings")
-        .select(
-          `
-          id,
-          user_id,
-          language,
-          region,
-          recording_type,
-          prompt_text,
-          transcript,
-          storage_path,
-          duration_seconds,
-          mime_type,
-          consent_ai_training,
-          consent_synthetic_voice,
-          consent_commercial_use,
-          consent_version,
-          consented_at,
-          status,
-          created_at
-        `
-        )
-        .order("created_at", { ascending: false });
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      if (datasetError) {
-        throw new Error(datasetError.message);
+      if (sessionError || !session?.access_token) {
+        throw new Error("Chairman session expired. Please log in again.");
       }
 
-      const recordings = (data || []) as DatasetRecording[];
+      const response = await fetch("/api/chairman/dataset", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        cache: "no-store",
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Could not load dataset recordings."
+        );
+      }
+
+      const recordings = (result.recordings || []) as DatasetRecording[];
 
       setItems(recordings);
 
@@ -592,8 +590,13 @@ export default function AdminDatasetPage() {
                       />
 
                       <Detail
-                        label="Worker/User"
-                        value={item.user_id}
+                        label="Worker Name"
+                        value={item.worker_name || "Unknown contributor"}
+                      />
+
+                      <Detail
+                        label="Worker ID"
+                        value={item.worker_id || "Not linked"}
                       />
 
                       <Detail
