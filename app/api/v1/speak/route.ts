@@ -470,18 +470,21 @@ export async function POST(req: NextRequest) {
       clearTimeout(timeout);
     }
 
-    // 6. HANDLE ELEVENLABS ERRORS
+    // 6. HANDLE ELEVENLABS ERRORS - REPLACED SECTION
 
     if (!elevenLabsResponse.ok) {
       const providerStatus = elevenLabsResponse.status;
-
-      const providerMessage =
-        await elevenLabsResponse.text();
+      const providerMessage = await elevenLabsResponse.text();
 
       console.error(
         "ElevenLabs generation failed:",
-        providerStatus,
-        providerMessage.slice(0, 500)
+        JSON.stringify({
+          status: providerStatus,
+          marketplace_voice: voiceConfig.publicId,
+          voice_name: voiceConfig.name,
+          provider_voice_id: voiceConfig.elevenlabsVoiceId,
+          details: providerMessage.slice(0, 500),
+        })
       );
 
       let friendlyError =
@@ -491,7 +494,7 @@ export async function POST(req: NextRequest) {
         friendlyError = "ElevenLabs API key is invalid.";
       } else if (providerStatus === 404) {
         friendlyError =
-          "The selected ElevenLabs voice was not found.";
+          `ElevenLabs cannot find the configured voice "${voiceConfig.name}".`;
       } else if (providerStatus === 429) {
         friendlyError =
           "ElevenLabs rate limit reached. Try again shortly.";
@@ -508,7 +511,6 @@ export async function POST(req: NextRequest) {
           success: false,
           error: friendlyError,
           elevenlabs_status: providerStatus,
-          elevenlabs_details: providerMessage.slice(0, 500),
         },
         providerStatus === 429 ? 429 : 502
       );
