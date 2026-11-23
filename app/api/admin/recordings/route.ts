@@ -10,13 +10,10 @@ const SIGNED_URL_EXPIRY = 600;
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceKey) {
-    throw new Error(
-      "Supabase server configuration is missing."
-    );
+    throw new Error("Supabase server configuration is missing.");
   }
 
   return createClient(url, serviceKey, {
@@ -27,122 +24,82 @@ function getAdminClient() {
   });
 }
 
-async function verifyChairman(
-  request: NextRequest
-) {
-  const authorization =
-    request.headers.get("authorization");
+async function verifyChairman(request: NextRequest) {
+  const authorization = request.headers.get("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
     return null;
   }
 
   const token = authorization.slice(7);
-
-  const url =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  const anonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !anonKey) {
     return null;
   }
 
-  const authClient = createClient(
-    url,
-    anonKey,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+  const authClient = createClient(url, anonKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
       },
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
+    },
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 
   const {
     data: { user },
     error,
-  } =
-    await authClient.auth.getUser(token);
+  } = await authClient.auth.getUser(token);
 
-  if (
-    error ||
-    !user ||
-    user.email !== CHAIRMAN_EMAIL
-  ) {
+  if (error || !user || user.email !== CHAIRMAN_EMAIL) {
     return null;
   }
 
   const admin = getAdminClient();
 
-  const {
-    data: profile,
-    error: profileError,
-  } = await admin
+  const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("is_chairman")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (
-    profileError ||
-    profile?.is_chairman !== true
-  ) {
+  if (profileError || profile?.is_chairman !== true) {
     return null;
   }
 
   return admin;
 }
 
-function getStorageFile(
-  audioUrl: string,
-  supabaseUrl: string
-) {
+function getStorageFile(audioUrl: string, supabaseUrl: string) {
   try {
     const fileUrl = new URL(audioUrl);
-    const configuredUrl =
-      new URL(supabaseUrl);
+    const configuredUrl = new URL(supabaseUrl);
 
-    if (
-      fileUrl.origin !==
-      configuredUrl.origin
-    ) {
+    if (fileUrl.origin !== configuredUrl.origin) {
       return null;
     }
 
-    const match =
-      fileUrl.pathname.match(
-        /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
-      );
+    const match = fileUrl.pathname.match(
+      /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
+    );
 
     if (!match) {
       return null;
     }
 
-    const bucket =
-      decodeURIComponent(match[1]);
+    const bucket = decodeURIComponent(match[1]);
+    const path = decodeURIComponent(match[2]);
 
-    const path =
-      decodeURIComponent(match[2]);
-
-    if (
-      !["voice-clips", "voices"].includes(
-        bucket
-      )
-    ) {
+    if (!["voice-clips", "voices"].includes(bucket)) {
       return null;
     }
 
-    if (
-      !path ||
-      path.includes("..")
-    ) {
+    if (!path || path.includes("..")) {
       return null;
     }
 
@@ -155,74 +112,66 @@ function getStorageFile(
   }
 }
 
+// ✅ FIXED 1: audio_path now uses voice-clips (confirmed location)
 async function getRecordingAudioUrl(
   admin: ReturnType<typeof getAdminClient>,
   recording: any
 ) {
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   if (!supabaseUrl) {
     return {
       signedUrl: null,
-      audioError:
-        "Supabase URL is missing.",
+      audioError: "Supabase URL is missing.",
     };
   }
 
   let bucket: string | null = null;
   let path: string | null = null;
 
+  // First, use the exact bucket and path
+  // contained in audio_url, when available.
   if (recording.audio_url) {
-    const storageFile =
-      getStorageFile(
-        recording.audio_url,
-        supabaseUrl
-      );
+    const storageFile = getStorageFile(
+      recording.audio_url,
+      supabaseUrl
+    );
 
     if (storageFile) {
-      bucket =
-        storageFile.bucket;
-      path =
-        storageFile.path;
+      bucket = storageFile.bucket;
+      path = storageFile.path;
     }
   }
 
-  if (
-    !path &&
-    recording.audio_path
-  ) {
-    bucket = "voices";
+  // Older Pidgin recordings may have only audio_path.
+  // We have confirmed these files are in voice-clips.
+  if (!path && recording.audio_path) {
+    bucket = "voice-clips";
     path = recording.audio_path;
   }
 
   if (!bucket || !path) {
     return {
       signedUrl: null,
-      audioError:
-        "No valid audio storage path was found.",
+      audioError: "No valid audio storage path was found.",
     };
   }
 
-  const {
-    data,
-    error,
-  } =
-    await admin.storage
-      .from(bucket)
-      .createSignedUrl(
-        path,
-        SIGNED_URL_EXPIRY
-      );
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .createSignedUrl(path, SIGNED_URL_EXPIRY);
 
-  if (
-    error ||
-    !data?.signedUrl
-  ) {
+  if (error || !data?.signedUrl) {
+    console.error("Audio signing failed:", {
+      recordingId: recording.id,
+      bucket,
+      path,
+      error,
+    });
+
     return {
       signedUrl: null,
-      audioError:
-        "Could not create a playback link.",
+      audioError: "Could not create a playback link.",
     };
   }
 
@@ -236,113 +185,69 @@ async function getRecordingAudioUrl(
    GET
    ========================================================= */
 
-export async function GET(
-  request: NextRequest
-) {
+export async function GET(request: NextRequest) {
   try {
-    const admin =
-      await verifyChairman(request);
+    const admin = await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
         {
-          error:
-            "Chairman access required.",
+          error: "Chairman access required.",
         },
         { status: 403 }
       );
     }
 
-    const { searchParams } =
-      new URL(request.url);
+    const { searchParams } = new URL(request.url);
 
-    const workerId =
-      searchParams.get(
-        "worker_id"
-      );
-
-    const status =
-      searchParams.get("status");
-
-    const qualityStatus =
-      searchParams.get(
-        "quality_status"
-      );
+    const workerId = searchParams.get("worker_id");
+    const status = searchParams.get("status");
+    const qualityStatus = searchParams.get("quality_status");
 
     const limit = Math.min(
-      Math.max(
-        Number(
-          searchParams.get(
-            "limit"
-          ) || 100
-        ),
-        1
-      ),
+      Math.max(Number(searchParams.get("limit") || 100), 1),
       100
     );
 
     let query = admin
       .from("recordings")
       .select("*")
-      .eq(
-        "hidden_from_review",
-        false
-      )
+      // ✅ FIXED 2: allow NULL hidden_from_review (older recordings)
+      .or("hidden_from_review.is.null,hidden_from_review.eq.false")
       .order("created_at", {
         ascending: false,
       })
       .limit(limit);
 
     if (workerId) {
-      query = query.eq(
-        "worker_id",
-        workerId
-      );
+      query = query.eq("worker_id", workerId);
     }
 
     if (status) {
-      query = query.eq(
-        "status",
-        status
-      );
+      query = query.eq("status", status);
     }
 
     if (qualityStatus) {
-      query = query.eq(
-        "quality_status",
-        qualityStatus
-      );
+      query = query.eq("quality_status", qualityStatus);
     }
 
-    const {
-      data,
-      error,
-    } = await query;
+    const { data, error } = await query;
 
     if (error) {
       throw error;
     }
 
-    const recordings =
-      await Promise.all(
-        (data || []).map(
-          async (recording) => {
-            const audio =
-              await getRecordingAudioUrl(
-                admin,
-                recording
-              );
+    const recordings = await Promise.all(
+      (data || []).map(async (recording) => {
+        const audio = await getRecordingAudioUrl(admin, recording);
 
-            return {
-              ...recording,
-              signedUrl:
-                audio.signedUrl,
-              audioError:
-                audio.audioError,
-            };
-          }
-        )
-      );
+        return {
+          ...recording,
+          signedUrl: audio.signedUrl,
+          audioError: audio.audioError,
+        };
+      })
+    );
 
     return NextResponse.json(
       {
@@ -350,24 +255,17 @@ export async function GET(
       },
       {
         headers: {
-          "Cache-Control":
-            "no-store, no-cache, must-revalidate",
-          Pragma:
-            "no-cache",
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          Pragma: "no-cache",
         },
       }
     );
   } catch (error: any) {
-    console.error(
-      "Could not load recordings:",
-      error
-    );
+    console.error("Could not load recordings:", error);
 
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Could not load recordings.",
+        error: error.message || "Could not load recordings.",
       },
       {
         status: 500,
@@ -380,18 +278,14 @@ export async function GET(
    POST
    ========================================================= */
 
-export async function POST(
-  request: NextRequest
-) {
+export async function POST(request: NextRequest) {
   try {
-    const admin =
-      await verifyChairman(request);
+    const admin = await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
         {
-          error:
-            "Chairman access required.",
+          error: "Chairman access required.",
         },
         {
           status: 403,
@@ -399,9 +293,7 @@ export async function POST(
       );
     }
 
-    const body =
-      await request.json();
-
+    const body = await request.json();
     const id = body.id;
 
     /*
@@ -421,26 +313,13 @@ export async function POST(
      * - delete the audio
      */
 
-    const qualityStatus =
-      body.quality_status;
+    const qualityStatus = body.quality_status;
 
-    if (
-      qualityStatus !==
-        undefined
-    ) {
-      if (
-        !id ||
-        ![
-          "clean",
-          "noisy",
-        ].includes(
-          qualityStatus
-        )
-      ) {
+    if (qualityStatus !== undefined) {
+      if (!id || !["clean", "noisy"].includes(qualityStatus)) {
         return NextResponse.json(
           {
-            error:
-              "A valid recording ID and quality status are required.",
+            error: "A valid recording ID and quality status are required.",
           },
           {
             status: 400,
@@ -448,15 +327,10 @@ export async function POST(
         );
       }
 
-      if (
-        !/^[0-9a-fA-F-]{36}$/.test(
-          id
-        )
-      ) {
+      if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
         return NextResponse.json(
           {
-            error:
-              "Invalid recording ID.",
+            error: "Invalid recording ID.",
           },
           {
             status: 400,
@@ -465,15 +339,12 @@ export async function POST(
       }
 
       const {
-        data:
-          updatedRecording,
-        error:
-          updateError,
+        data: updatedRecording,
+        error: updateError,
       } = await admin
         .from("recordings")
         .update({
-          quality_status:
-            qualityStatus,
+          quality_status: qualityStatus,
         })
         .eq("id", id)
         .select(
@@ -482,16 +353,12 @@ export async function POST(
         .single();
 
       if (updateError) {
-        console.error(
-          "Quality status update error:",
-          updateError
-        );
+        console.error("Quality status update error:", updateError);
 
         return NextResponse.json(
           {
             error:
-              "Could not save recording quality: " +
-              updateError.message,
+              "Could not save recording quality: " + updateError.message,
           },
           {
             status: 500,
@@ -502,12 +369,10 @@ export async function POST(
       return NextResponse.json({
         success: true,
         message:
-          qualityStatus ===
-          "clean"
+          qualityStatus === "clean"
             ? "Recording marked CLEAN."
             : "Recording marked NOISY.",
-        recording:
-          updatedRecording,
+        recording: updatedRecording,
       });
     }
 
@@ -520,22 +385,12 @@ export async function POST(
      * This protects your current earnings/payment logic.
      */
 
-    const newStatus =
-      body.status;
+    const newStatus = body.status;
 
-    if (
-      !id ||
-      ![
-        "approved",
-        "rejected",
-      ].includes(
-        newStatus
-      )
-    ) {
+    if (!id || !["approved", "rejected"].includes(newStatus)) {
       return NextResponse.json(
         {
-          error:
-            "A valid recording ID and status are required.",
+          error: "A valid recording ID and status are required.",
         },
         {
           status: 400,
@@ -543,15 +398,10 @@ export async function POST(
       );
     }
 
-    if (
-      !/^[0-9a-fA-F-]{36}$/.test(
-        id
-      )
-    ) {
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
       return NextResponse.json(
         {
-          error:
-            "Invalid recording ID.",
+          error: "Invalid recording ID.",
         },
         {
           status: 400,
@@ -559,35 +409,25 @@ export async function POST(
       );
     }
 
+    // ⚠️ LEFT UNTOUCHED FOR NOW - to be fixed separately after RPC check
+    // Pidgin = ₦20, Nigerian English = ₦30
     const amount = 30;
 
-    const {
-      data: rpcResult,
-      error: rpcError,
-    } =
-      await admin.rpc(
-        "approve_recording_atomic",
-        {
-          p_recording_id:
-            id,
-          p_new_status:
-            newStatus,
-          p_earnings_amount:
-            amount,
-        }
-      );
+    const { data: rpcResult, error: rpcError } = await admin.rpc(
+      "approve_recording_atomic",
+      {
+        p_recording_id: id,
+        p_new_status: newStatus,
+        p_earnings_amount: amount,
+      }
+    );
 
     if (rpcError) {
-      console.error(
-        "Approve RPC error:",
-        rpcError
-      );
+      console.error("Approve RPC error:", rpcError);
 
       return NextResponse.json(
         {
-          error:
-            "Approval failed: " +
-            rpcError.message,
+          error: "Approval failed: " + rpcError.message,
         },
         {
           status: 500,
@@ -598,9 +438,7 @@ export async function POST(
     if (!rpcResult?.success) {
       return NextResponse.json(
         {
-          error:
-            rpcResult?.error ||
-            "Approval failed.",
+          error: rpcResult?.error || "Approval failed.",
         },
         {
           status: 500,
@@ -608,10 +446,7 @@ export async function POST(
       );
     }
 
-    const {
-      data:
-        updatedRecording,
-    } = await admin
+    const { data: updatedRecording } = await admin
       .from("recordings")
       .select(
         "id, worker_id, status, is_approved, quality_status, earnings, earnings_paid"
@@ -621,24 +456,16 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message:
-        rpcResult.message,
-      earnings_added:
-        rpcResult.earnings_added,
-      recording:
-        updatedRecording,
+      message: rpcResult.message,
+      earnings_added: rpcResult.earnings_added,
+      recording: updatedRecording,
     });
   } catch (error: any) {
-    console.error(
-      "Recording review error:",
-      error
-    );
+    console.error("Recording review error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Recording review failed.",
+        error: error.message || "Recording review failed.",
       },
       {
         status: 500,
@@ -649,7 +476,7 @@ export async function POST(
 
 /* =========================================================
    DELETE
-   =========================================================
+
  *
  * DELETE only hides the recording from
  * the Chairman review screen.
@@ -662,18 +489,14 @@ export async function POST(
  * - remove worker payment history
  */
 
-export async function DELETE(
-  request: NextRequest
-) {
+export async function DELETE(request: NextRequest) {
   try {
-    const admin =
-      await verifyChairman(request);
+    const admin = await verifyChairman(request);
 
     if (!admin) {
       return NextResponse.json(
         {
-          error:
-            "Chairman access required.",
+          error: "Chairman access required.",
         },
         {
           status: 403,
@@ -681,16 +504,13 @@ export async function DELETE(
       );
     }
 
-    const body =
-      await request.json();
-
+    const body = await request.json();
     const id = body.id;
 
     if (!id) {
       return NextResponse.json(
         {
-          error:
-            "A recording ID is required.",
+          error: "A recording ID is required.",
         },
         {
           status: 400,
@@ -698,15 +518,10 @@ export async function DELETE(
       );
     }
 
-    if (
-      !/^[0-9a-fA-F-]{36}$/.test(
-        id
-      )
-    ) {
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
       return NextResponse.json(
         {
-          error:
-            "Invalid recording ID.",
+          error: "Invalid recording ID.",
         },
         {
           status: 400,
@@ -714,17 +529,11 @@ export async function DELETE(
       );
     }
 
-    const {
-      data: recording,
-      error: findError,
-    } =
-      await admin
-        .from("recordings")
-        .select(
-          "id, hidden_from_review"
-        )
-        .eq("id", id)
-        .maybeSingle();
+    const { data: recording, error: findError } = await admin
+      .from("recordings")
+      .select("id, hidden_from_review")
+      .eq("id", id)
+      .maybeSingle();
 
     if (findError) {
       throw findError;
@@ -733,8 +542,7 @@ export async function DELETE(
     if (!recording) {
       return NextResponse.json(
         {
-          error:
-            "Recording not found.",
+          error: "Recording not found.",
         },
         {
           status: 404,
@@ -742,13 +550,10 @@ export async function DELETE(
       );
     }
 
-    const {
-      error: updateError,
-    } = await admin
+    const { error: updateError } = await admin
       .from("recordings")
       .update({
-        hidden_from_review:
-          true,
+        hidden_from_review: true,
       })
       .eq("id", id);
 
@@ -762,16 +567,11 @@ export async function DELETE(
         "Recording removed from review. The voice/audio file is still safely stored.",
     });
   } catch (error: any) {
-    console.error(
-      "Recording hide error:",
-      error
-    );
+    console.error("Recording hide error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error.message ||
-          "Could not remove recording from review.",
+        error: error.message || "Could not remove recording from review.",
       },
       {
         status: 500,
