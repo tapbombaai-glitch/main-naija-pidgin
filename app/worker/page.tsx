@@ -114,81 +114,79 @@ export default function WorkersPage() {
   const loadBankFromSupabase = async (wid: string) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        try {
-          const res = await fetch("/api/worker/bank-details", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
-          if (res.ok) {
-            const j = await res.json().catch(() => ({}));
-            const b = j.bank || j;
-            if (b && (b.account_name || b.bank_name)) {
-              setAccountName(b.account_name || ""); setBankName(b.bank_name || "");
-              setAccountNumber(b.account_number || ""); setPhoneNumber(b.phone || b.phone_number || "");
-              setBankSavedLabel(`Saved: ${b.bank_name} • ${b.account_number} • ${b.account_name}`);
-              return;
-            }
-          }
-        } catch {}
-      }
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData?.user?.id;
-      if (uid) {
-        const { data } = await supabase.from("workers").select("bank_name, account_number, account_name, phone").eq("id", uid).maybeSingle();
-        if (data && (data.account_name || data.bank_name)) {
-          setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
-          setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone || "");
-          setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
-          return;
-        }
-      }
-      if (wid && wid !== "WORKER") {
-        const { data } = await supabase.from("workers").select("bank_name, account_number, account_name, phone").eq("worker_id", wid).maybeSingle();
-        if (data && (data.account_name || data.bank_name)) {
-          setAccountName(data.account_name || ""); setBankName(data.bank_name || "");
-          setAccountNumber(data.account_number || ""); setPhoneNumber(data.phone || "");
-          setBankSavedLabel(`Saved: ${data.bank_name} • ${data.account_number} • ${data.account_name}`);
-        }
-      }
-    } catch {}
+      if (!session?.access_token) return;
+      const res = await fetch("/api/worker/bank-details", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) { console.error("Could not load saved bank details."); return; }
+      const j = await res.json();
+      const b = j.bank || j;
+      const accName = b.account_name || b.accountName || "";
+      const bName = b.bank_name || b.bankName || "";
+      const accNum = b.account_number || b.accountNumber || "";
+      const phone = b.phone || b.phone_number || b.phoneNumber || "";
+      setAccountName(accName); setBankName(bName); setAccountNumber(accNum); setPhoneNumber(phone);
+      if (j.saved && accName && bName && accNum && phone) {
+        setBankSavedLabel(`Saved: ${bName} • ${accNum} • ${accName}`);
+      } else { setBankSavedLabel(""); }
+    } catch (error) { console.error("Bank details loading error:", error); }
   };
 
-  const loadWithdrawal = async (wid: string, currentBalance?: { amount: number; count: number }) => {
+  const loadWithdrawal = async (
+    wid: string,
+    currentBalance?: { amount: number; count: number }
+  ) => {
     if (!wid || wid === "WORKER") return;
     setAllocationLoading(true);
     setAllocationVerified(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("No session");
-      const res = await fetch("/api/worker/allocated-recordings", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" });
-      if (!res.ok) throw new Error("Allocation check failed");
-      const j = await res.json().catch(() => ({}));
-      const allocatedIds: string[] = j.allocatedRecordingIds || j.allocatedIds || j.ids || (Array.isArray(j) ? j : []) || (j.recordings || []).map((r: any) => r.recording_id || r.id).filter(Boolean);
-      let allocatedAmount = Number(j.allocatedAmount || j.total_allocated_amount || 0);
-      let allocatedCount = allocatedIds.length;
-      if (allocatedIds.length > 0 && allocatedAmount === 0) {
-        const { data: allocRecs } = await supabase.from("recordings").select("id, earnings").in("id", allocatedIds);
-        allocatedAmount = (allocRecs || []).reduce((s: number, r: any) => s + (Number(r.earnings) || 0), 0);
-        allocatedCount = (allocRecs || []).length;
+      if (!session?.access_token) throw new Error("Session expired. Please login again.");
+      const res = await fetch("/api/worker/allocated-recordings", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Could not verify allocated recordings.");
+      const allocationData = await res.json();
+      if (!Array.isArray(allocationData.allocatedIds)) throw new Error("Invalid allocation response.");
+      const allocatedIds: string[] = allocationData.allocatedIds;
+      if (allocatedIds.some((id: any) => typeof id !== "string" || !id.trim()) || new Set(allocatedIds).size !== allocatedIds.length) {
+        throw new Error("Invalid or duplicate allocated recording IDs.");
       }
-      if (j.active) setActiveWithdrawal(j.active);
-      if (j.history) setWithdrawalHistory(j.history);
-      if (!j.active && !j.history) {
-        const { data: wr } = await supabase.from("withdrawal_requests").select("*").eq("worker_id", wid).order("created_at", { ascending: false }).limit(10);
-        if (wr) {
-          setWithdrawalHistory(wr);
-          const active = wr.find((x: any) => x.status === "pending" || x.status === "processing" || x.status === "awaiting_payment");
-          setActiveWithdrawal(active || null);
-        }
+      let allocatedAmount = 0;
+      let allocatedCount = 0;
+      if (allocatedIds.length > 0) {
+        const { data: allocatedRecords, error: recordsError } = await supabase.from("recordings").select("id, earnings").in("id", allocatedIds);
+        if (recordsError || !allocatedRecords) throw new Error("Could not verify allocated recording earnings.");
+        if (allocatedRecords.length !== allocatedIds.length) throw new Error("Some allocated recordings could not be verified.");
+        const returnedIds = new Set(allocatedRecords.map((record: any) => record.id));
+        if (!allocatedIds.every((id) => returnedIds.has(id))) throw new Error("Allocated recording verification failed.");
+        allocatedAmount = allocatedRecords.reduce((total: number, record: any) => {
+          const amount = Number(record.earnings);
+          if (!Number.isFinite(amount) || amount < 0) throw new Error("Invalid allocated recording amount.");
+          return total + amount;
+        }, 0);
+        allocatedCount = allocatedRecords.length;
       }
-      const bal = currentBalance || balance;
-      const availAmount = Math.max(0, bal.amount - allocatedAmount);
-      const availCount = Math.max(0, bal.count - allocatedCount);
-      setAvailableWithdrawal({ amount: availAmount, count: availCount, allocatedAmount, allocatedCount });
+      const { data: history, error: historyError } = await supabase.from("withdrawal_requests").select("*").eq("worker_id", wid).order("created_at", { ascending: false }).limit(10);
+      if (historyError || !history) throw new Error("Could not verify withdrawal history.");
+      setWithdrawalHistory(history);
+      const active = history.find((item: any) => ["pending", "approved"].includes(String(item.status || "").toLowerCase()));
+      setActiveWithdrawal(active || null);
+      const bal = currentBalance ?? balance;
+      const availableAmount = Math.max(0, bal.amount - allocatedAmount);
+      const availableCount = Math.max(0, bal.count - allocatedCount);
+      setAvailableWithdrawal({ amount: availableAmount, count: availableCount, allocatedAmount, allocatedCount });
       setAllocationVerified(true);
       setWithdrawalMessage("");
-    } catch (e: any) {
-      setAvailableWithdrawal(prev => ({ ...prev, amount: 0, count: 0 }));
+    } catch (error) {
+      console.error("Withdrawal verification failed:", error);
+      setAvailableWithdrawal((previous) => ({ amount: 0, count: 0, allocatedAmount: previous.allocatedAmount, allocatedCount: previous.allocatedCount }));
       setAllocationVerified(false);
-      setWithdrawalMessage("⚠️ Could not verify allocated recordings. Withdrawal blocked for safety — tap Refresh to retry.");
+      setWithdrawalMessage("⚠️ Could not verify allocated recordings or withdrawal history. Withdrawal is blocked for safety. Tap Refresh to retry.");
     } finally { setAllocationLoading(false); }
   };
 
@@ -197,12 +195,15 @@ export default function WorkersPage() {
     if (anns) setAnnouncements(anns);
     setAnnouncementLoading(false);
     const window = getLagosRecordingWindow();
-    let { data, error } = await supabase.from("recordings").select("earnings, status, created_at, is_paid, language").eq("worker_id", wid);
-    if (error && String(error.message).includes("is_paid")) {
-      const retry = await supabase.from("recordings").select("earnings, status, created_at, language").eq("worker_id", wid);
-      data = retry.data as any; error = retry.error as any;
+    const { data, error } = await supabase.from("recordings").select("id, earnings, status, created_at, is_paid, is_approved, language").eq("worker_id", wid);
+    if (error) {
+      console.error("Worker recordings loading error:", error.message);
+      setAvailableWithdrawal((previous) => ({ amount: 0, count: 0, allocatedAmount: previous.allocatedAmount, allocatedCount: previous.allocatedCount }));
+      setAllocationVerified(false);
+      setBalance({ amount: 0, count: 0 });
+      setWithdrawalMessage("⚠️ Could not load your recordings. Withdrawal is blocked until your data can be verified. Refresh to retry.");
+      return;
     }
-    if (error) { console.error("Worker recordings loading error:", error.message); return; }
     const recs = data || [];
     let allTimeEarnings = 0, campaignApproved = 0, campaignPending = 0, campaignRejected = 0, campaignToday = 0;
     let todayAmount = 0, todayCount = 0, balanceAmount = 0, balanceCount = 0, nvTodayCount = 0;
@@ -211,20 +212,25 @@ export default function WorkersPage() {
       const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
       const isNewCampaign = createdMs >= CAMPAIGN_START_MS;
       const amt = Number(r.earnings) || 0;
-      if (r.status === "approved") {
+      const isHistoricallyApproved = r.status === "approved" || r.is_approved === true;
+      // ✅ ALIGNED TO RPC: NO campaign cutoff for balance. RPC = is_approved=true AND COALESCE(is_paid,false)=false AND earnings>0
+      // In JS: COALESCE(is_paid,false)=false means is_paid === false OR is_paid == null
+      const isWithdrawable = r.is_approved === true && (r.is_paid === false || r.is_paid == null) && amt > 0;
+      if (isHistoricallyApproved) {
         allTimeEarnings += amt;
         const dayKey = getLagosDayKey(r.created_at);
         if (!byDay[dayKey]) byDay[dayKey] = { count: 0, amount: 0 };
         byDay[dayKey].count += 1; byDay[dayKey].amount += amt;
       }
-      if (isNewCampaign && r.status === "approved" && r.is_paid !== true) { balanceAmount += amt; balanceCount += 1; }
+      // ✅ Balance = ALL TIME withdrawable (matches RPC) — NOT only New Campaign
+      if (isWithdrawable) { balanceAmount += amt; balanceCount += 1; }
       if (isNewCampaign) {
-        if (r.status === "approved") campaignApproved += 1;
+        if (isHistoricallyApproved) campaignApproved += 1;
         else if (r.status === "rejected") campaignRejected += 1;
         else campaignPending += 1;
         if (createdMs >= window.startMs && createdMs < window.nextResetMs) {
           campaignToday += 1;
-          if (r.status === "approved") { todayAmount += amt; todayCount += 1; }
+          if (isHistoricallyApproved) { todayAmount += amt; todayCount += 1; }
           if (r.language === DATASET_NIGERIAN_ENGLISH || r.language === "nigerian-voice") nvTodayCount += 1;
         }
       }
@@ -336,41 +342,49 @@ export default function WorkersPage() {
   };
 
   const saveBankDetails = async () => {
-    if (!accountName.trim()) return alert("Please enter your Account Name.");
-    if (!bankName.trim()) return alert("Please select your Bank Name.");
-    if (!accountNumber.trim()) return alert("Please enter your Account Number.");
-    if (!phoneNumber.trim()) return alert("Please enter your Phone Number.");
-    if (accountNumber.trim().length !== 10) return alert("Account Number must be 10 digits.");
+    if (!accountName.trim()) { return alert("Please enter your Account Name."); }
+    if (!bankName.trim()) { return alert("Please select your Bank Name."); }
+    if (!/^\d{10}$/.test(accountNumber.trim())) { return alert("Account Number must contain exactly 10 digits."); }
+    if (!phoneNumber.trim()) { return alert("Please enter your Phone Number."); }
     const wid = localStorage.getItem("gin_worker_id") || workerId;
-    if (!wid || wid === "WORKER") return alert("Worker account not found. Please logout and login again.");
+    if (!wid || wid === "WORKER") { return alert("Worker account not found. Please logout and login again."); }
     setBankSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) throw new Error("Session expired. Login again.");
+      if (!session?.access_token) { throw new Error("Session expired. Login again."); }
       const res = await fetch("/api/worker/bank-details", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ bank_name: bankName.trim(), account_number: accountNumber.trim(), account_name: accountName.trim(), phone: phoneNumber.trim() }),
+        body: JSON.stringify({ accountName: accountName.trim(), bankName: bankName.trim(), accountNumber: accountNumber.trim(), phoneNumber: phoneNumber.trim() }),
+        cache: "no-store",
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || "Bank save failed");
+      if (!res.ok || j.success === false) { throw new Error(j.error || "Bank save failed."); }
       setBankSavedLabel(`Saved: ${bankName.trim()} • ${accountNumber.trim()} • ${accountName.trim()}`);
-      setShowModal(null); showToast("✅ Bank details saved successfully.");
+      setShowModal(null);
+      showToast("✅ Bank details saved successfully.");
       await loadBankFromSupabase(wid);
-    } catch (e: any) { alert(e.message || "Bank save failed"); }
+    } catch (e: any) { alert(e.message || "Bank save failed."); }
     finally { setBankSaving(false); }
   };
 
-  // ===== WITHDRAWAL SECTOR — UPGRADED: PLATFORM FEE 30% ALWAYS SHOWS =====
   const platformFeeAmount = Math.round(availableWithdrawal.amount * PLATFORM_FEE_RATE);
   const netWithdrawalAmount = Math.max(0, availableWithdrawal.amount - platformFeeAmount);
+  const hasSavedBank = Boolean(bankSavedLabel && bankSavedLabel.startsWith("Saved:")) && Boolean(accountName.trim() && bankName.trim() && accountNumber.trim() && phoneNumber.trim());
+  const canWithdraw =
+    allocationVerified &&
+    !allocationLoading &&
+    !requestingWithdrawal &&
+    !activeWithdrawal &&
+    hasSavedBank &&
+    availableWithdrawal.amount >= MIN_WITHDRAWAL;
 
   const requestWithdrawal = async () => {
     if (!allocationVerified) return alert("Allocation check never succeed yet. Tap Refresh for Withdrawal first — for safety, withdrawal blocked.");
-    if (!accountName.trim() || !bankName.trim() || !accountNumber.trim()) return alert("Save your Bank Details first before withdrawal.");
+    if (!hasSavedBank) return alert("Save your Bank Details first and make sure e show 'Saved:' before withdrawal. Server go use the saved bank for Supabase, not wetin you just type.");
     if (availableWithdrawal.amount < MIN_WITHDRAWAL) return alert(`Minimum withdrawal na ₦${MIN_WITHDRAWAL.toLocaleString("en-NG")}. Your available na ₦${availableWithdrawal.amount.toLocaleString("en-NG")}.`);
     if (activeWithdrawal) return alert("You already have an active withdrawal waiting for approval. Wait for am first.");
-    if (!window.confirm(`Request withdrawal?\n\nTotal Earned: ₦${availableWithdrawal.amount.toLocaleString("en-NG")} (${availableWithdrawal.count} recordings)\nPlatform Fee (30%): - ₦${platformFeeAmount.toLocaleString("en-NG")}\nYOU GO RECEIVE (70%): ₦${netWithdrawalAmount.toLocaleString("en-NG")}\n\nTo: ${bankName} • ${accountNumber} • ${accountName}\n\nYou go receive am within 48 hours after approval.\nMinimum: ₦1,000`)) return;
+    if (!window.confirm(`Request withdrawal?\n\nTotal Earned: ₦${availableWithdrawal.amount.toLocaleString("en-NG")} (${availableWithdrawal.count} recordings)\nPlatform Fee (30%): - ₦${platformFeeAmount.toLocaleString("en-NG")}\nYOU GO RECEIVE (70%): ₦${netWithdrawalAmount.toLocaleString("en-NG")}\n\nTo: ${bankName} • ${accountNumber} • ${accountName}\n\nYou go receive am within 48 hours after Chairman approval.\nMinimum: ₦1,000`)) return;
     setRequestingWithdrawal(true); setWithdrawalMessage("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -381,14 +395,13 @@ export default function WorkersPage() {
         body: JSON.stringify({ amount: availableWithdrawal.amount }),
       });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j.error || "Withdrawal request failed");
+      if (!res.ok || j.success === false) throw new Error(j.error || "Withdrawal request failed");
       const withdrawnAmount = availableWithdrawal.amount;
       const withdrawnCount = availableWithdrawal.count;
-      // ✅ INSTANT ZERO: Available goes to 0 so worker knows e don withdraw
       setAvailableWithdrawal(prev => ({ amount: 0, count: 0, allocatedAmount: prev.allocatedAmount + withdrawnAmount, allocatedCount: prev.allocatedCount + withdrawnCount }));
       setActiveWithdrawal(j.withdrawal || j.data || { amount: withdrawnAmount, status: "pending", created_at: new Date().toISOString(), bank_name: bankName, account_number: accountNumber, account_name: accountName });
-      setWithdrawalMessage(`✅ Withdrawal of ₦${withdrawnAmount.toLocaleString("en-NG")} sent! Platform Fee 30%: -₦${platformFeeAmount.toLocaleString("en-NG")} • You go receive ₦${netWithdrawalAmount.toLocaleString("en-NG")} in your ${bankName} • ${accountNumber} within 48 hours.`);
-      showToast("✅ Withdrawal requested • You go receive am in 48 hours");
+      setWithdrawalMessage(`✅ Withdrawal of ₦${withdrawnAmount.toLocaleString("en-NG")} sent! Platform Fee 30%: -₦${platformFeeAmount.toLocaleString("en-NG")} • You go receive ₦${netWithdrawalAmount.toLocaleString("en-NG")} in your ${bankName} • ${accountNumber} within 48 hours after Chairman approval.`);
+      showToast("✅ Withdrawal requested • You go receive am in 48 hours after Chairman approval");
       await loadWithdrawal(workerId, balance); await loadWorkerData(workerId);
     } catch (e: any) { setWithdrawalMessage("❌ " + (e.message || "Withdrawal failed")); }
     finally { setRequestingWithdrawal(false); }
@@ -547,13 +560,11 @@ export default function WorkersPage() {
 
   useEffect(() => { return () => { if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current); streamRef.current?.getTracks().forEach((t: MediaStreamTrack) => t.stop()); }; }, []);
   const currentText = isNigerianVoiceMode ? currentNigerianVoice?.text : sentences[currentSentenceIndex];
-  const canWithdraw = allocationVerified && !activeWithdrawal && availableWithdrawal.amount >= MIN_WITHDRAWAL;
 
   return (
     <div style={{ background: "#060A06", minHeight: "100vh", color: "white", fontFamily: "system-ui" }}>
       {toast && <div style={{ position: "fixed", top: "20px", left: "50%", transform: "translateX(-50%)", background: "#00E676", color: "black", padding: "10px 18px", borderRadius: "20px", fontSize: "12px", fontWeight: "900", zIndex: 1000 }}>{toast}</div>}
       <div style={{ maxWidth: "390px", margin: "0 auto", padding: "10px", paddingBottom: "90px" }}>
-        {/* ✅ REMOVED: HOME / MARKET / CHAIRMAN top panel — workers must NOT see Marketplace or Chairman */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
           <div><h1 style={{ fontSize: "18px", fontWeight: "900", margin: 0 }}>Worker Dashboard 🇳🇬</h1>
             <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{workerId} ● {taskProgress.approved} approved • {taskProgress.pending} waiting • {taskProgress.rejected} rejected</div>
@@ -582,9 +593,9 @@ export default function WorkersPage() {
           <div style={{ fontSize: "11px", color: "#ccc" }}>{todayEarn.count} approved today • {taskProgress.today} total today (incl. pending)</div>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #00E676", borderRadius: "12px", padding: "12px", marginTop: "10px" }}>
-          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — New Campaign Unpaid</div>
+          <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>💰 BALANCE — All Approved Unpaid (Matches RPC)</div>
           <div style={{ color: "#00E676", fontWeight: "900", fontSize: "26px", marginTop: "6px" }}>₦{balance.amount.toLocaleString("en-NG")}</div>
-          <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings in New Campaign</div>
+          <div style={{ fontSize: "11px", color: "#ccc" }}>{balance.count} unpaid approved recordings — all time, same as server</div>
           <div style={{ fontSize: "11px", color: "#FACC15", marginTop: 6 }}>Allocated to withdrawal: ₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")} • {availableWithdrawal.allocatedCount} recordings {allocationVerified ? "✅ Verified" : "⚠️ Not verified"}</div>
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
@@ -619,7 +630,7 @@ export default function WorkersPage() {
             <button onClick={() => loadWithdrawal(workerId, balance)} disabled={allocationLoading} style={{ background:"#222", color:"white", border:"1px solid #444", borderRadius:8, padding:"6px 10px", fontSize:11, fontWeight:900 }}>{allocationLoading ? "Loading..." : "↻ Refresh"}</button>
           </div>
           <div style={{ fontSize:11, color:"#aaa", marginTop:6 }}>Available = Unpaid Approved − Already Allocated. Minimum withdrawal: ₦1,000.</div>
-          <div style={{ fontSize:11, color:"#FACC15", marginTop:6, fontWeight:900 }}>⏰ You go receive your money within 48 hours after approval.</div>
+          <div style={{ fontSize:11, color:"#FACC15", marginTop:6, fontWeight:900 }}>⏰ You go receive your money within 48 hours after Chairman approval.</div>
           {bankSavedLabel && (
             <div style={{ background:"#111A11", border:"1px solid #333", borderRadius:8, padding:"8px", marginTop:8, fontSize:11 }}>
               <b style={{ color:"#ccc" }}>💳 Money go enter:</b>
@@ -632,7 +643,6 @@ export default function WorkersPage() {
             <div style={{ fontSize:11, color:"#ccc" }}>{availableWithdrawal.count} recordings available • {availableWithdrawal.allocatedCount} already allocated (₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")})</div>
           </div>
 
-          {/* ✅ PLATFORM FEE 30% — ALWAYS SHOWS, EVEN FOR ₦0 — NOTICE BOARD INSIDE APP */}
           <div style={{ background:"#111A11", border:"1px solid #EAB308", borderRadius:10, padding:10, marginTop:10, fontSize:12, textAlign:"left" }}>
             <div style={{ display:"flex", justifyContent:"space-between" }}><span>Total Earned:</span><b>₦{availableWithdrawal.amount.toLocaleString("en-NG")}</b></div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:4, color:"#FF6B6B" }}><span>Platform Fee (30%):</span><b>- ₦{platformFeeAmount.toLocaleString("en-NG")}</b></div>
@@ -647,12 +657,12 @@ export default function WorkersPage() {
               <div style={{ marginTop:4, color:"#FF6B6B" }}>Platform Fee (30%): - ₦{Math.round(Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0) * 0.30).toLocaleString("en-NG")}</div>
               <div style={{ marginTop:4, color:"#00E676" }}><b>You Go Receive (70%): ₦{Math.round(Number(activeWithdrawal.amount || activeWithdrawal.amount_requested || 0) * 0.70).toLocaleString("en-NG")}</b></div>
               <div style={{ color:"#aaa", fontSize:11 }}>{activeWithdrawal.created_at ? new Date(activeWithdrawal.created_at).toLocaleString() : ""}</div>
-              <div style={{ color:"#FACC15", fontSize:11, marginTop:4 }}>⏰ You go receive am within 48 hours. Available don go ₦0 because e don enter withdrawal.</div>
+              <div style={{ color:"#FACC15", fontSize:11, marginTop:4 }}>⏰ You go receive am within 48 hours after Chairman approval. Available don go ₦0 because e don enter withdrawal.</div>
             </div>
           )}
           {withdrawalMessage && <div style={{ fontSize:12, marginTop:10, color: withdrawalMessage.startsWith("❌") || withdrawalMessage.startsWith("⚠️") ? "#FF6B6B" : "#00E676" }}>{withdrawalMessage}</div>}
           <button onClick={requestWithdrawal} disabled={requestingWithdrawal || !canWithdraw} style={{ width:"100%", marginTop:12, padding:"14px", borderRadius:12, background: canWithdraw ? "#00E676" : "#333", color: canWithdraw ? "black" : "#888", fontWeight:900, border:"none", cursor:"pointer" }}>
-            {requestingWithdrawal ? "Requesting..." : !allocationVerified ? "⚠️ Allocation Not Verified — Tap Refresh" : activeWithdrawal ? "⏳ Withdrawal Already Waiting" : availableWithdrawal.amount < MIN_WITHDRAWAL ? `Minimum ₦1,000 — You get ₦${availableWithdrawal.amount.toLocaleString("en-NG")}` : `💸 REQUEST WITHDRAWAL — ₦${availableWithdrawal.amount.toLocaleString("en-NG")}`}
+            {requestingWithdrawal ? "Requesting..." : !allocationVerified ? "⚠️ Allocation Not Verified — Tap Refresh" : activeWithdrawal ? "⏳ Withdrawal Already Waiting" : !hasSavedBank ? "💳 Save Bank Details First" : availableWithdrawal.amount < MIN_WITHDRAWAL ? `Minimum ₦1,000 — You get ₦${availableWithdrawal.amount.toLocaleString("en-NG")}` : `💸 REQUEST WITHDRAWAL — ₦${availableWithdrawal.amount.toLocaleString("en-NG")}`}
           </button>
           {canWithdraw && <div style={{ textAlign:"center", fontSize:12, color:"#00E676", marginTop:6, fontWeight:900 }}>You go receive ₦{netWithdrawalAmount.toLocaleString("en-NG")} after Platform Fee 30%</div>}
           <div style={{ marginTop:12 }}>
@@ -672,10 +682,10 @@ export default function WorkersPage() {
             <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px" }}>
               <h3 style={{ margin: 0 }}>💳 Bank Details — Saved to Database</h3>
               <p style={{ fontSize:11, color:"#aaa" }}>Source of truth: workers table via /api/worker/bank-details (POST)</p>
-              <input value={accountName} onChange={e => setAccountName(e.target.value)} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={accountNumber} onChange={e => setAccountNumber(e.target.value)} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={accountName} onChange={e => { setBankSavedLabel(""); setAccountName(e.target.value); }} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={bankName} onChange={e => { setBankSavedLabel(""); setBankName(e.target.value); }} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={accountNumber} onChange={e => { setBankSavedLabel(""); setAccountNumber(e.target.value); }} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={phoneNumber} onChange={e => { setBankSavedLabel(""); setPhoneNumber(e.target.value); }} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <button onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", marginTop: "12px", padding: "13px", borderRadius: "10px", background: "#00E676", color: "black", fontWeight: "900", border: "none" }}>{bankSaving ? "Saving..." : "Save Bank to Database"}</button>
               <button onClick={() => setShowModal(null)} style={{ width: "100%", marginTop: "8px", padding: "12px", borderRadius: "10px", background: "#222", color: "white", border: "1px solid #444" }}>Close</button>
             </div>
