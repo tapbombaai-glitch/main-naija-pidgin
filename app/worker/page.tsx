@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { getTodayPidgin } from "@/app/data/pidgin-500";
+import { getTodayPidgin } from "@/app/data/pidgin-50";
 import {
   getTodayNigerianVoice,
   getAllNigerianVoiceParagraphs,
@@ -12,7 +12,7 @@ import {
   isNigerianVoiceRecordingLongEnough,
 } from "@/lib/nigerian-voice-data";
 
-const DAILY_RECORDING_LIMIT = 30;
+const DAILY_RECORDING_LIMIT = 50;
 const CAMPAIGN_START_ISO = "2026-11-21T16:00:00.000Z";
 const CAMPAIGN_START_MS = new Date(CAMPAIGN_START_ISO).getTime();
 const NIGERIAN_VOICE_DAILY_LIMIT = 10;
@@ -260,7 +260,7 @@ export default function WorkersPage() {
     const progressKey = `naija_progress:${workerId}:${selectedLang}:${recordingDayKey}`;
     try {
       const saved = localStorage.getItem(progressKey);
-      if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(30, sentences.length)))); }
+      if (saved) { const progress = JSON.parse(saved); const index = Number(progress.index) || 0; setCurrentSentenceIndex(Math.max(0, Math.min(index, Math.min(50, sentences.length)))); }
       else setCurrentSentenceIndex(0);
     } catch { setCurrentSentenceIndex(0); }
     setAudioURL(null); setTimer(0); setFrozenSentence(null); frozenSentenceRef.current = null;
@@ -280,7 +280,7 @@ export default function WorkersPage() {
         if (timerRef.current) clearInterval(timerRef.current);
         if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; }
         if (workerId !== "WORKER") loadWorkerData(workerId);
-        showToast("🌅 NEW RECORDING DAY! Your 30-recording allowance has reset.");
+        showToast("🌅 NEW RECORDING DAY! Your 50-recording allowance has reset.");
       }
     };
     const interval = setInterval(checkRecordingDay, 15000);
@@ -300,7 +300,7 @@ export default function WorkersPage() {
     if (workerId === "WORKER") return;
     let cancelled = false;
     const loadSentences = async () => {
-      const { data, error } = await supabase.from("sentences").select("text").eq("language", selectedLang.toLowerCase()).eq("is_active", true).order("sort_order", { ascending: true }).limit(30);
+      const { data, error } = await supabase.from("sentences").select("text").eq("language", selectedLang.toLowerCase()).eq("is_active", true).order("sort_order", { ascending: true }).limit(50);
       if (!cancelled && !error && data && data.length > 0) {
         const texts = data.map((r: any) => String(r.text)).filter(Boolean);
         if (texts.length > 0) setRemoteSentences(texts);
@@ -450,7 +450,7 @@ export default function WorkersPage() {
     if (selectedLang !== "Pidgin") { alert("Only Pidgin recording is currently available."); return; }
     if (isIjawDraft) { alert("Ijaw / Izon recording is temporarily unavailable."); return; }
     if (!isRecording) {
-      if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 30 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
+      if (taskProgress.today >= DAILY_RECORDING_LIMIT) { alert("You have completed your 50 recordings for today. Come back after 5:00 p.m. Lagos time."); return; }
       if (currentSentenceIndex >= Math.min(DAILY_RECORDING_LIMIT, sentences.length)) { alert("You have completed today's unique sentences in this language."); return; }
     }
     if (isRecording) { mediaRecorderRef.current?.stop(); setIsRecording(false); if (timerRef.current) clearInterval(timerRef.current); if (stopTimeoutRef.current) { clearTimeout(stopTimeoutRef.current); stopTimeoutRef.current = null; } return; }
@@ -526,7 +526,7 @@ export default function WorkersPage() {
     if (selectedLang !== "Pidgin") { alert("Only Pidgin recordings can be submitted right now."); return; }
     if (isIjawDraft) { alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete."); return; }
     if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
-    if (taskProgress.today >= DAILY_RECORDING_LIMIT) return alert("You have completed your 30 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time.");
+    if (taskProgress.today >= DAILY_RECORDING_LIMIT) return alert("You have completed your 50 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time.");
     if (currentSentenceIndex >= dailySentenceCount) return alert("You have completed all the unique sentences available for today.");
     if (!audioURL) return alert("🎤 Record first!");
     if (savingRecording) return;
@@ -570,7 +570,6 @@ export default function WorkersPage() {
           <button type="button" onClick={handleLogout} style={{ background: "#2A0A0A", color: "#FF6B6B", border: "1px solid #7F1D1D", borderRadius: "10px", padding: "9px 11px", fontSize: "11px", fontWeight: "900", cursor: "pointer" }}>🚪 LOGOUT</button>
         </div>
 
-        {/* ✅ ANNOUNCEMENT BUTTON ONLY — Tap to open popup. Shows 1 if 1 message, 2 if 2 messages */}
         <button type="button" onClick={() => setShowAnnouncementsModal(true)} style={{ width: "100%", marginTop: "12px", padding: "14px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>📢 VIEW CHAIRMAN ANNOUNCEMENTS</span>
           <span style={{ background: "#EAB308", color: "black", borderRadius: "20px", padding: "2px 8px", fontSize: "11px" }}>{announcementLoading ? "..." : announcements.length}</span>
@@ -686,7 +685,6 @@ export default function WorkersPage() {
           </div>
         )}
 
-        {/* ✅ ANNOUNCEMENTS POPUP — Shows exactly how many you send: 1 = 1, 2 = 2 */}
         {showAnnouncementsModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "grid", placeItems: "center", zIndex: 2000, padding: "16px" }} onClick={() => setShowAnnouncementsModal(false)}>
             <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px", maxHeight: "80vh", overflowY: "auto", border: "1px solid #EAB308" }} onClick={(e) => e.stopPropagation()}>
