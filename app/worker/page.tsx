@@ -86,8 +86,8 @@ export default function WorkersPage() {
   const nigerianVoiceParagraphs = useMemo(() => getAllNigerianVoiceParagraphs(), []);
   const todayNigerianVoice = useMemo(() => getTodayNigerianVoice(), [recordingDayKey]);
   const currentNigerianVoice = nigerianVoiceParagraphs[nigerianVoiceIndex % nigerianVoiceParagraphs.length] || todayNigerianVoice;
-  const isTooShort = isPidginMode && timer > 0 && timer < 11;
-  const isPass = isPidginMode && timer >= 11;
+  const isTooShort = isPidginMode && timer > 0 && timer < 60;
+  const isPass = isPidginMode && timer >= 60;
   const isVoiceTooShort = isNigerianVoiceMode && timer > 0 && timer < NIGERIAN_VOICE_MIN_DURATION;
   const isVoicePass = isNigerianVoiceMode && isNigerianVoiceRecordingLongEnough(timer);
   const [balance, setBalance] = useState({ amount: 0, count: 0 });
@@ -470,7 +470,7 @@ export default function WorkersPage() {
       mr.start(); setIsRecording(true); setAudioURL(null); setTimer(0); setNoiseScore(0); setNoiseWarning("");
       timerRef.current = setInterval(() => setTimer((p: number) => p + 1), 1000);
       if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
-      stopTimeoutRef.current = setTimeout(() => { if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.stop(); setIsRecording(false); } }, 15000);
+      stopTimeoutRef.current = setTimeout(() => { if (mediaRecorderRef.current?.state === "recording") { mediaRecorderRef.current.stop(); setIsRecording(false); } }, 60000);
     } catch { alert("Abeg allow microphone!"); }
   };
 
@@ -525,7 +525,7 @@ export default function WorkersPage() {
     }
     if (selectedLang !== "Pidgin") { alert("Only Pidgin recordings can be submitted right now."); return; }
     if (isIjawDraft) { alert("Ijaw / Izon recordings cannot be submitted until native-speaker validation is complete."); return; }
-    if (timer < 11) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! Abeg do am again, make e reach 11 or 12 seconds.`); return; }
+    if (timer < 60) { alert(`❌ FAIL! Your voice na ${timer} seconds only! E too short! Abeg do am again, make e reach 60 seconds.`); return; }
     if (taskProgress.today >= DAILY_RECORDING_LIMIT) return alert("You have completed your 60 recordings for today. Your next recording day starts at 5:00 p.m. Lagos time.");
     if (currentSentenceIndex >= dailySentenceCount) return alert("You have completed all the unique sentences available for today.");
     if (!audioURL) return alert("🎤 Record first!");
@@ -592,12 +592,13 @@ export default function WorkersPage() {
           <div style={{ fontSize: "11px", color: "#FACC15", marginTop: 6 }}>Allocated to withdrawal: ₦{availableWithdrawal.allocatedAmount.toLocaleString("en-NG")} • {availableWithdrawal.allocatedCount} recordings {allocationVerified ? "✅ Verified" : "⚠️ Not verified"}</div>
         </div>
         <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
-          <button type="button" onClick={() => { if (isRecording || audioURL || savingRecording) return alert("Please finish or discard your current recording first."); setRecordingMode(DATASET_PIDGIN); }} style={{ flex: 1, padding: "13px 0", borderRadius: "12px", fontSize: "12px", fontWeight: "900", border: !isNigerianVoiceMode ? "2px solid #00E676" : "1px solid #333", background: !isNigerianVoiceMode ? "#00E676" : "#171717", color: !isNigerianVoiceMode ? "black" : "#ccc", cursor: "pointer" }}>🇳🇬 PIDGIN<br /><span style={{ fontSize: "10px" }}>11–15 sec • ₦20</span></button>
+          <button type="button" onClick={() => { if (isRecording || audioURL || savingRecording) return alert("Please finish or discard your current recording first."); setRecordingMode(DATASET_PIDGIN); }} style={{ flex: 1, padding: "13px 0", borderRadius: "12px", fontSize: "12px", fontWeight: "900", border: !isNigerianVoiceMode ? "2px solid #00E676" : "1px solid #333", background: !isNigerianVoiceMode ? "#00E676" : "#171717", color: !isNigerianVoiceMode ? "black" : "#ccc", cursor: "pointer" }}>🇳🇬 PIDGIN<br /><span style={{ fontSize: "10px" }}>60 sec exact • ₦20</span></button>
           <button type="button" onClick={() => { if (isRecording || audioURL || savingRecording) return alert("Please finish or discard your current recording first."); setRecordingMode(DATASET_NIGERIAN_ENGLISH); }} style={{ flex: 1, padding: "13px 0", borderRadius: "12px", fontSize: "12px", fontWeight: "900", border: isNigerianVoiceMode ? "2px solid #FACC15" : "1px solid #333", background: isNigerianVoiceMode ? "#FACC15" : "#171717", color: isNigerianVoiceMode ? "black" : "#ccc", cursor: "pointer" }}>🎙️ NIGERIAN ENGLISH<br /><span style={{ fontSize: "10px" }}>60+ sec • ₦30 • No max</span></button>
         </div>
         <div style={{ background: "#111A11", border: "1px solid #1E2F1E", borderRadius: "12px", padding: "14px", marginTop: "12px" }}>
           <div style={{ fontSize: "11px", color: "#aaa", fontWeight: "900" }}>{isNigerianVoiceMode ? "🎙️ NIGERIAN ENGLISH PARAGRAPH" : `🇳🇬 PIDGIN SENTENCE ${currentSentenceIndex + 1}`}</div>
           <p style={{ fontSize: "15px", lineHeight: 1.7, marginTop: "8px" }}>{frozenSentence || currentText || "Loading..."}</p>
+          <div style={{ fontSize: "11px", color: "#FACC15", marginTop: "6px" }}>⚠️ Read am slow and clear. Must reach 01:00 (60 seconds) before SAVE go work. If you finish early, repeat am again until 01:00.</div>
           <div style={{ fontSize: "22px", fontWeight: "900", marginTop: "10px" }}>{formatTime(timer)} {isTooShort && "❌ Too short"} {isPass && !isNigerianVoiceMode && "✅ Pass"} {isVoiceTooShort && "❌ Too short - need 60s"} {isVoicePass && "✅ Pass"}</div>
           {noiseWarning && <div style={{ color: "#FF6B6B", fontSize: "12px", marginTop: "8px" }}>{noiseWarning}</div>}
           <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
