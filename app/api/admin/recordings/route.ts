@@ -11,12 +11,8 @@ const SIGNED_URL_EXPIRY = 600;
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) {
-    throw new Error("Supabase server configuration is missing.");
-  }
-  return createClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  if (!url || !serviceKey) throw new Error("Supabase server configuration is missing.");
+  return createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
 async function verifyChairman(request: NextRequest) {
@@ -33,11 +29,7 @@ async function verifyChairman(request: NextRequest) {
   const { data: { user }, error } = await authClient.auth.getUser(token);
   if (error || !user || user.email !== CHAIRMAN_EMAIL) return null;
   const admin = getAdminClient();
-  const { data: profile, error: profileError } = await admin
-    .from("profiles")
-    .select("is_chairman")
-    .eq("id", user.id)
-    .maybeSingle();
+  const { data: profile, error: profileError } = await admin.from("profiles").select("is_chairman").eq("id", user.id).maybeSingle();
   if (profileError || profile?.is_chairman !== true) return null;
   return admin;
 }
@@ -77,96 +69,97 @@ async function getRecordingAudioUrl(admin: ReturnType<typeof getAdminClient>, re
 }
 
 /* =========================================================
-   GET - FIXED: PAGINATION + REAL TOTAL + REAL COUNTS
+   GET - FINAL FIXED: NULL quality_status INCLUDED
+   Priority: CLEAN/NOISY -> APPROVED/REJECTED/PENDING
    ========================================================= */
-
 export async function GET(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-    if (!admin) {
-      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
-    }
-
+    if (!admin) return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     const { searchParams } = new URL(request.url);
     const workerId = searchParams.get("worker_id");
     const status = searchParams.get("status");
     const qualityStatus = searchParams.get("quality_status");
-    const filter = searchParams.get("filter"); // from new page.tsx: all | pending | clean | noisy | approved | rejected
-
-    // ✅ FIXED: page + limit, 100 per page
-    const page = Math.max(Number(searchParams.get("page") || 1), 1);
-    const limit = Math.min(Math.max(Number(searchParams.get("limit") || 100), 1), 100);
+    const filter = searchParams.get("filter") || "all";
+    const requestedPage = Number(searchParams.get("page") || 1);
+    const requestedLimit = Number(searchParams.get("limit") || 100);
+    const page = Number.isFinite(requestedPage) ? Math.max(1, Math.floor(requestedPage)) : 1;
+    const limit = Number.isFinite(requestedLimit) ? Math.min(100, Math.max(1, Math.floor(requestedLimit))) : 100;
     const from = (page - 1) * limit;
     const to = from + limit - 1;
+    const validFilters = ["all", "pending", "clean", "noisy", "approved", "rejected"];
+    if (!validFilters.includes(filter)) return NextResponse.json({ error: "Invalid recording filter." }, { status: 400 });
 
-    // Map filter -> status / quality_status
-    let filterStatus: string | null = status;
-    let filterQuality: string | null = qualityStatus;
-    if (filter && filter !== "all") {
-      if (filter === "clean" || filter === "noisy") filterQuality = filter;
-      else if (filter === "pending" || filter === "approved" || filter === "rejected") filterStatus = filter;
-    }
-
-    // Helper to apply same base filters for counts + list
-    const applyBase = (q: any) => {
-      let query = q.or("hidden_from_review.is.null,hidden_from_review.eq.false");
-      if (workerId) query = query.eq("worker_id", workerId);
-      return query;
+    const applyBase = (query: any) => {
+      let result = query.or("hidden_from_review.is.null,hidden_from_review.eq.false");
+      if (workerId) result = result.eq("worker_id", workerId);
+      return result;
     };
 
-    // ✅ REAL TOTAL COUNTS - from full database, not just 100
-    const { count: totalCount } = await applyBase(
-      admin.from("recordings").select("id", { count: "exact", head: true })
-    );
-    const total = totalCount || 0;
+    // ✅ NULL-SAFE: quality IS NULL OR (not clean AND not noisy)
+    // This keeps unclassified recordings visible in APPROVED/REJECTED/PENDING
+    const applyNotCleanNoisy = (query: any) =>
+      query.or("quality_status.is.null,and(quality_status.neq.clean,quality_status.neq.noisy)");
 
-    // Counts per status (for TOTAL / PENDING / APPROVED / REJECTED boxes)
-    const countFor = async (col: string, val: string) => {
-      const { count } = await applyBase(
-        admin.from("recordings").select("id", { count: "exact", head: true })
-      ).eq(col, val);
-      return count || 0;
-    };
-    // Approved needs is_approved = true too, to match page logic
-    const { count: approvedCount } = await applyBase(
-      admin.from("recordings").select("id", { count: "exact", head: true })
+    const { count: totalRaw, error: totalError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true }));
+    if (totalError) throw totalError;
+    const total = totalRaw || 0;
+
+    const { count: cleanRaw, error: cleanError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true })).eq("quality_status", "clean");
+    if (cleanError) throw cleanError;
+    const cleanCount = cleanRaw || 0;
+
+    const { count: noisyRaw, error: noisyError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true })).eq("quality_status", "noisy");
+    if (noisyError) throw noisyError;
+    const noisyCount = noisyRaw || 0;
+
+    // ✅ APPROVED count - NULL-safe
+    const { count: approvedRaw, error: approvedError } = await applyNotCleanNoisy(
+      applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
     ).eq("status", "approved").eq("is_approved", true);
+    if (approvedError) throw approvedError;
+    const approvedCount = approvedRaw || 0;
 
-    const pendingCount = await countFor("status", "pending");
-    const rejectedCount = await countFor("status", "rejected");
-    const cleanCount = await countFor("quality_status", "clean");
-    const noisyCount = await countFor("quality_status", "noisy");
+    // ✅ REJECTED count - NULL-safe
+    const { count: rejectedRaw, error: rejectedError } = await applyNotCleanNoisy(
+      applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
+    ).eq("status", "rejected");
+    if (rejectedError) throw rejectedError;
+    const rejectedCount = rejectedRaw || 0;
 
-    // Counts respect the current filter for the list total
+    const pendingCount = Math.max(0, total - cleanCount - noisyCount - approvedCount - rejectedCount);
+
     let filteredTotal = total;
-    if (filter && filter !== "all") {
-      if (filter === "approved") filteredTotal = approvedCount || 0;
-      else if (filter === "pending") filteredTotal = pendingCount;
-      else if (filter === "rejected") filteredTotal = rejectedCount;
-      else if (filter === "clean") filteredTotal = cleanCount;
-      else if (filter === "noisy") filteredTotal = noisyCount;
-    } else if (workerId) {
-      const { count } = await applyBase(
-        admin.from("recordings").select("id", { count: "exact", head: true })
-      );
+    if (filter === "clean") filteredTotal = cleanCount;
+    else if (filter === "noisy") filteredTotal = noisyCount;
+    else if (filter === "approved") filteredTotal = approvedCount;
+    else if (filter === "rejected") filteredTotal = rejectedCount;
+    else if (filter === "pending") filteredTotal = pendingCount;
+    else if (status || qualityStatus) {
+      let countQuery = admin.from("recordings").select("id", { count: "exact", head: true });
+      countQuery = applyBase(countQuery);
+      if (status) countQuery = countQuery.eq("status", status);
+      if (qualityStatus) countQuery = countQuery.eq("quality_status", qualityStatus);
+      const { count, error } = await countQuery;
+      if (error) throw error;
       filteredTotal = count || 0;
     }
 
-    // ✅ PAGINATED LIST - only this page's 100
-    let query = admin
-      .from("recordings")
-      .select("*")
-      .or("hidden_from_review.is.null,hidden_from_review.eq.false")
-      .order("created_at", { ascending: false })
-      .range(from, to);
+    let recordingsQuery = admin.from("recordings").select("*").or("hidden_from_review.is.null,hidden_from_review.eq.false").order("created_at", { ascending: false });
+    if (workerId) recordingsQuery = recordingsQuery.eq("worker_id", workerId);
+    if (filter === "clean" || filter === "noisy") {
+      recordingsQuery = recordingsQuery.eq("quality_status", filter);
+    } else if (filter === "pending" || filter === "approved" || filter === "rejected") {
+      // ✅ NULL-safe here too - hidden filter AND quality filter both apply
+      recordingsQuery = applyNotCleanNoisy(recordingsQuery);
+      if (filter === "approved") recordingsQuery = recordingsQuery.eq("status", "approved").eq("is_approved", true);
+      else recordingsQuery = recordingsQuery.eq("status", filter);
+    } else {
+      if (status) recordingsQuery = recordingsQuery.eq("status", status);
+      if (qualityStatus) recordingsQuery = recordingsQuery.eq("quality_status", qualityStatus);
+    }
 
-    if (workerId) query = query.eq("worker_id", workerId);
-    if (filterStatus) query = query.eq("status", filterStatus);
-    if (filterQuality) query = query.eq("quality_status", filterQuality);
-    // Approved filter must also match is_approved like page does
-    if (filterStatus === "approved") query = query.eq("is_approved", true);
-
-    const { data, error } = await query;
+    const { data, error } = await recordingsQuery.range(from, to);
     if (error) throw error;
 
     const recordings = await Promise.all(
@@ -183,14 +176,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
-        counts: {
-          total,
-          pending: pendingCount,
-          clean: cleanCount,
-          noisy: noisyCount,
-          approved: approvedCount || 0,
-          rejected: rejectedCount,
-        },
+        counts: { total, pending: pendingCount, clean: cleanCount, noisy: noisyCount, approved: approvedCount, rejected: rejectedCount },
       },
       { headers: { "Cache-Control": "no-store, no-cache, must-revalidate", Pragma: "no-cache" } }
     );
@@ -203,70 +189,35 @@ export async function GET(request: NextRequest) {
 /* =========================================================
    POST - UNTOUCHED
    ========================================================= */
-
 export async function POST(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-    if (!admin) {
-      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
-    }
+    if (!admin) return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     const body = await request.json();
     const id = body.id;
     const qualityStatus = body.quality_status;
     if (qualityStatus !== undefined) {
-      if (!id || !["clean", "noisy"].includes(qualityStatus)) {
-        return NextResponse.json({ error: "A valid recording ID and quality status are required." }, { status: 400 });
-      }
-      if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-        return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
-      }
-      const { data: updatedRecording, error: updateError } = await admin
-        .from("recordings")
-        .update({ quality_status: qualityStatus })
-        .eq("id", id)
-        .select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid")
-        .single();
+      if (!id || !["clean", "noisy"].includes(qualityStatus)) return NextResponse.json({ error: "A valid recording ID and quality status are required." }, { status: 400 });
+      if (!/^[0-9a-fA-F-]{36}$/.test(id)) return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
+      const { data: updatedRecording, error: updateError } = await admin.from("recordings").update({ quality_status: qualityStatus }).eq("id", id).select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid").single();
       if (updateError) {
         console.error("Quality status update error:", updateError);
         return NextResponse.json({ error: "Could not save recording quality: " + updateError.message }, { status: 500 });
       }
-      return NextResponse.json({
-        success: true,
-        message: qualityStatus === "clean" ? "Recording marked CLEAN." : "Recording marked NOISY.",
-        recording: updatedRecording,
-      });
+      return NextResponse.json({ success: true, message: qualityStatus === "clean" ? "Recording marked CLEAN." : "Recording marked NOISY.", recording: updatedRecording });
     }
     const newStatus = body.status;
-    if (!id || !["approved", "rejected"].includes(newStatus)) {
-      return NextResponse.json({ error: "A valid recording ID and status are required." }, { status: 400 });
-    }
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
-    }
+    if (!id || !["approved", "rejected"].includes(newStatus)) return NextResponse.json({ error: "A valid recording ID and status are required." }, { status: 400 });
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
     const amount = 30;
-    const { data: rpcResult, error: rpcError } = await admin.rpc("approve_recording_atomic", {
-      p_recording_id: id,
-      p_new_status: newStatus,
-      p_earnings_amount: amount,
-    });
+    const { data: rpcResult, error: rpcError } = await admin.rpc("approve_recording_atomic", { p_recording_id: id, p_new_status: newStatus, p_earnings_amount: amount });
     if (rpcError) {
       console.error("Approve RPC error:", rpcError);
       return NextResponse.json({ error: "Approval failed: " + rpcError.message }, { status: 500 });
     }
-    if (!rpcResult?.success) {
-      return NextResponse.json({ error: rpcResult?.error || "Approval failed." }, { status: 500 });
-    }
-    const { data: updatedRecording } = await admin
-      .from("recordings")
-      .select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid")
-      .eq("id", id)
-      .single();
-    return NextResponse.json({
-      success: true,
-      message: rpcResult.message,
-      earnings_added: rpcResult.earnings_added,
-      recording: updatedRecording,
-    });
+    if (!rpcResult?.success) return NextResponse.json({ error: rpcResult?.error || "Approval failed." }, { status: 500 });
+    const { data: updatedRecording } = await admin.from("recordings").select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid").eq("id", id).single();
+    return NextResponse.json({ success: true, message: rpcResult.message, earnings_added: rpcResult.earnings_added, recording: updatedRecording });
   } catch (error: any) {
     console.error("Recording review error:", error);
     return NextResponse.json({ error: error.message || "Recording review failed." }, { status: 500 });
@@ -276,39 +227,20 @@ export async function POST(request: NextRequest) {
 /* =========================================================
    DELETE - UNTOUCHED - only hides from review
    ========================================================= */
-
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-    if (!admin) {
-      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
-    }
+    if (!admin) return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     const body = await request.json();
     const id = body.id;
-    if (!id) {
-      return NextResponse.json({ error: "A recording ID is required." }, { status: 400 });
-    }
-    if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
-    }
-    const { data: recording, error: findError } = await admin
-      .from("recordings")
-      .select("id, hidden_from_review")
-      .eq("id", id)
-      .maybeSingle();
+    if (!id) return NextResponse.json({ error: "A recording ID is required." }, { status: 400 });
+    if (!/^[0-9a-fA-F-]{36}$/.test(id)) return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
+    const { data: recording, error: findError } = await admin.from("recordings").select("id, hidden_from_review").eq("id", id).maybeSingle();
     if (findError) throw findError;
-    if (!recording) {
-      return NextResponse.json({ error: "Recording not found." }, { status: 404 });
-    }
-    const { error: updateError } = await admin
-      .from("recordings")
-      .update({ hidden_from_review: true })
-      .eq("id", id);
+    if (!recording) return NextResponse.json({ error: "Recording not found." }, { status: 404 });
+    const { error: updateError } = await admin.from("recordings").update({ hidden_from_review: true }).eq("id", id);
     if (updateError) throw updateError;
-    return NextResponse.json({
-      success: true,
-      message: "Recording removed from review. The voice/audio file is still safely stored.",
-    });
+    return NextResponse.json({ success: true, message: "Recording removed from review. The voice/audio file is still safely stored." });
   } catch (error: any) {
     console.error("Recording hide error:", error);
     return NextResponse.json({ error: error.message || "Could not remove recording from review." }, { status: 500 });
