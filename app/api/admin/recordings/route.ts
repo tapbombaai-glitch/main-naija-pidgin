@@ -92,33 +92,34 @@ export async function GET(request: NextRequest) {
       return result;
     };
 
-    // ✅ NEW - NO and() inside or()
-    const applyNotCleanNoisy = (query: any) =>
-      query.or("quality_status.is.null,quality_status.not.in.(clean,noisy)");
+    // ✅ CORRECTED: NULL-safe - explicitly includes status IS NULL
+    const applyNotApproved = (q: any) =>
+      q
+        .or("status.is.null,status.not.in.(approved,rejected)")
+        .or("is_approved.is.null,is_approved.eq.false");
+    const applyApproved = (q: any) => q.or("status.eq.approved,is_approved.eq.true");
+    const applyRejected = (q: any) => q.eq("status", "rejected").or("is_approved.is.null,is_approved.eq.false");
+    const applyNotCleanNoisy = (q: any) => q.or("quality_status.is.null,quality_status.not.in.(clean,noisy)");
 
     const { count: totalRaw, error: totalError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true }));
     if (totalError) throw totalError;
     const total = totalRaw || 0;
 
-    const { count: cleanRaw, error: cleanError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true })).eq("quality_status", "clean");
-    if (cleanError) throw cleanError;
-    const cleanCount = cleanRaw || 0;
-
-    const { count: noisyRaw, error: noisyError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true })).eq("quality_status", "noisy");
-    if (noisyError) throw noisyError;
-    const noisyCount = noisyRaw || 0;
-
-    const { count: approvedRaw, error: approvedError } = await applyNotCleanNoisy(
-      applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
-    ).eq("status", "approved").eq("is_approved", true);
+    const { count: approvedRaw, error: approvedError } = await applyApproved(applyBase(admin.from("recordings").select("id", { count: "exact", head: true })));
     if (approvedError) throw approvedError;
     const approvedCount = approvedRaw || 0;
 
-    const { count: rejectedRaw, error: rejectedError } = await applyNotCleanNoisy(
-      applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
-    ).eq("status", "rejected");
+    const { count: rejectedRaw, error: rejectedError } = await applyRejected(applyBase(admin.from("recordings").select("id", { count: "exact", head: true })));
     if (rejectedError) throw rejectedError;
     const rejectedCount = rejectedRaw || 0;
+
+    const { count: cleanRaw, error: cleanError } = await applyNotApproved(applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))).eq("quality_status", "clean");
+    if (cleanError) throw cleanError;
+    const cleanCount = cleanRaw || 0;
+
+    const { count: noisyRaw, error: noisyError } = await applyNotApproved(applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))).eq("quality_status", "noisy");
+    if (noisyError) throw noisyError;
+    const noisyCount = noisyRaw || 0;
 
     const pendingCount = Math.max(0, total - cleanCount - noisyCount - approvedCount - rejectedCount);
 
@@ -140,12 +141,17 @@ export async function GET(request: NextRequest) {
 
     let recordingsQuery = admin.from("recordings").select("*").or("hidden_from_review.is.null,hidden_from_review.eq.false").order("created_at", { ascending: false });
     if (workerId) recordingsQuery = recordingsQuery.eq("worker_id", workerId);
-    if (filter === "clean" || filter === "noisy") {
-      recordingsQuery = recordingsQuery.eq("quality_status", filter);
-    } else if (filter === "pending" || filter === "approved" || filter === "rejected") {
-      recordingsQuery = applyNotCleanNoisy(recordingsQuery);
-      if (filter === "approved") recordingsQuery = recordingsQuery.eq("status", "approved").eq("is_approved", true);
-      else recordingsQuery = recordingsQuery.eq("status", filter);
+
+    if (filter === "clean") {
+      recordingsQuery = applyNotApproved(recordingsQuery).eq("quality_status", "clean");
+    } else if (filter === "noisy") {
+      recordingsQuery = applyNotApproved(recordingsQuery).eq("quality_status", "noisy");
+    } else if (filter === "approved") {
+      recordingsQuery = applyApproved(recordingsQuery);
+    } else if (filter === "rejected") {
+      recordingsQuery = applyRejected(recordingsQuery);
+    } else if (filter === "pending") {
+      recordingsQuery = applyNotApproved(applyNotCleanNoisy(recordingsQuery));
     } else {
       if (status) recordingsQuery = recordingsQuery.eq("status", status);
       if (qualityStatus) recordingsQuery = recordingsQuery.eq("quality_status", qualityStatus);
