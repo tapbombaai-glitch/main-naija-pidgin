@@ -62,6 +62,11 @@ export default function AdminPage() {
   const [workingId, setWorkingId] = useState("");
   const [notice, setNotice] = useState("");
 
+  // ✅ PAGINATION - NEW
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
   // --- PAYMENTS (SELECT + PAY SELECTED) ---
   const [payWorkers, setPayWorkers] = useState<PayWorker[]>([]);
   const [payLoading, setPayLoading] = useState(false);
@@ -83,7 +88,7 @@ export default function AdminPage() {
           window.location.replace("/admin/login");
           return;
         }
-        await Promise.all([load(), loadAnn(), loadPayments()]);
+        await Promise.all([load(1), loadAnn(), loadPayments()]);
         if (active) setLoading(false);
       } catch (error) {
         if (active) {
@@ -96,12 +101,12 @@ export default function AdminPage() {
     return () => { active = false; };
   }, [supabase]);
 
-  async function load() {
+  async function load(pageToLoad = page) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (!token) { window.location.replace("/admin/login"); return; }
-      const response = await fetch("/api/chairman/list", {
+      const response = await fetch(`/api/chairman/list?page=${pageToLoad}`, {
         method: "GET",
         cache: "no-store",
         headers: { Authorization: `Bearer ${token}` },
@@ -110,6 +115,9 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(result.error || "Could not load recordings.");
       const list: Recording[] = result.recordings || [];
       setItems(list);
+      if (result.totalPages) setTotalPages(Number(result.totalPages));
+      if (typeof result.hasMore === "boolean") setHasMore(result.hasMore);
+      setPage(pageToLoad);
       if (result.stats) {
         setStats({
           total: Number(result.stats.total || 0),
@@ -137,7 +145,18 @@ export default function AdminPage() {
   async function loadPayments() {
     try {
       setPayLoading(true);
-      const { data: recs } = await supabase.from("recordings").select("worker_id, earnings, status, created_at, is_paid, audio_url, text").gte("created_at", CAMPAIGN_START_ISO);
+      // ✅ FIX: Fetch ALL recordings with pagination, no 1000 cap
+      let allRecs: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data: recsPage } = await supabase.from("recordings").select("worker_id, earnings, status, created_at, is_paid, audio_url, text").gte("created_at", CAMPAIGN_START_ISO).range(from, from + pageSize - 1);
+        if (!recsPage || recsPage.length === 0) break;
+        allRecs.push(...recsPage);
+        if (recsPage.length < pageSize) break;
+        from += pageSize;
+      }
+      const recs = allRecs;
       const { data: banks } = await supabase.from("worker_bank").select("*");
       const { data: pays } = await supabase.from("payment_history").select("*").order("paid_at", { ascending: false });
       const map: Record<string, PayWorker> = {};
@@ -162,7 +181,7 @@ export default function AdminPage() {
   async function refreshDashboard() {
     setRefreshing(true);
     setNotice("");
-    await Promise.all([load(), loadAnn(), loadPayments()]);
+    await Promise.all([load(page), loadAnn(), loadPayments()]);
     setRefreshing(false);
   }
 
@@ -182,7 +201,7 @@ export default function AdminPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not update recording.");
       setNotice(`Recording ${status} successfully.`);
-      await load();
+      await load(page);
       await loadPayments();
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Recording update failed.");
@@ -243,7 +262,7 @@ export default function AdminPage() {
       const failed = (j.results || []).filter((r: any) => !r.success);
       setNotice(`Done ✅ Paid: ${j.succeeded} / ${j.total} workers. ${failed.length ? "Failed (still unpaid, you fit retry): " + failed.map((f: any) => `${f.worker_id}: ${f.error}`).join(" | ") : "All selected paid. Their YOUR MONEY don turn ₦0."}`);
       setSelectedIds([]);
-      await Promise.all([loadPayments(), load()]);
+      await Promise.all([loadPayments(), load(page)]);
     } catch (e: any) {
       setNotice("❌ " + (e.message || "Bulk payment failed"));
     } finally { setBulkPaying(false); }
@@ -380,6 +399,16 @@ export default function AdminPage() {
               );
             })}
             {items.length === 0 && <div style={{ textAlign: "center", color: "#999", padding: 35 }}>No recordings found.</div>}
+
+            {/* ✅ PAGINATION — See all 2803 */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 18, marginBottom: 20 }}>
+              <button disabled={page <= 1} onClick={() => load(page - 1)} className="admin-button" style={{ flex: 1, padding: 12, background: page <= 1 ? "#333" : "#171717", color: page <= 1 ? "#888" : "#00E676", border: "1px solid #00E676", borderRadius: 9 }}>← Prev</button>
+              <div style={{ textAlign: "center", fontSize: 12, color: "#ccc", flex: 1 }}>
+                <strong style={{ color: "white" }}>Page {page} of {totalPages}</strong>
+                <div style={{ color: "#888", fontSize: 10, marginTop: 2 }}>Total: {stats.total} recordings</div>
+              </div>
+              <button disabled={!hasMore} onClick={() => load(page + 1)} className="admin-button" style={{ flex: 1, padding: 12, background: !hasMore ? "#333" : "#00E676", color: !hasMore ? "#888" : "black", border: 0, borderRadius: 9 }}>Next →</button>
+            </div>
           </section>
         )}
         {tab === "announce" && (
