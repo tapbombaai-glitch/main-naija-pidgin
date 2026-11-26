@@ -87,16 +87,16 @@ function getRecordingReward(
 ): { reward: number | null; error?: string } {
   const normalized = language.trim().toLowerCase();
 
-  // Main Naija Pidgin.
+  // Main Naija Pidgin - CHANGED TO 60 SECONDS FOR AI TRAINING
   if (
     normalized === "pidgin" ||
     normalized === "main_naija_pidgin"
   ) {
-    if (duration < 11 || duration > 15) {
+    if (duration < 60) {
       return {
         reward: null,
         error:
-          "Pidgin recordings must be between 11 and 15 seconds.",
+          "Pidgin recordings must be at least 60 seconds.",
       };
     }
 
