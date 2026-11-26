@@ -81,7 +81,6 @@ export default function RecordingsPage() {
       if (!response.ok) throw new Error(result.error || "Could not load recordings.");
       setRecordings(result.recordings || []);
       if (typeof result.total === "number") setTotal(result.total);
-      // ✅ FIX: if last page disappears after Remove, jump back to last valid page
       if (typeof result.totalPages === "number") {
         setPage((currentPage) => Math.min(currentPage, Math.max(1, result.totalPages)));
       }
@@ -154,7 +153,7 @@ export default function RecordingsPage() {
         body: JSON.stringify({ id }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Could not remove recording."));
+      if (!response.ok) throw new Error(result.error || "Could not remove recording.");
       setRecordings((current) => current.filter((r) => r.id !== id));
       setMessage(result.message || "Recording removed from review.");
       setMessageType("success");
