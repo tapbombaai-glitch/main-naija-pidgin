@@ -9,13 +9,19 @@ const supabase = createClient();
 type RecordingStatus = "pending" | "approved" | "rejected" | "clean" | "noisy";
 type Filter = "all" | "pending" | "clean" | "noisy" | "approved" | "rejected";
 
+// ✅ FIXED: Approved / Rejected first, then Clean / Noisy
 function getRecordingStatus(recording: any): RecordingStatus {
-  const qualityStatus = String(recording.quality_status || "").toLowerCase();
   const status = String(recording.status || "").toLowerCase();
+  const qualityStatus = String(recording.quality_status || "").toLowerCase();
+
+  if (status === "approved" || recording.is_approved === true) {
+    return "approved";
+  }
+  if (status === "rejected") {
+    return "rejected";
+  }
   if (qualityStatus === "noisy") return "noisy";
   if (qualityStatus === "clean") return "clean";
-  if (status === "approved" && recording.is_approved === true) return "approved";
-  if (status === "rejected") return "rejected";
   return "pending";
 }
 
@@ -239,8 +245,8 @@ export default function RecordingsPage() {
               <div style={{ marginTop: "12px", padding: "10px", background: "#0b120e", border: "1px solid #26372c", borderRadius: "10px" }}>
                 <div style={{ color: "#94a3b8", fontSize: "9px", fontWeight: 900, marginBottom: "8px", letterSpacing: "0.5px" }}>AUDIO QUALITY</div>
                 <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => handleQuality(recording.id, "clean")} disabled={busyId !== null} style={{ flex: 1, background: status === "clean" ? "#166534" : "#052e16", border: "1px solid #22c55e", color: "#86efac", padding: "10px 5px", borderRadius: "8px", fontSize: "10px", fontWeight: 900, opacity: busyId !== null ? 0.55 : 1 }}>✓ CLEAN</button>
-                  <button onClick={() => handleQuality(recording.id, "noisy")} disabled={busyId !== null} style={{ flex: 1, background: status === "noisy" ? "#c2410c" : "#431407", border: "1px solid #f97316", color: "#fdba74", padding: "10px 5px", borderRadius: "8px", fontSize: "10px", fontWeight: 900, opacity: busyId !== null ? 0.55 : 1 }}>⚠ NOISY</button>
+                  <button onClick={() => handleQuality(recording.id, "clean")} disabled={busyId !== null} style={{ flex: 1, background: recording.quality_status === "clean" ? "#166534" : "#052e16", border: "1px solid #22c55e", color: "#86efac", padding: "10px 5px", borderRadius: "8px", fontSize: "10px", fontWeight: 900, opacity: busyId !== null ? 0.55 : 1 }}>✓ CLEAN</button>
+                  <button onClick={() => handleQuality(recording.id, "noisy")} disabled={busyId !== null} style={{ flex: 1, background: recording.quality_status === "noisy" ? "#c2410c" : "#431407", border: "1px solid #f97316", color: "#fdba74", padding: "10px 5px", borderRadius: "8px", fontSize: "10px", fontWeight: 900, opacity: busyId !== null ? 0.55 : 1 }}>⚠ NOISY</button>
                 </div>
               </div>
               <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
