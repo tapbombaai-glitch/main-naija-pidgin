@@ -68,10 +68,6 @@ async function getRecordingAudioUrl(admin: ReturnType<typeof getAdminClient>, re
   return { signedUrl: data.signedUrl, audioError: null };
 }
 
-/* =========================================================
-   GET - FINAL FIXED: NULL quality_status INCLUDED
-   Priority: CLEAN/NOISY -> APPROVED/REJECTED/PENDING
-   ========================================================= */
 export async function GET(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
@@ -96,10 +92,9 @@ export async function GET(request: NextRequest) {
       return result;
     };
 
-    // ✅ NULL-SAFE: quality IS NULL OR (not clean AND not noisy)
-    // This keeps unclassified recordings visible in APPROVED/REJECTED/PENDING
+    // ✅ NEW - NO and() inside or()
     const applyNotCleanNoisy = (query: any) =>
-      query.or("quality_status.is.null,and(quality_status.neq.clean,quality_status.neq.noisy)");
+      query.or("quality_status.is.null,quality_status.not.in.(clean,noisy)");
 
     const { count: totalRaw, error: totalError } = await applyBase(admin.from("recordings").select("id", { count: "exact", head: true }));
     if (totalError) throw totalError;
@@ -113,14 +108,12 @@ export async function GET(request: NextRequest) {
     if (noisyError) throw noisyError;
     const noisyCount = noisyRaw || 0;
 
-    // ✅ APPROVED count - NULL-safe
     const { count: approvedRaw, error: approvedError } = await applyNotCleanNoisy(
       applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
     ).eq("status", "approved").eq("is_approved", true);
     if (approvedError) throw approvedError;
     const approvedCount = approvedRaw || 0;
 
-    // ✅ REJECTED count - NULL-safe
     const { count: rejectedRaw, error: rejectedError } = await applyNotCleanNoisy(
       applyBase(admin.from("recordings").select("id", { count: "exact", head: true }))
     ).eq("status", "rejected");
@@ -150,7 +143,6 @@ export async function GET(request: NextRequest) {
     if (filter === "clean" || filter === "noisy") {
       recordingsQuery = recordingsQuery.eq("quality_status", filter);
     } else if (filter === "pending" || filter === "approved" || filter === "rejected") {
-      // ✅ NULL-safe here too - hidden filter AND quality filter both apply
       recordingsQuery = applyNotCleanNoisy(recordingsQuery);
       if (filter === "approved") recordingsQuery = recordingsQuery.eq("status", "approved").eq("is_approved", true);
       else recordingsQuery = recordingsQuery.eq("status", filter);
@@ -186,9 +178,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/* =========================================================
-   POST - UNTOUCHED
-   ========================================================= */
 export async function POST(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
@@ -224,9 +213,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/* =========================================================
-   DELETE - UNTOUCHED - only hides from review
-   ========================================================= */
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
