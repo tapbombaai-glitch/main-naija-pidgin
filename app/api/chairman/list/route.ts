@@ -39,14 +39,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Chairman profile verification failed" }, { status: 403 });
     }
 
+    // ✅ ADJUSTED: Page system, no more 100 lock
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const pageSize = 100;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     // TRUE COUNTS - no download, no 1000 cap. Pending = total - approved - rejected
-    // Safe because no row is both approved and rejected - verify with:
-    // SELECT COUNT(*) FROM recordings WHERE is_approved = true AND status = 'rejected'; -- must be 0
     const [totalResult, approvedResult, rejectedResult, recordingsResult] = await Promise.all([
       supabaseAdmin.from("recordings").select("*", { count: "exact", head: true }),
       supabaseAdmin.from("recordings").select("*", { count: "exact", head: true }).or("status.eq.approved,is_approved.eq.true"),
       supabaseAdmin.from("recordings").select("*", { count: "exact", head: true }).eq("status", "rejected"),
-      supabaseAdmin.from("recordings").select("*").order("created_at", { ascending: false }).limit(100),
+      supabaseAdmin.from("recordings").select("*").order("created_at", { ascending: false }).range(from, to),
     ]);
 
     const errors = [totalResult.error, approvedResult.error, rejectedResult.error, recordingsResult.error].filter(Boolean);
@@ -64,6 +69,10 @@ export async function GET(req: NextRequest) {
       {
         stats: { total, approved, rejected, pending },
         recordings: recordingsResult.data || [],
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+        hasMore: page < Math.ceil(total / pageSize),
       },
       { headers: { "Cache-Control": "private, no-store, max-age=0" } }
     );
