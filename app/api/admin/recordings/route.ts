@@ -11,67 +11,34 @@ const SIGNED_URL_EXPIRY = 600;
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
   if (!url || !serviceKey) {
     throw new Error("Supabase server configuration is missing.");
   }
-
   return createClient(url, serviceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 }
 
 async function verifyChairman(request: NextRequest) {
   const authorization = request.headers.get("authorization");
-
-  if (!authorization?.startsWith("Bearer ")) {
-    return null;
-  }
-
+  if (!authorization?.startsWith("Bearer ")) return null;
   const token = authorization.slice(7);
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    return null;
-  }
-
+  if (!url || !anonKey) return null;
   const authClient = createClient(url, anonKey, {
-    global: {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    },
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { autoRefreshToken: false, persistSession: false },
   });
-
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser(token);
-
-  if (error || !user || user.email !== CHAIRMAN_EMAIL) {
-    return null;
-  }
-
+  const { data: { user }, error } = await authClient.auth.getUser(token);
+  if (error || !user || user.email !== CHAIRMAN_EMAIL) return null;
   const admin = getAdminClient();
-
   const { data: profile, error: profileError } = await admin
     .from("profiles")
     .select("is_chairman")
     .eq("id", user.id)
     .maybeSingle();
-
-  if (profileError || profile?.is_chairman !== true) {
-    return null;
-  }
-
+  if (profileError || profile?.is_chairman !== true) return null;
   return admin;
 }
 
@@ -79,381 +46,221 @@ function getStorageFile(audioUrl: string, supabaseUrl: string) {
   try {
     const fileUrl = new URL(audioUrl);
     const configuredUrl = new URL(supabaseUrl);
-
-    if (fileUrl.origin !== configuredUrl.origin) {
-      return null;
-    }
-
-    const match = fileUrl.pathname.match(
-      /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
-    );
-
-    if (!match) {
-      return null;
-    }
-
+    if (fileUrl.origin !== configuredUrl.origin) return null;
+    const match = fileUrl.pathname.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/);
+    if (!match) return null;
     const bucket = decodeURIComponent(match[1]);
     const path = decodeURIComponent(match[2]);
-
-    if (!["voice-clips", "voices"].includes(bucket)) {
-      return null;
-    }
-
-    if (!path || path.includes("..")) {
-      return null;
-    }
-
-    return {
-      bucket,
-      path,
-    };
-  } catch {
-    return null;
-  }
+    if (!["voice-clips", "voices"].includes(bucket)) return null;
+    if (!path || path.includes("..")) return null;
+    return { bucket, path };
+  } catch { return null; }
 }
 
-// ✅ FIXED 1: audio_path now uses voice-clips (confirmed location)
-async function getRecordingAudioUrl(
-  admin: ReturnType<typeof getAdminClient>,
-  recording: any
-) {
+async function getRecordingAudioUrl(admin: ReturnType<typeof getAdminClient>, recording: any) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-  if (!supabaseUrl) {
-    return {
-      signedUrl: null,
-      audioError: "Supabase URL is missing.",
-    };
-  }
-
+  if (!supabaseUrl) return { signedUrl: null, audioError: "Supabase URL is missing." };
   let bucket: string | null = null;
   let path: string | null = null;
-
-  // First, use the exact bucket and path
-  // contained in audio_url, when available.
   if (recording.audio_url) {
-    const storageFile = getStorageFile(
-      recording.audio_url,
-      supabaseUrl
-    );
-
-    if (storageFile) {
-      bucket = storageFile.bucket;
-      path = storageFile.path;
-    }
+    const storageFile = getStorageFile(recording.audio_url, supabaseUrl);
+    if (storageFile) { bucket = storageFile.bucket; path = storageFile.path; }
   }
-
-  // Older Pidgin recordings may have only audio_path.
-  // We have confirmed these files are in voice-clips.
-  if (!path && recording.audio_path) {
-    bucket = "voice-clips";
-    path = recording.audio_path;
-  }
-
-  if (!bucket || !path) {
-    return {
-      signedUrl: null,
-      audioError: "No valid audio storage path was found.",
-    };
-  }
-
-  const { data, error } = await admin.storage
-    .from(bucket)
-    .createSignedUrl(path, SIGNED_URL_EXPIRY);
-
+  if (!path && recording.audio_path) { bucket = "voice-clips"; path = recording.audio_path; }
+  if (!bucket || !path) return { signedUrl: null, audioError: "No valid audio storage path was found." };
+  const { data, error } = await admin.storage.from(bucket).createSignedUrl(path, SIGNED_URL_EXPIRY);
   if (error || !data?.signedUrl) {
-    console.error("Audio signing failed:", {
-      recordingId: recording.id,
-      bucket,
-      path,
-      error,
-    });
-
-    return {
-      signedUrl: null,
-      audioError: "Could not create a playback link.",
-    };
+    console.error("Audio signing failed:", { recordingId: recording.id, bucket, path, error });
+    return { signedUrl: null, audioError: "Could not create a playback link." };
   }
-
-  return {
-    signedUrl: data.signedUrl,
-    audioError: null,
-  };
+  return { signedUrl: data.signedUrl, audioError: null };
 }
 
 /* =========================================================
-   GET
+   GET - FIXED: PAGINATION + REAL TOTAL + REAL COUNTS
    ========================================================= */
 
 export async function GET(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-
     if (!admin) {
-      return NextResponse.json(
-        {
-          error: "Chairman access required.",
-        },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
-
     const workerId = searchParams.get("worker_id");
     const status = searchParams.get("status");
     const qualityStatus = searchParams.get("quality_status");
+    const filter = searchParams.get("filter"); // from new page.tsx: all | pending | clean | noisy | approved | rejected
 
-    const limit = Math.min(
-      Math.max(Number(searchParams.get("limit") || 100), 1),
-      100
+    // ✅ FIXED: page + limit, 100 per page
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const limit = Math.min(Math.max(Number(searchParams.get("limit") || 100), 1), 100);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // Map filter -> status / quality_status
+    let filterStatus: string | null = status;
+    let filterQuality: string | null = qualityStatus;
+    if (filter && filter !== "all") {
+      if (filter === "clean" || filter === "noisy") filterQuality = filter;
+      else if (filter === "pending" || filter === "approved" || filter === "rejected") filterStatus = filter;
+    }
+
+    // Helper to apply same base filters for counts + list
+    const applyBase = (q: any) => {
+      let query = q.or("hidden_from_review.is.null,hidden_from_review.eq.false");
+      if (workerId) query = query.eq("worker_id", workerId);
+      return query;
+    };
+
+    // ✅ REAL TOTAL COUNTS - from full database, not just 100
+    const { count: totalCount } = await applyBase(
+      admin.from("recordings").select("id", { count: "exact", head: true })
     );
+    const total = totalCount || 0;
 
+    // Counts per status (for TOTAL / PENDING / APPROVED / REJECTED boxes)
+    const countFor = async (col: string, val: string) => {
+      const { count } = await applyBase(
+        admin.from("recordings").select("id", { count: "exact", head: true })
+      ).eq(col, val);
+      return count || 0;
+    };
+    // Approved needs is_approved = true too, to match page logic
+    const { count: approvedCount } = await applyBase(
+      admin.from("recordings").select("id", { count: "exact", head: true })
+    ).eq("status", "approved").eq("is_approved", true);
+
+    const pendingCount = await countFor("status", "pending");
+    const rejectedCount = await countFor("status", "rejected");
+    const cleanCount = await countFor("quality_status", "clean");
+    const noisyCount = await countFor("quality_status", "noisy");
+
+    // Counts respect the current filter for the list total
+    let filteredTotal = total;
+    if (filter && filter !== "all") {
+      if (filter === "approved") filteredTotal = approvedCount || 0;
+      else if (filter === "pending") filteredTotal = pendingCount;
+      else if (filter === "rejected") filteredTotal = rejectedCount;
+      else if (filter === "clean") filteredTotal = cleanCount;
+      else if (filter === "noisy") filteredTotal = noisyCount;
+    } else if (workerId) {
+      const { count } = await applyBase(
+        admin.from("recordings").select("id", { count: "exact", head: true })
+      );
+      filteredTotal = count || 0;
+    }
+
+    // ✅ PAGINATED LIST - only this page's 100
     let query = admin
       .from("recordings")
       .select("*")
-      // ✅ FIXED 2: allow NULL hidden_from_review (older recordings)
       .or("hidden_from_review.is.null,hidden_from_review.eq.false")
-      .order("created_at", {
-        ascending: false,
-      })
-      .limit(limit);
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
-    if (workerId) {
-      query = query.eq("worker_id", workerId);
-    }
-
-    if (status) {
-      query = query.eq("status", status);
-    }
-
-    if (qualityStatus) {
-      query = query.eq("quality_status", qualityStatus);
-    }
+    if (workerId) query = query.eq("worker_id", workerId);
+    if (filterStatus) query = query.eq("status", filterStatus);
+    if (filterQuality) query = query.eq("quality_status", filterQuality);
+    // Approved filter must also match is_approved like page does
+    if (filterStatus === "approved") query = query.eq("is_approved", true);
 
     const { data, error } = await query;
-
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const recordings = await Promise.all(
       (data || []).map(async (recording) => {
         const audio = await getRecordingAudioUrl(admin, recording);
-
-        return {
-          ...recording,
-          signedUrl: audio.signedUrl,
-          audioError: audio.audioError,
-        };
+        return { ...recording, signedUrl: audio.signedUrl, audioError: audio.audioError };
       })
     );
 
     return NextResponse.json(
       {
         recordings,
-      },
-      {
-        headers: {
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-          Pragma: "no-cache",
+        total: filteredTotal,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
+        counts: {
+          total,
+          pending: pendingCount,
+          clean: cleanCount,
+          noisy: noisyCount,
+          approved: approvedCount || 0,
+          rejected: rejectedCount,
         },
-      }
+      },
+      { headers: { "Cache-Control": "no-store, no-cache, must-revalidate", Pragma: "no-cache" } }
     );
   } catch (error: any) {
     console.error("Could not load recordings:", error);
-
-    return NextResponse.json(
-      {
-        error: error.message || "Could not load recordings.",
-      },
-      {
-        status: 500,
-      }
-    );
+    return NextResponse.json({ error: error.message || "Could not load recordings." }, { status: 500 });
   }
 }
 
 /* =========================================================
-   POST
+   POST - UNTOUCHED
    ========================================================= */
 
 export async function POST(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-
     if (!admin) {
-      return NextResponse.json(
-        {
-          error: "Chairman access required.",
-        },
-        {
-          status: 403,
-        }
-      );
+      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     }
-
     const body = await request.json();
     const id = body.id;
-
-    /*
-     * -------------------------------------------------------
-     * QUALITY UPDATE
-     * -------------------------------------------------------
-     *
-     * CLEAN / NOISY is independent of the
-     * final APPROVED / REJECTED decision.
-     *
-     * It does NOT:
-     * - pay the worker
-     * - change earnings
-     * - approve the recording
-     * - reject the recording
-     * - delete the recording
-     * - delete the audio
-     */
-
     const qualityStatus = body.quality_status;
-
     if (qualityStatus !== undefined) {
       if (!id || !["clean", "noisy"].includes(qualityStatus)) {
-        return NextResponse.json(
-          {
-            error: "A valid recording ID and quality status are required.",
-          },
-          {
-            status: 400,
-          }
-        );
+        return NextResponse.json({ error: "A valid recording ID and quality status are required." }, { status: 400 });
       }
-
       if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-        return NextResponse.json(
-          {
-            error: "Invalid recording ID.",
-          },
-          {
-            status: 400,
-          }
-        );
+        return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
       }
-
-      const {
-        data: updatedRecording,
-        error: updateError,
-      } = await admin
+      const { data: updatedRecording, error: updateError } = await admin
         .from("recordings")
-        .update({
-          quality_status: qualityStatus,
-        })
+        .update({ quality_status: qualityStatus })
         .eq("id", id)
-        .select(
-          "id, worker_id, status, is_approved, quality_status, earnings, earnings_paid"
-        )
+        .select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid")
         .single();
-
       if (updateError) {
         console.error("Quality status update error:", updateError);
-
-        return NextResponse.json(
-          {
-            error:
-              "Could not save recording quality: " + updateError.message,
-          },
-          {
-            status: 500,
-          }
-        );
+        return NextResponse.json({ error: "Could not save recording quality: " + updateError.message }, { status: 500 });
       }
-
       return NextResponse.json({
         success: true,
-        message:
-          qualityStatus === "clean"
-            ? "Recording marked CLEAN."
-            : "Recording marked NOISY.",
+        message: qualityStatus === "clean" ? "Recording marked CLEAN." : "Recording marked NOISY.",
         recording: updatedRecording,
       });
     }
-
-    /*
-     * -------------------------------------------------------
-     * FINAL APPROVAL / REJECTION
-     * -------------------------------------------------------
-     *
-     * Existing approval RPC remains untouched.
-     * This protects your current earnings/payment logic.
-     */
-
     const newStatus = body.status;
-
     if (!id || !["approved", "rejected"].includes(newStatus)) {
-      return NextResponse.json(
-        {
-          error: "A valid recording ID and status are required.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return NextResponse.json({ error: "A valid recording ID and status are required." }, { status: 400 });
     }
-
     if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return NextResponse.json(
-        {
-          error: "Invalid recording ID.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
     }
-
-    // ⚠️ LEFT UNTOUCHED FOR NOW - to be fixed separately after RPC check
-    // Pidgin = ₦20, Nigerian English = ₦30
     const amount = 30;
-
-    const { data: rpcResult, error: rpcError } = await admin.rpc(
-      "approve_recording_atomic",
-      {
-        p_recording_id: id,
-        p_new_status: newStatus,
-        p_earnings_amount: amount,
-      }
-    );
-
+    const { data: rpcResult, error: rpcError } = await admin.rpc("approve_recording_atomic", {
+      p_recording_id: id,
+      p_new_status: newStatus,
+      p_earnings_amount: amount,
+    });
     if (rpcError) {
       console.error("Approve RPC error:", rpcError);
-
-      return NextResponse.json(
-        {
-          error: "Approval failed: " + rpcError.message,
-        },
-        {
-          status: 500,
-        }
-      );
+      return NextResponse.json({ error: "Approval failed: " + rpcError.message }, { status: 500 });
     }
-
     if (!rpcResult?.success) {
-      return NextResponse.json(
-        {
-          error: rpcResult?.error || "Approval failed.",
-        },
-        {
-          status: 500,
-        }
-      );
+      return NextResponse.json({ error: rpcResult?.error || "Approval failed." }, { status: 500 });
     }
-
     const { data: updatedRecording } = await admin
       .from("recordings")
-      .select(
-        "id, worker_id, status, is_approved, quality_status, earnings, earnings_paid"
-      )
+      .select("id, worker_id, status, is_approved, quality_status, earnings, earnings_paid")
       .eq("id", id)
       .single();
-
     return NextResponse.json({
       success: true,
       message: rpcResult.message,
@@ -462,120 +269,48 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("Recording review error:", error);
-
-    return NextResponse.json(
-      {
-        error: error.message || "Recording review failed.",
-      },
-      {
-        status: 500,
-      }
-    );
+    return NextResponse.json({ error: error.message || "Recording review failed." }, { status: 500 });
   }
 }
 
 /* =========================================================
-   DELETE
-
- *
- * DELETE only hides the recording from
- * the Chairman review screen.
- *
- * It does NOT:
- * - delete the database row
- * - delete the audio
- * - change earnings
- * - change approval history
- * - remove worker payment history
- */
+   DELETE - UNTOUCHED - only hides from review
+   ========================================================= */
 
 export async function DELETE(request: NextRequest) {
   try {
     const admin = await verifyChairman(request);
-
     if (!admin) {
-      return NextResponse.json(
-        {
-          error: "Chairman access required.",
-        },
-        {
-          status: 403,
-        }
-      );
+      return NextResponse.json({ error: "Chairman access required." }, { status: 403 });
     }
-
     const body = await request.json();
     const id = body.id;
-
     if (!id) {
-      return NextResponse.json(
-        {
-          error: "A recording ID is required.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return NextResponse.json({ error: "A recording ID is required." }, { status: 400 });
     }
-
     if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
-      return NextResponse.json(
-        {
-          error: "Invalid recording ID.",
-        },
-        {
-          status: 400,
-        }
-      );
+      return NextResponse.json({ error: "Invalid recording ID." }, { status: 400 });
     }
-
     const { data: recording, error: findError } = await admin
       .from("recordings")
       .select("id, hidden_from_review")
       .eq("id", id)
       .maybeSingle();
-
-    if (findError) {
-      throw findError;
-    }
-
+    if (findError) throw findError;
     if (!recording) {
-      return NextResponse.json(
-        {
-          error: "Recording not found.",
-        },
-        {
-          status: 404,
-        }
-      );
+      return NextResponse.json({ error: "Recording not found." }, { status: 404 });
     }
-
     const { error: updateError } = await admin
       .from("recordings")
-      .update({
-        hidden_from_review: true,
-      })
+      .update({ hidden_from_review: true })
       .eq("id", id);
-
-    if (updateError) {
-      throw updateError;
-    }
-
+    if (updateError) throw updateError;
     return NextResponse.json({
       success: true,
-      message:
-        "Recording removed from review. The voice/audio file is still safely stored.",
+      message: "Recording removed from review. The voice/audio file is still safely stored.",
     });
   } catch (error: any) {
     console.error("Recording hide error:", error);
-
-    return NextResponse.json(
-      {
-        error: error.message || "Could not remove recording from review.",
-      },
-      {
-        status: 500,
-      }
-    );
+    return NextResponse.json({ error: error.message || "Could not remove recording from review." }, { status: 500 });
   }
 }
