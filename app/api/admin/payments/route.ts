@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHAIRMAN_EMAIL = "tapbomba.ai@gmail.com";
-// MINIMUM_PAYOUT deleted - no more ₦5,000 restriction, no unused constant
+const MINIMUM_PAYOUT = 5000;
 
 // >>> YOUR RATE - CHANGE ONLY HERE IF NA ₦30 <<<
 const RATE_PER_APPROVED_RECORDING = 20;
@@ -50,6 +50,7 @@ async function getChairman(request: NextRequest) {
   }
 }
 
+// Fetch ALL rows - no 1000 limit, so every worker shows
 async function fetchAll(admin: any, table: string, select: string, filters?: (q: any) => any) {
   const all: any[] = [];
   let from = 0;
@@ -75,7 +76,7 @@ function calcApproved(recordings: any[]) {
     const cur = map.get(r.worker_id) || { count: 0, total: 0 };
     cur.count += 1;
     if (Number.isFinite(earnings) && earnings > 0) cur.total += earnings;
-    else cur.total += RATE_PER_APPROVED_RECORDING;
+    else cur.total += RATE_PER_APPROVED_RECORDING; // FIX for ₦0: use count x rate
     map.set(r.worker_id, cur);
   }
   return map;
@@ -90,7 +91,10 @@ export async function GET(request: NextRequest) {
     const workers = await fetchAll(admin, "workers", "worker_id, full_name, bank_name, account_number, account_name");
     const recordings = await fetchAll(admin, "recordings", "worker_id, earnings, is_approved", (q) => q.eq("is_approved", true));
     const payments = await fetchAll(admin, "payments", "id, worker_id, amount, payment_reference, payment_method, notes, paid_by, paid_at");
+
+    // Sort payments newest first
     payments.sort((a, b) => new Date(b.paid_at || 0).getTime() - new Date(a.paid_at || 0).getTime());
+
     const workerMap = new Map<string, any>();
     for (const w of workerProfiles || []) {
       if (!w.worker_id) continue;
@@ -101,7 +105,9 @@ export async function GET(request: NextRequest) {
       const existing = workerMap.get(w.worker_id);
       workerMap.set(w.worker_id, { worker_id: w.worker_id, full_name: existing?.full_name || w.full_name || "", email: existing?.email || "", state: existing?.state || "", city: existing?.city || "", bank_name: w.bank_name || "", account_number: w.account_number || "", account_name: w.account_name || "" });
     }
+
     const approvedMap = calcApproved(recordings);
+
     const paidByWorker = new Map<string, number>();
     for (const p of payments || []) {
       if (!p.worker_id) continue;
@@ -109,7 +115,10 @@ export async function GET(request: NextRequest) {
       if (!Number.isFinite(amount) || amount <= 0) continue;
       paidByWorker.set(p.worker_id, (paidByWorker.get(p.worker_id) || 0) + amount);
     }
+
+    // INCLUDE EVERY WORKER - no filtering
     const workerIds = new Set<string>([...workerMap.keys(), ...approvedMap.keys(), ...paidByWorker.keys()]);
+
     const workerResults = Array.from(workerIds).map((workerId) => {
       const worker = workerMap.get(workerId) || { worker_id: workerId, full_name: "", email: "", state: "", city: "", bank_name: "", account_number: "", account_name: "" };
       const approvedInfo = approvedMap.get(workerId) || { count: 0, total: 0 };
@@ -128,15 +137,20 @@ export async function GET(request: NextRequest) {
         amount_paid: paid,
         outstanding,
         unpaid_amount: outstanding,
-        minimum_payout: 0,
-        eligible: outstanding > 0,
+        minimum_payout: MINIMUM_PAYOUT,
+        eligible: outstanding >= MINIMUM_PAYOUT,
       };
     });
+
+    // Show biggest outstanding first so you see everybody with money at top
     workerResults.sort((a, b) => b.outstanding - a.outstanding || b.approved_count - a.approved_count);
+
     const paymentHistory = (payments || []).map((payment: any) => ({ id: payment.id, worker_id: payment.worker_id, amount: Number(payment.amount || 0), payment_reference: payment.payment_reference || "", payment_method: payment.payment_method || "", notes: payment.notes || "", paid_by: payment.paid_by || "", paid_at: payment.paid_at || null, status: "Recorded" }));
+
     const totalApproved = workerResults.reduce((s, w) => s + w.approved_earnings, 0);
     const totalPaid = workerResults.reduce((s, w) => s + w.amount_paid, 0);
     const totalOutstanding = Math.max(totalApproved - totalPaid, 0);
+
     return NextResponse.json({ success: true, workers: workerResults, payments: paymentHistory, overview: { total_earnings: totalApproved, total_paid: totalPaid, total_outstanding: totalOutstanding } });
   } catch (error) {
     console.error("GET /api/admin/payments failed:", error);
@@ -158,34 +172,31 @@ export async function POST(request: NextRequest) {
     if (!workerId) return NextResponse.json({ error: "worker_id is required" }, { status: 400 });
     if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: "A valid payment amount is required" }, { status: 400 });
     if (!paymentReference) return NextResponse.json({ error: "Bank transfer reference is required" }, { status: 400 });
+
     const { data: worker, error: workerError } = await admin.from("workers").select("worker_id").eq("worker_id", workerId).maybeSingle();
     if (workerError) return NextResponse.json({ error: "Could not verify worker" }, { status: 500 });
     if (!worker) return NextResponse.json({ error: "Worker account not found" }, { status: 404 });
-    let approvedRecordings: any[];
-    try {
-      approvedRecordings = await fetchAll(admin, "recordings", "earnings", (q) => q.eq("worker_id", workerId).eq("is_approved", true));
-    } catch (error) {
-      console.error("Could not fetch approved recordings:", error);
-      return NextResponse.json({ error: "Could not verify worker earnings" }, { status: 500 });
-    }
+
+    const { data: approvedRecordings, error: recordingsError } = await admin.from("recordings").select("earnings").eq("worker_id", workerId).eq("is_approved", true);
+    if (recordingsError) return NextResponse.json({ error: "Could not verify worker earnings" }, { status: 500 });
     const approvedTotal = (approvedRecordings || []).reduce((sum, r: any) => {
       const earnings = Number(r.earnings || 0);
       if (Number.isFinite(earnings) && earnings > 0) return sum + earnings;
       return sum + RATE_PER_APPROVED_RECORDING;
     }, 0);
-    let previousPayments: any[];
-    try {
-      previousPayments = await fetchAll(admin, "payments", "amount", (q) => q.eq("worker_id", workerId));
-    } catch (error) {
-      console.error("Could not fetch previous payments:", error);
-      return NextResponse.json({ error: "Could not verify previous payments" }, { status: 500 });
-    }
+
+    const { data: previousPayments, error: previousPaymentsError } = await admin.from("payments").select("amount").eq("worker_id", workerId);
+    if (previousPaymentsError) return NextResponse.json({ error: "Could not verify previous payments" }, { status: 500 });
     const paidTotal = (previousPayments || []).reduce((sum, p: any) => { const v = Number(p.amount || 0); if (!Number.isFinite(v) || v <= 0) return sum; return sum + v; }, 0);
     const outstanding = Math.max(approvedTotal - paidTotal, 0);
+
+    if (outstanding < MINIMUM_PAYOUT) return NextResponse.json({ error: "Worker is below the ₦5,000 minimum payout.", approved_earnings: approvedTotal, already_paid: paidTotal, outstanding, minimum_payout: MINIMUM_PAYOUT }, { status: 400 });
     if (amount > outstanding) return NextResponse.json({ error: "Payment amount is greater than the worker's outstanding balance.", approved_earnings: approvedTotal, already_paid: paidTotal, outstanding, requested_payment: amount }, { status: 400 });
+
     const { data: duplicate, error: duplicateError } = await admin.from("payments").select("id").eq("payment_reference", paymentReference).maybeSingle();
     if (duplicateError) return NextResponse.json({ error: "Could not verify payment reference. Payment was not recorded." }, { status: 500 });
     if (duplicate) return NextResponse.json({ error: "This bank transfer reference has already been recorded." }, { status: 409 });
+
     const { data: payment, error: insertError } = await admin.from("payments").insert({ worker_id: workerId, amount, payment_reference: paymentReference, payment_method: paymentMethod, notes, paid_by: user.email || CHAIRMAN_EMAIL, paid_at: new Date().toISOString() }).select("id, worker_id, amount, payment_reference, payment_method, notes, paid_by, paid_at").single();
     if (insertError) {
       if (insertError.code === "23505") return NextResponse.json({ error: "This bank transfer reference has already been recorded." }, { status: 409 });
