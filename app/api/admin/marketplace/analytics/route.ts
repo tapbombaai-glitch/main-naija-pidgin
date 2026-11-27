@@ -125,12 +125,20 @@ export async function GET(request: NextRequest) {
       "visitor_id,event_type,package_id,created_at"
     );
 
-    // 5. Read verified successful payments only
-    const payments = await getAllRows(
+    // 5. Read payment records
+    const allPayments = await getAllRows(
       "api_payments",
-      "package_id,amount,payment_status,paid_at,created_at",
-      [{ column: "payment_status", value: "successful" }]
+      "package_id,amount,payment_status,paid_at,created_at"
     );
+
+    // Count both completed-payment status formats.
+    const payments = allPayments.filter((payment) => {
+      const status = String(payment.payment_status || "")
+        .trim()
+        .toLowerCase();
+
+      return status === "successful" || status === "success";
+    });
 
     const now = new Date();
     const today = lagosDate(now);
