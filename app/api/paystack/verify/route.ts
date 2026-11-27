@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const PACKAGES: Record<string, { name: string; credits: number; amount: number }> = {
+const PACKAGES: Record<
+  string,
+  { name: string; credits: number; amount: number }
+> = {
   starter: { name: "Starter", credits: 5000, amount: 1500 },
   basic: { name: "Basic", credits: 10000, amount: 3000 },
   standard: { name: "Standard", credits: 20000, amount: 6000 },
@@ -13,158 +15,241 @@ const PACKAGES: Record<string, { name: string; credits: number; amount: number }
   premium: { name: "Premium", credits: 100000, amount: 30000 },
 };
 
-function redirectToMarketplace(request: NextRequest, params: Record<string, string>) {
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://main-naija-pidgin.onrender.com").replace(/\/+$/, "");
+function redirectToMarketplace(
+  request: NextRequest,
+  params: Record<string, string>
+) {
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://main-naija-pidgin.onrender.com"
+  ).replace(/\/+$/, "");
+
   const url = new URL("/marketplace", baseUrl);
+
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
-  return NextResponse.redirect(url);
-}
 
-function generateApiKey() {
-  return `np_${crypto.randomBytes(24).toString("hex")}`;
+  return NextResponse.redirect(url);
 }
 
 export async function GET(request: NextRequest) {
   const secret = process.env.PAYSTACK_SECRET_KEY;
-  if (!secret) return redirectToMarketplace(request, { error: "payment_configuration" });
+
+  if (!secret) {
+    return redirectToMarketplace(request, {
+      error: "payment_configuration",
+    });
+  }
 
   const reference = request.nextUrl.searchParams.get("reference");
-  if (!reference) return redirectToMarketplace(request, { error: "missing_reference" });
+
+  if (!reference) {
+    return redirectToMarketplace(request, {
+      error: "missing_reference",
+    });
+  }
 
   try {
+    // STEP 1: Verify the transaction directly with Paystack.
     const verifyResponse = await fetch(
-      `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
-      { method: "GET", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, cache: "no-store" }
+      `https://api.paystack.co/transaction/verify/${encodeURIComponent(
+        reference
+      )}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
     );
+
     const verification: any = await verifyResponse.json();
-    if (!verifyResponse.ok || !verification.status || verification.data?.status !== "success") {
-      return redirectToMarketplace(request, { error: "payment_verification_failed" });
+
+    if (
+      !verifyResponse.ok ||
+      !verification.status ||
+      verification.data?.status !== "success"
+    ) {
+      console.error("PAYSTACK VERIFICATION FAILED:", {
+        reference,
+        message: verification.message,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "payment_verification_failed",
+      });
     }
 
     const payData = verification.data;
-    const meta = payData?.metadata || {};
-    const customFields: any[] = meta.custom_fields || [];
-    const getCustom = (name: string) => customFields.find((f: any) => f.variable_name === name || f.display_name === name)?.value;
 
-    let userId = meta.userId || meta.user_id || getCustom("userId") || getCustom("user_id");
-    let packageId = (meta.packageId || meta.package_id || getCustom("packageId") || getCustom("package_id") || "").toLowerCase();
-    let credits = Number(meta.credits || getCustom("credits") || 0);
-    let amount = Math.round((payData.amount || 0) / 100);
+    // STEP 2: Confirm the Paystack reference matches our request.
+    if (payData.reference !== reference) {
+      console.error("PAYMENT REFERENCE MISMATCH:", reference);
 
-    // FIXED: Only select columns that REALLY exist in your api_payments table
-    const { data: dbPayment } = await supabaseAdmin
+      return redirectToMarketplace(request, {
+        error: "reference_mismatch",
+      });
+    }
+
+    // STEP 3: Find the pending payment created during initialization.
+    const {
+      data: dbPayment,
+      error: paymentLookupError,
+    } = await supabaseAdmin
       .from("api_payments")
-      .select("reference, user_id, package_id, amount, credits, payment_status")
+      .select(`
+        id,
+        user_id,
+        package_id,
+        reference,
+        amount,
+        currency,
+        credits,
+        payment_status
+      `)
       .eq("reference", reference)
       .maybeSingle();
 
-    if ((!userId || !packageId) && dbPayment) {
-      userId = dbPayment.user_id;
-      packageId = dbPayment.package_id;
-      credits = dbPayment.credits || credits;
-      amount = dbPayment.amount || amount;
-    }
+    if (paymentLookupError) {
+      console.error(
+        "PAYMENT RECORD LOOKUP ERROR:",
+        paymentLookupError.message
+      );
 
-    if (!userId || !packageId) {
-      return redirectToMarketplace(request, { error: "invalid_payment_record" });
-    }
-
-    const pkg = PACKAGES[packageId];
-    if (pkg) {
-      if (!credits) credits = pkg.credits;
-      if (!amount) amount = pkg.amount;
-    }
-
-    const alreadySuccess = dbPayment?.payment_status === "success";
-    let credited = false;
-
-    if (!alreadySuccess) {
-      const { data: result, error: rpcError } = await supabaseAdmin.rpc("complete_api_payment", {
-        p_reference: reference,
-        p_paystack_transaction_id: String(payData.id),
+      return redirectToMarketplace(request, {
+        error: "payment_record_lookup_failed",
       });
-      if (!rpcError && result?.success) {
-        credited = true;
-        credits = result.credits || credits;
-      }
-    } else {
-      credited = true;
     }
 
-    // --- SAVE PAYMENT + AUTO-CREATE KEY IF NO KEY ---
-    if (!credited || alreadySuccess) {
-      if (!dbPayment) {
-        // FIXED: No currency, no paystack_transaction_id - your table no get am
-        await supabaseAdmin.from("api_payments").insert({
-          user_id: userId, package_id: packageId, reference, amount, credits,
-          payment_status: "success", paid_at: new Date().toISOString(),
-        });
-      } else {
-        await supabaseAdmin.from("api_payments").update({
-          payment_status: "success", amount, credits, paid_at: new Date().toISOString(),
-        }).eq("reference", reference);
-      }
+    // Never credit a transaction without its original payment record.
+    if (!dbPayment || !dbPayment.user_id) {
+      console.error("PAYMENT RECORD NOT FOUND:", reference);
 
-      // Find key
-      let key: any = null;
-      const { data: activeKey } = await supabaseAdmin.from("api_keys")
-        .select("id, paid_requests_remaining, credits_remaining, remaining_credits")
-        .eq("user_id", userId).eq("is_active", true)
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      key = activeKey;
-
-      if (!key) {
-        const { data: anyKey } = await supabaseAdmin.from("api_keys")
-          .select("id, paid_requests_remaining, credits_remaining, remaining_credits")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false }).limit(1).maybeSingle();
-        key = anyKey;
-      }
-
-      if (key) {
-        if (!alreadySuccess) {
-          const newPaid = (key.paid_requests_remaining || 0) + credits;
-          await supabaseAdmin.from("api_keys").update({
-            paid_requests_remaining: newPaid,
-            credits_remaining: (key.credits_remaining || 0) + credits,
-            remaining_credits: (key.remaining_credits || 0) + credits,
-          }).eq("id", key.id);
-        }
-        credited = true;
-      } else {
-        // *** UPGRADED: AUTO-CREATE - USES ONLY YOUR REAL COLUMNS ***
-        const newKey = generateApiKey();
-        const { error: createErr } = await supabaseAdmin.from("api_keys").insert({
-          user_id: userId,
-          key: newKey,
-          key_prefix: newKey.slice(0, 7),
-          name: `${pkg?.name || packageId} Key`,
-          is_active: true,
-          status: "active",
-          plan: packageId,
-          type: "paid",
-          paid_requests_remaining: credits,
-          free_requests_remaining: 0,
-          credits_remaining: credits,
-          remaining_credits: credits,
-          credits_limit: credits,
-          credits_used: 0,
-          used_credits: 0,
-        });
-        if (createErr) {
-          console.error("AUTO CREATE KEY FAILED:", createErr.message);
-        } else {
-          credited = true;
-        }
-      }
+      return redirectToMarketplace(request, {
+        error: "payment_record_not_found",
+      });
     }
 
-    if (!credited) return redirectToMarketplace(request, { error: "credit_processing_failed" });
-    return redirectToMarketplace(request, { success: packageId, credits: String(credits) });
+    // STEP 4: Check the package against our approved package list.
+    const packageId = String(dbPayment.package_id || "").toLowerCase();
+    const selectedPackage = PACKAGES[packageId];
+
+    if (!selectedPackage) {
+      return redirectToMarketplace(request, {
+        error: "invalid_package",
+      });
+    }
+
+    // STEP 5: Confirm the actual Paystack amount and currency.
+    const expectedAmountInKobo = Number(dbPayment.amount) * 100;
+    const actualAmountInKobo = Number(payData.amount);
+
+    if (
+      !Number.isFinite(expectedAmountInKobo) ||
+      expectedAmountInKobo <= 0 ||
+      actualAmountInKobo !== expectedAmountInKobo ||
+      String(payData.currency).toUpperCase() !== "NGN" ||
+      String(dbPayment.currency || "NGN").toUpperCase() !== "NGN"
+    ) {
+      console.error("PAYMENT AMOUNT OR CURRENCY MISMATCH:", {
+        reference,
+        expectedAmountInKobo,
+        actualAmountInKobo,
+        paystackCurrency: payData.currency,
+        databaseCurrency: dbPayment.currency,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "payment_amount_mismatch",
+      });
+    }
+
+    // STEP 6: Confirm the recorded credits match the selected package.
+    if (
+      Number(dbPayment.credits) !== selectedPackage.credits ||
+      Number(dbPayment.amount) !== selectedPackage.amount
+    ) {
+      console.error("PAYMENT PACKAGE DATA MISMATCH:", {
+        reference,
+        packageId,
+        recordedCredits: dbPayment.credits,
+        expectedCredits: selectedPackage.credits,
+        recordedAmount: dbPayment.amount,
+        expectedAmount: selectedPackage.amount,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "payment_package_mismatch",
+      });
+    }
+
+    // STEP 7: If already successful, do not credit again.
+    if (dbPayment.payment_status === "successful") {
+      return redirectToMarketplace(request, {
+        success: packageId,
+        credits: String(dbPayment.credits),
+      });
+    }
+
+    if (dbPayment.payment_status !== "pending") {
+      console.error("PAYMENT IS NOT PENDING:", {
+        reference,
+        status: dbPayment.payment_status,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "payment_not_pending",
+      });
+    }
+
+    // STEP 8: Complete payment and credit through the atomic RPC.
+    // The RPC locks the payment row and prevents duplicate crediting.
+    const {
+      data: result,
+      error: rpcError,
+    } = await supabaseAdmin.rpc("complete_api_payment", {
+      p_reference: reference,
+      p_paystack_transaction_id: String(payData.id),
+    });
+
+    if (rpcError) {
+      console.error("COMPLETE API PAYMENT RPC ERROR:", {
+        reference,
+        message: rpcError.message,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "credit_processing_failed",
+      });
+    }
+
+    if (!result?.success) {
+      console.error("PAYMENT CREDITING NOT COMPLETED:", {
+        reference,
+        result,
+      });
+
+      return redirectToMarketplace(request, {
+        error: "credit_processing_failed",
+      });
+    }
+
+    // STEP 9: Payment is now successfully completed.
+    return redirectToMarketplace(request, {
+      success: packageId,
+      credits: String(result.credits || dbPayment.credits),
+    });
   } catch (error: any) {
-    console.error("PAYSTACK VERIFY ERROR:", error?.message || error);
-    return redirectToMarketplace(request, { error: "verification_unavailable" });
+    console.error(
+      "PAYSTACK VERIFY ERROR:",
+      error?.message || error
+    );
+
+    return redirectToMarketplace(request, {
+      error: "verification_unavailable",
+    });
   }
 }
