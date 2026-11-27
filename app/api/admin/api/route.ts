@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify the Chairman's Supabase session.
     const authClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
@@ -72,7 +71,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Verify Chairman flag in profiles.
     const { data: profile, error: profileError } =
       await supabaseAdmin
         .from("profiles")
@@ -110,8 +108,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // IMPORTANT:
-    // Never send the full API key or key_hash to the browser.
+    // --------------------------------------------------
+    // API KEYS
+    // --------------------------------------------------
+
     const { data: apiKeys, error: keysError } =
       await supabaseAdmin
         .from("api_keys")
@@ -166,46 +166,184 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const customers = (apiKeys || []).map((key) => ({
-      id: key.id,
-      user_id: key.user_id,
-      email: key.email,
-      name: key.name,
-      business_name: key.business_name,
-      key_prefix: key.key_prefix,
+    // --------------------------------------------------
+    // PAYMENT RECORDS
+    //
+    // Payment information now comes from api_payments.
+    // We do NOT modify api_keys here.
+    // --------------------------------------------------
 
-      // Current billing values used by atomic_credit_deduct.
-      credits_remaining:
-        key.credits_remaining ?? 0,
-      credits_used:
-        key.credits_used ?? 0,
-      credits_total:
-        key.credits_total ?? 0,
+    const { data: payments, error: paymentsError } =
+      await supabaseAdmin
+        .from("api_payments")
+        .select(
+          `
+          id,
+          user_id,
+          package_id,
+          reference,
+          amount,
+          credits,
+          payment_status,
+          paystack_transaction_id,
+          paid_at,
+          created_at
+        `
+        )
+        .order("created_at", {
+          ascending: false,
+        });
 
-      // Existing free/paid balances.
-      free_requests_remaining:
-        key.free_requests_remaining ?? 0,
-      paid_requests_remaining:
-        key.paid_requests_remaining ?? 0,
+    if (paymentsError) {
+      console.error(
+        "API PAYMENTS LOOKUP ERROR:",
+        paymentsError.message
+      );
 
-      plan: key.plan,
-      tier: key.tier,
-      type: key.type,
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Could not load payment records.",
+        },
+        { status: 500 }
+      );
+    }
 
-      status: key.status,
-      is_active: key.is_active === true,
-      is_approved: key.is_approved === true,
-      is_free: key.is_free === true,
-      has_claimed_free:
-        key.has_claimed_free === true,
+    // --------------------------------------------------
+    // FIND THE MOST RECENT PAYMENT FOR EACH USER
+    // --------------------------------------------------
 
-      amount_paid: key.amount_paid ?? 0,
-      paystack_ref: key.paystack_ref,
-      payment_ref: key.payment_ref,
-      payment_status: key.payment_status,
+    const latestPaymentByUser = new Map<
+      string,
+      any
+    >();
 
-      created_at: key.created_at,
-    }));
+    for (const payment of payments || []) {
+      if (!payment.user_id) continue;
+
+      if (!latestPaymentByUser.has(payment.user_id)) {
+        latestPaymentByUser.set(
+          payment.user_id,
+          payment
+        );
+      }
+    }
+
+    // --------------------------------------------------
+    // BUILD CUSTOMER DATA
+    // --------------------------------------------------
+
+    const customers = (apiKeys || []).map((key) => {
+      const latestPayment = key.user_id
+        ? latestPaymentByUser.get(key.user_id)
+        : null;
+
+      const paymentIsSuccessful =
+        latestPayment?.payment_status ===
+          "successful" ||
+        latestPayment?.payment_status === "success";
+
+      return {
+        id: key.id,
+        user_id: key.user_id,
+        email: key.email,
+        name: key.name,
+        business_name: key.business_name,
+        key_prefix: key.key_prefix,
+
+        credits_remaining:
+          key.credits_remaining ?? 0,
+
+        credits_used:
+          key.credits_used ?? 0,
+
+        credits_total:
+          key.credits_total ?? 0,
+
+        free_requests_remaining:
+          key.free_requests_remaining ?? 0,
+
+        paid_requests_remaining:
+          key.paid_requests_remaining ?? 0,
+
+        plan: key.plan,
+        tier: key.tier,
+        type: key.type,
+
+        status: key.status,
+        is_active: key.is_active === true,
+        is_approved: key.is_approved === true,
+        is_free: key.is_free === true,
+        has_claimed_free:
+          key.has_claimed_free === true,
+
+        // ------------------------------------------------
+        // PAYMENT INFORMATION
+        //
+        // Prefer api_payments.
+        // Fall back to the existing api_keys fields
+        // so old customers are not broken.
+        // ------------------------------------------------
+
+        amount_paid:
+          latestPayment?.amount ??
+          key.amount_paid ??
+          0,
+
+        paystack_ref:
+          latestPayment?.reference ??
+          key.paystack_ref ??
+          key.payment_ref ??
+          null,
+
+        payment_ref:
+          latestPayment?.reference ??
+          key.payment_ref ??
+          key.paystack_ref ??
+          null,
+
+        payment_status:
+          paymentIsSuccessful
+            ? "successful"
+            : latestPayment?.payment_status ??
+              key.payment_status ??
+              null,
+
+        latest_payment: latestPayment
+          ? {
+              package_id:
+                latestPayment.package_id,
+
+              amount:
+                latestPayment.amount,
+
+              credits:
+                latestPayment.credits,
+
+              reference:
+                latestPayment.reference,
+
+              status:
+                latestPayment.payment_status,
+
+              paystack_transaction_id:
+                latestPayment.paystack_transaction_id,
+
+              paid_at:
+                latestPayment.paid_at,
+
+              created_at:
+                latestPayment.created_at,
+            }
+          : null,
+
+        created_at: key.created_at,
+      };
+    });
+
+    // --------------------------------------------------
+    // SUMMARY
+    // --------------------------------------------------
 
     const totalKeys = customers.length;
 
@@ -243,6 +381,32 @@ export async function GET(request: NextRequest) {
         (customer) => !customer.is_free
       ).length;
 
+    // --------------------------------------------------
+    // PAYMENT SUMMARY
+    // --------------------------------------------------
+
+    const successfulPayments =
+      (payments || []).filter(
+        (payment) =>
+          payment.payment_status ===
+            "successful" ||
+          payment.payment_status === "success"
+      );
+
+    const totalPaymentRevenue =
+      successfulPayments.reduce(
+        (sum, payment) =>
+          sum + (payment.amount || 0),
+        0
+      );
+
+    const totalCreditsPurchased =
+      successfulPayments.reduce(
+        (sum, payment) =>
+          sum + (payment.credits || 0),
+        0
+      );
+
     return NextResponse.json({
       success: true,
 
@@ -252,10 +416,21 @@ export async function GET(request: NextRequest) {
         inactive_keys: inactiveKeys,
         free_customers: freeCustomers,
         paid_customers: paidCustomers,
+
         total_remaining_credits:
           totalRemainingCredits,
+
         total_used_credits:
           totalUsedCredits,
+
+        successful_payments:
+          successfulPayments.length,
+
+        total_payment_revenue:
+          totalPaymentRevenue,
+
+        total_credits_purchased:
+          totalCreditsPurchased,
       },
 
       customers,
