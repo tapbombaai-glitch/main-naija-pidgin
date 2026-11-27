@@ -72,6 +72,8 @@ export default function WorkersPage() {
   const [remoteSentences, setRemoteSentences] = useState<string[] | null>(null);
   const [frozenSentence, setFrozenSentence] = useState<string | null>(null);
   const frozenSentenceRef = useRef<string | null>(null);
+  // FIX: Prevent auto-refresh from overwriting bank form while worker is typing
+  const isEditingBankRef = useRef(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<any>(null);
@@ -113,6 +115,8 @@ export default function WorkersPage() {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
   const loadBankFromSupabase = async (wid: string) => {
+    // FIX: Do not overwrite bank form while worker is typing/editing
+    if (isEditingBankRef.current) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
@@ -359,6 +363,7 @@ export default function WorkersPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok || j.success === false) { throw new Error(j.error || "Bank save failed."); }
       setBankSavedLabel(`Saved: ${bankName.trim()} • ${accountNumber.trim()} • ${accountName.trim()}`);
+      isEditingBankRef.current = false;
       setShowModal(null);
       showToast("✅ Bank details saved successfully.");
       await loadBankFromSupabase(wid);
@@ -609,7 +614,7 @@ export default function WorkersPage() {
           {audioURL && <audio controls src={audioURL} style={{ width: "100%", marginTop: "10px" }} />}
         </div>
 
-        <button type="button" onClick={() => setShowModal("bank")} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS {bankSavedLabel ? "✅ SAVED" : ""}</button>
+        <button type="button" onClick={() => { isEditingBankRef.current = true; setShowModal("bank"); }} style={{ width: "100%", marginTop: "12px", padding: "15px", borderRadius: "12px", border: "1px solid #EAB308", background: "linear-gradient(135deg, #3a2d00, #191500)", color: "#FACC15", fontWeight: "900", fontSize: "13px", cursor: "pointer" }}>💳 PAYMENT / BANK DETAILS {bankSavedLabel ? "✅ SAVED" : ""}</button>
         {bankSavedLabel && (
           <div style={{ background: "#0F1A0F", border: "1px solid #00E676", borderRadius: "10px", padding: "10px", marginTop: "8px", fontSize: "12px" }}>
             <b style={{ color: "#00E676" }}>✅ Your Saved Bank:</b>
@@ -676,12 +681,12 @@ export default function WorkersPage() {
             <div style={{ background: "#111A11", borderRadius: "14px", padding: "18px", width: "100%", maxWidth: "360px" }}>
               <h3 style={{ margin: 0 }}>💳 Bank Details — Saved to Database</h3>
               <p style={{ fontSize:11, color:"#aaa" }}>Source of truth: workers table via /api/worker/bank-details (POST)</p>
-              <input value={accountName} onChange={e => { setBankSavedLabel(""); setAccountName(e.target.value); }} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={bankName} onChange={e => { setBankSavedLabel(""); setBankName(e.target.value); }} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={accountNumber} onChange={e => { setBankSavedLabel(""); setAccountNumber(e.target.value); }} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
-              <input value={phoneNumber} onChange={e => { setBankSavedLabel(""); setPhoneNumber(e.target.value); }} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={accountName} onFocus={() => { isEditingBankRef.current = true; }} onChange={e => { setBankSavedLabel(""); setAccountName(e.target.value); }} placeholder="Account Name" style={{ width: "100%", padding: "12px", marginTop: "12px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={bankName} onFocus={() => { isEditingBankRef.current = true; }} onChange={e => { setBankSavedLabel(""); setBankName(e.target.value); }} placeholder="Bank Name" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={accountNumber} onFocus={() => { isEditingBankRef.current = true; }} onChange={e => { setBankSavedLabel(""); setAccountNumber(e.target.value); }} placeholder="Account Number (10 digits)" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
+              <input value={phoneNumber} onFocus={() => { isEditingBankRef.current = true; }} onChange={e => { setBankSavedLabel(""); setPhoneNumber(e.target.value); }} placeholder="Phone Number" style={{ width: "100%", padding: "12px", marginTop: "8px", borderRadius: "10px", border: "1px solid #333", background: "#0A0A0A", color: "white", boxSizing: "border-box" }} />
               <button onClick={saveBankDetails} disabled={bankSaving} style={{ width: "100%", marginTop: "12px", padding: "13px", borderRadius: "10px", background: "#00E676", color: "black", fontWeight: "900", border: "none" }}>{bankSaving ? "Saving..." : "Save Bank to Database"}</button>
-              <button onClick={() => setShowModal(null)} style={{ width: "100%", marginTop: "8px", padding: "12px", borderRadius: "10px", background: "#222", color: "white", border: "1px solid #444" }}>Close</button>
+              <button onClick={() => { isEditingBankRef.current = false; setShowModal(null); }} style={{ width: "100%", marginTop: "8px", padding: "12px", borderRadius: "10px", background: "#222", color: "white", border: "1px solid #444" }}>Close</button>
             </div>
           </div>
         )}
